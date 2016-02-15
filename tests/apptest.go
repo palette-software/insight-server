@@ -7,7 +7,9 @@ import (
 	"github.com/revel/revel/testing"
 
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -82,7 +84,7 @@ func deleteTestTenant(tenant *models.Tenant) {
 }
 
 // Tries to upload the contents of a file then returns the possible uploaded path
-func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filename string, contents string) string {
+func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filename string, contents string) controllers.UploadResponse {
 	postReader := strings.NewReader(contents)
 
 	// send the request with http auth
@@ -115,11 +117,8 @@ func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filena
 	// check the contents of the uploaded file
 	t.Assertf(fileCheckContents(uploadPath, contents), "Contents of output file '%v' does not match the test content", uploadPath)
 
-	return uploadPath
+	return uploadResponse
 }
-
-// TEST CASES
-// ==========
 
 // AUTH TESTS
 // ----------
@@ -136,7 +135,7 @@ func (t *AppTest) TestIncorrectPasswordShouldNotWork() {
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword+"----")
 	postRequest.Send()
 
-	t.AssertStatus(403)
+	t.AssertStatus(401)
 }
 
 // check for a simple upload
@@ -151,7 +150,7 @@ func (t *AppTest) TestIncorrectUserShouldNotWork() {
 	postRequest.SetBasicAuth(testTenantUsername+"----", testTenantPassword)
 	postRequest.Send()
 
-	t.AssertStatus(403)
+	t.AssertStatus(401)
 }
 
 // Check if we can use a users login credentials to write to another users
@@ -188,10 +187,67 @@ func (t *AppTest) TestMultipleFilesSameName() {
 	t.Assertf(uploadPath1 != uploadPath2, "Multiple uploads must result in different uploaded file names")
 }
 
-//func (t *AppTest) TestThatUsernamePasswordIsRequired() {
-//postReader := strings.NewReader("HELLO WORLD")
+// SIGNATURE CHECKS
+// ================
 
-//t.Post(routes.App.Upload(tenant, pkg, filename), "text/plain", postReader)
-//t.AssertOk()
+// check for a simple upload
+func (t *AppTest) TestFileSiginitureOk() {
 
-//}
+	data := "HELLO WORLD"
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
+
+	response := sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, data)
+	t.Assertf(response.Md5 == hash, "Hash of sent data does not match reply")
+}
+
+// check for a simple upload
+func (t *AppTest) TestFileSiginitureFail() {
+
+	data := "HELLO WORLD 2"
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
+
+	response := sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, "HELLO WORLD")
+	t.Assertf(response.Md5 != hash, "Hash of sent data should not match reply")
+}
+
+// Tests if sending a signature with the request properly rejects wrong data
+func (t *AppTest) TestSendingMd5SignatureRejection() {
+
+	data := "HELLO WORLD"
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
+
+	// modify the data, so the MD5 must also change
+	postReader := strings.NewReader(data + "--")
+
+	// send the request with http auth
+	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	revel.INFO.Printf("====> URL: %v", t.BaseUrl()+postUri+"?md5="+hash)
+	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
+	// supplly an invalid password
+	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
+	postRequest.Send()
+
+	// He are expecting a 409 - Conflict here
+	t.AssertStatus(409)
+}
+
+// Tests if sending a signature with the request properly rejects wrong data
+func (t *AppTest) TestSendingMd5SignatureAcceptance() {
+
+	data := "HELLO WORLD"
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
+
+	// modify the data, so the MD5 must also change
+	postReader := strings.NewReader(data)
+
+	// send the request with http auth
+	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	revel.INFO.Printf("====> URL: %v", t.BaseUrl()+postUri+"?md5="+hash)
+	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
+	// supplly an invalid password
+	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
+	postRequest.Send()
+
+	// He are expecting a 409 - Conflict here
+	t.AssertOk()
+}

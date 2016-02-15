@@ -63,8 +63,8 @@ func getContentHash(fileContents []byte) string {
 }
 
 // Creates an authentication error response
-func (c *App) authError() revel.Result {
-	c.Response.Status = 403
+func (c *App) respondWith(status int) revel.Result {
+	c.Response.Status = status
 	return c.Render()
 }
 
@@ -92,17 +92,17 @@ func (c *App) CheckUserAuth() revel.Result {
 	username, password, authOk := c.Request.BasicAuth()
 	if !authOk {
 		revel.INFO.Printf("[auth] No auth information provided in request")
-		return c.authError()
+		return c.respondWith(401)
 	}
 
 	// check password / username
 	tenant, isValidTenant := models.IsValidTenant(Dbm, username, password)
 	if !isValidTenant {
 		revel.INFO.Printf("[auth] not a valid user: %v", username)
-		return c.authError()
+		return c.respondWith(401)
 	}
 
-	revel.INFO.Printf("[auth] User: %v", username)
+	revel.TRACE.Printf("[auth] User: %v", username)
 
 	// set the controllers tenant to the freshly loaded one
 	c.Tenant = tenant
@@ -110,13 +110,32 @@ func (c *App) CheckUserAuth() revel.Result {
 	return nil
 }
 
+// checks if the "md5" URL parameter sent matches fileHash (if there is such a parameter)
+func checkSentMd5(sentMd5, fileHash string) bool {
+
+	// if we are provided with an md5 parameter, check it if the hash is correct
+	if sentMd5 != "" && sentMd5 != fileHash {
+		return false
+	}
+
+	// otherwise we are ok
+	return true
+}
+
 // Handle an actual upload
 func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
+
+	// parse the full request, so we can use the Request.Form parameters that
+	// are passed to us
+	if err := c.Request.ParseForm(); err != nil {
+		return c.RenderError(err)
+	}
 
 	// check if the tenant is a valid one (the CheckUserAuth() fn should have already
 	// pre-filled this field for us)
 	if tenant != c.Tenant.Username {
-		return c.authError()
+		// we signal a 403 because "Unlike a 401 Unauthorized response, authenticating will make no difference."
+		return c.respondWith(403)
 	}
 
 	// get the request time
@@ -133,9 +152,16 @@ func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
 	// calculate the hash
 	fileHash := getContentHash(content)
 
+	// check the MD5 if the client sent it to us
+	if !checkSentMd5(c.Request.Form.Get("md5"), fileHash) {
+		// fail here with a 409 - Conflict for Md5 mismatches
+		return c.respondWith(409)
+	}
+
 	// get the output path
 	outputPath := getUploadPath(tenant, pkg, filename, requestTime, fileHash)
 
+	// do some minimal logging
 	revel.INFO.Printf("got %v bytes for %v / %v / %v -- hash is: %v", len(content), tenant, pkg, filename, fileHash)
 
 	// create the directory of the file
