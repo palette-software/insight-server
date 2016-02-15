@@ -57,7 +57,10 @@ func InitDB() {
 	//"NameOnCard": 50,
 	//})
 
-	Dbm.TraceOn("[gorp]", r.INFO)
+	// only show  query info when in dev mode
+	if r.DevMode {
+		Dbm.TraceOn("[gorp]", r.INFO)
+	}
 	Dbm.CreateTables()
 
 	bcryptPassword, _ := bcrypt.GenerateFromPassword([]byte("demo"), bcrypt.DefaultCost)

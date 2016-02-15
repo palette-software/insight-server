@@ -9,4 +9,6 @@ func init() {
 	//revel.InterceptMethod(Hotels.checkUser, revel.BEFORE)
 	revel.InterceptMethod((*MigrationsController).Commit, revel.AFTER)
 	revel.InterceptMethod((*MigrationsController).Rollback, revel.FINALLY)
+
+	revel.InterceptMethod((*App).CheckUserAuth, revel.BEFORE)
 }

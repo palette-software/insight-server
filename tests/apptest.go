@@ -121,6 +121,9 @@ func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filena
 // TEST CASES
 // ==========
 
+// AUTH TESTS
+// ----------
+
 // check for a simple upload
 func (t *AppTest) TestIncorrectPasswordShouldNotWork() {
 
@@ -150,6 +153,25 @@ func (t *AppTest) TestIncorrectUserShouldNotWork() {
 
 	t.AssertStatus(403)
 }
+
+// Check if we can use a users login credentials to write to another users
+// logs
+func (t *AppTest) TestUsernameShouldMatchTenant() {
+
+	postReader := strings.NewReader("HELLO WORLD")
+
+	// send the request with http auth
+	postUri := routes.App.Upload(testTenantUsername+"-alt", testPkg, testFileName)
+	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
+	// supplly an invalid password
+	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
+	postRequest.Send()
+
+	t.AssertStatus(403)
+}
+
+// UPLOAD TESTS
+// ------------
 
 // check for a simple upload
 func (t *AppTest) TestThatFilesCanBeUploaded() {

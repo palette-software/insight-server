@@ -47,7 +47,6 @@ func ValidatePassword(v *revel.Validation, password string) *revel.ValidationRes
 
 func NewTenant(username string, password string, fullName string) *Tenant {
 	bcryptPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	revel.INFO.Printf("Password is: %v crypt: %v", password, bcryptPassword)
 
 	return &Tenant{
 		Name:           fullName,
@@ -77,7 +76,7 @@ func DeleteTenant(Dbm *gorp.DbMap, tenant *Tenant) {
 }
 
 // Returns true if there is a tenant registered in the database with the given password
-func IsValidTenant(dbmap *gorp.DbMap, username string, password string) bool {
+func IsValidTenant(dbmap *gorp.DbMap, username string, password string) (*Tenant, bool) {
 
 	// try to load the user by username from the db
 	tenant := Tenant{}
@@ -85,10 +84,14 @@ func IsValidTenant(dbmap *gorp.DbMap, username string, password string) bool {
 
 	if err != nil {
 		revel.TRACE.Printf("cannot load user: %v", err)
-		return false
+		return nil, false
 	}
 
 	// check the password hash
 	checkResult := bcrypt.CompareHashAndPassword(tenant.HashedPassword, []byte(password))
-	return checkResult == nil
+	if checkResult == nil {
+		return &tenant, true
+	} else {
+		return nil, false
+	}
 }

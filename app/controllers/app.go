@@ -35,6 +35,7 @@ type UploadResponse struct {
 // The application controller itself
 type App struct {
 	*revel.Controller
+	Tenant *models.Tenant
 }
 
 func (c *App) Index() revel.Result {
@@ -83,17 +84,38 @@ func getUploadPath(tenant string, pkg string, filename string, requestTime time.
 	return filepath.ToSlash(path.Join(OUTPUT_DIR, sanitizeName(tenant), "uploads", sanitizeName(pkg), folderTimestamp, fullFileName))
 }
 
-// Handle an actual upload
-func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
-
+// Interceptor filter for all actions in controllers that require authentication
+//
+// Checks the auth information from the request, and fails if it isnt there or the auth
+// info does not correspond to the
+func (c *App) CheckUserAuth() revel.Result {
 	username, password, authOk := c.Request.BasicAuth()
 	if !authOk {
+		revel.INFO.Printf("[auth] No auth information provided in request")
 		return c.authError()
 	}
 
 	// check password / username
-	isValidTenant := models.IsValidTenant(Dbm, username, password)
+	tenant, isValidTenant := models.IsValidTenant(Dbm, username, password)
 	if !isValidTenant {
+		revel.INFO.Printf("[auth] not a valid user: %v", username)
+		return c.authError()
+	}
+
+	revel.INFO.Printf("[auth] User: %v", username)
+
+	// set the controllers tenant to the freshly loaded one
+	c.Tenant = tenant
+
+	return nil
+}
+
+// Handle an actual upload
+func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
+
+	// check if the tenant is a valid one (the CheckUserAuth() fn should have already
+	// pre-filled this field for us)
+	if tenant != c.Tenant.Username {
 		return c.authError()
 	}
 
@@ -105,7 +127,7 @@ func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
 	// read the contents of the post body
 	content, err := ioutil.ReadAll(requestBody)
 	if err != nil {
-		c.RenderError(err)
+		return c.RenderError(err)
 	}
 
 	// calculate the hash
@@ -119,7 +141,7 @@ func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
 	// create the directory of the file
 	err = os.MkdirAll(filepath.Dir(outputPath), OUTPUT_DEFAULT_DIRMODE)
 	if err != nil {
-		c.RenderError(err)
+		return c.RenderError(err)
 	}
 
 	// write out the contents to a new file
