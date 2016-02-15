@@ -23,9 +23,15 @@ const (
 	testPkg      = "testPkg"
 	testFileName = "log.txt"
 
+	testTenantUsername = "testTenant"
+	testTenantPassword = "testTenantPw"
+
 	testFileContents  = "HELLO WORLD"
 	testFileContents2 = "hello world 2"
 )
+
+// TEST GROUP SETUP
+// ================
 
 type AppTest struct {
 	testing.TestSuite
@@ -34,13 +40,23 @@ type AppTest struct {
 }
 
 func (t *AppTest) Before() {
-	println("Set up")
+	// create a tenant for the test run
 	t.tenant = createTestTenant(testTenantUsername, testTenantPassword)
 }
 
 func (t *AppTest) After() {
-	println("Tear down")
+	// delete the existing test tenant, so the DB stays relatively clean
 	deleteTestTenant(t.tenant)
+}
+
+// creates a tenant in the database for testing
+func createTestTenant(username string, password string) *models.Tenant {
+	return models.CreateTenant(controllers.Dbm, username, password, "Test User")
+}
+
+// removes a tenant from the database
+func deleteTestTenant(tenant *models.Tenant) {
+	models.DeleteTenant(controllers.Dbm, tenant)
 }
 
 // SIMPLE HELPERS
@@ -69,20 +85,6 @@ func fileCheckContents(fileName string, contents string) bool {
 
 // TESTING HELPERS
 // ===============
-
-const (
-	testTenantUsername = "testTenant"
-	testTenantPassword = "testTenantPw"
-)
-
-func createTestTenant(username string, password string) *models.Tenant {
-	return models.CreateTenant(controllers.Dbm, username, password, "Test User")
-}
-
-func deleteTestTenant(tenant *models.Tenant) {
-	models.DeleteTenant(controllers.Dbm, tenant)
-}
-
 // Tries to upload the contents of a file then returns the possible uploaded path
 func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filename string, contents string) controllers.UploadResponse {
 	postReader := strings.NewReader(contents)
@@ -221,9 +223,7 @@ func (t *AppTest) TestSendingMd5SignatureRejection() {
 
 	// send the request with http auth
 	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
-	revel.INFO.Printf("====> URL: %v", t.BaseUrl()+postUri+"?md5="+hash)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
-	// supplly an invalid password
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
 	postRequest.Send()
 
@@ -237,17 +237,14 @@ func (t *AppTest) TestSendingMd5SignatureAcceptance() {
 	data := "HELLO WORLD"
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
 
-	// modify the data, so the MD5 must also change
 	postReader := strings.NewReader(data)
 
 	// send the request with http auth
 	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
-	revel.INFO.Printf("====> URL: %v", t.BaseUrl()+postUri+"?md5="+hash)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
-	// supplly an invalid password
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
 	postRequest.Send()
 
-	// He are expecting a 409 - Conflict here
+	// since the data and the md5 hash matches, we should be ok here
 	t.AssertOk()
 }
