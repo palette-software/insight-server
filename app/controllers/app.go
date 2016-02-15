@@ -3,6 +3,7 @@ package controllers
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/palette-software/insight-webservice-go/app/models"
 	"github.com/revel/revel"
 	"io/ioutil"
 	"os"
@@ -36,7 +37,7 @@ type App struct {
 	*revel.Controller
 }
 
-func (c App) Index() revel.Result {
+func (c *App) Index() revel.Result {
 	return c.Render()
 }
 
@@ -60,6 +61,12 @@ func getContentHash(fileContents []byte) string {
 
 }
 
+// Creates an authentication error response
+func (c *App) authError() revel.Result {
+	c.Response.Status = 403
+	return c.Render()
+}
+
 /// Returns the path where a file needs to be placed
 func getUploadPath(tenant string, pkg string, filename string, requestTime time.Time, fileHash string) string {
 	// the folder name is only the date
@@ -77,7 +84,18 @@ func getUploadPath(tenant string, pkg string, filename string, requestTime time.
 }
 
 // Handle an actual upload
-func (c App) Upload(tenant string, pkg string, filename string) revel.Result {
+func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
+
+	username, password, authOk := c.Request.BasicAuth()
+	if !authOk {
+		return c.authError()
+	}
+
+	// check password / username
+	isValidTenant := models.IsValidTenant(Dbm, username, password)
+	if !isValidTenant {
+		return c.authError()
+	}
 
 	// get the request time
 	requestTime := time.Now()

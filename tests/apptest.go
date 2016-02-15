@@ -2,6 +2,7 @@ package tests
 
 import (
 	"github.com/palette-software/insight-webservice-go/app/controllers"
+	"github.com/palette-software/insight-webservice-go/app/models"
 	"github.com/palette-software/insight-webservice-go/app/routes"
 	"github.com/revel/revel/testing"
 
@@ -26,14 +27,18 @@ const (
 
 type AppTest struct {
 	testing.TestSuite
+
+	tenant *models.Tenant
 }
 
 func (t *AppTest) Before() {
 	println("Set up")
+	t.tenant = createTestTenant(testTenantUsername, testTenantPassword)
 }
 
 func (t *AppTest) After() {
 	println("Tear down")
+	deleteTestTenant(t.tenant)
 }
 
 // SIMPLE HELPERS
@@ -63,11 +68,30 @@ func fileCheckContents(fileName string, contents string) bool {
 // TESTING HELPERS
 // ===============
 
+const (
+	testTenantUsername = "testTenant"
+	testTenantPassword = "testTenantPw"
+)
+
+func createTestTenant(username string, password string) *models.Tenant {
+	return models.CreateTenant(controllers.Dbm, username, password, "Test User")
+}
+
+func deleteTestTenant(tenant *models.Tenant) {
+	models.DeleteTenant(controllers.Dbm, tenant)
+}
+
 // Tries to upload the contents of a file then returns the possible uploaded path
-func sendAsUpload(t *AppTest, tenant string, pkg string, filename string, contents string) string {
+func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filename string, contents string) string {
 	postReader := strings.NewReader(contents)
 
-	t.Post(routes.App.Upload(tenant, pkg, filename), "text/plain", postReader)
+	// send the request with http auth
+	postUri := routes.App.Upload(tenant, pkg, filename)
+	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
+	postRequest.SetBasicAuth(tenant, password)
+	postRequest.Send()
+
+	// check if the rquest is successful
 	t.AssertOk()
 
 	t.Assertf(len(t.ResponseBody) > 0, "The response for uploads must be larger then 0 bytes")
@@ -98,16 +122,54 @@ func sendAsUpload(t *AppTest, tenant string, pkg string, filename string, conten
 // ==========
 
 // check for a simple upload
+func (t *AppTest) TestIncorrectPasswordShouldNotWork() {
+
+	postReader := strings.NewReader("HELLO WORLD")
+
+	// send the request with http auth
+	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
+	// supplly an invalid password
+	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword+"----")
+	postRequest.Send()
+
+	t.AssertStatus(403)
+}
+
+// check for a simple upload
+func (t *AppTest) TestIncorrectUserShouldNotWork() {
+
+	postReader := strings.NewReader("HELLO WORLD")
+
+	// send the request with http auth
+	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
+	// supplly an invalid password
+	postRequest.SetBasicAuth(testTenantUsername+"----", testTenantPassword)
+	postRequest.Send()
+
+	t.AssertStatus(403)
+}
+
+// check for a simple upload
 func (t *AppTest) TestThatFilesCanBeUploaded() {
-	sendAsUpload(t, testTenant, testPkg, testFileName, "HELLO WORLD")
+	sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, "HELLO WORLD")
 }
 
 // check for uploading the same file name multiple times, but the contents and files must be
 // different
 func (t *AppTest) TestMultipleFilesSameName() {
 	// check if both files upload properly
-	uploadPath1 := sendAsUpload(t, testTenant, testPkg, testFileName, "HELLO WORLD")
-	uploadPath2 := sendAsUpload(t, testTenant, testPkg, testFileName, "Hello world 2")
+	uploadPath1 := sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, "HELLO WORLD")
+	uploadPath2 := sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, "Hello world 2")
 
 	t.Assertf(uploadPath1 != uploadPath2, "Multiple uploads must result in different uploaded file names")
 }
+
+//func (t *AppTest) TestThatUsernamePasswordIsRequired() {
+//postReader := strings.NewReader("HELLO WORLD")
+
+//t.Post(routes.App.Upload(tenant, pkg, filename), "text/plain", postReader)
+//t.AssertOk()
+
+//}
