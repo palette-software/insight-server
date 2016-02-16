@@ -9,17 +9,28 @@ import (
 )
 
 type Tenant struct {
-	TenantId           int
-	Name               string
+	// The id in the database
+	TenantId int
+	// The full name of the tenant
+	Name string
+	// The username and password for the tenant to log in
 	Username, Password string
-	HashedPassword     []byte
+	// The name of the directory where we'll save the files.
+	// This allows us to use multiple tenant names working into
+	// the same output directory if necessary
+	HomeDirectory string
+	// A BCrypted hash of the password for the tenant
+	HashedPassword []byte
 }
 
+// Formats a tenant to a string for debuging
 func (u *Tenant) String() string {
-	return fmt.Sprintf("Tenant(%s)", u.Username)
+	return fmt.Sprintf("Tenant{Username:%s, Directory: %v}", u.Username, u.HomeDirectory)
 }
 
+// A regex for matching any non-whitespace character
 var userRegex = regexp.MustCompile("^\\w*$")
+var directoryRegex = regexp.MustCompile("^[a-z-_]+$")
 
 func (user *Tenant) Validate(v *revel.Validation) {
 	v.Check(user.Username,
@@ -35,29 +46,43 @@ func (user *Tenant) Validate(v *revel.Validation) {
 		revel.Required{},
 		revel.MaxSize{100},
 	)
+
+	v.Check(user.HomeDirectory,
+		revel.Required{},
+		revel.Match{directoryRegex},
+	)
 }
 
 func ValidatePassword(v *revel.Validation, password string) *revel.ValidationResult {
 	return v.Check(password,
 		revel.Required{},
-		revel.MaxSize{15},
+		revel.MaxSize{25},
 		revel.MinSize{5},
 	)
 }
 
-func NewTenant(username string, password string, fullName string) *Tenant {
+//  Helper functino to create a new Tenant
+func NewTenant(username, password, fullName string) *Tenant {
+	return NewTenantWithHome(username, password, fullName, username)
+}
+
+//  Helper functino to create a new Tenant
+func NewTenantWithHome(username, password, fullName, homeDir string) *Tenant {
 	bcryptPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// make a valid homedir name out of the homeDir string
+	homeDirName := SanitizeName(homeDir)
 
 	return &Tenant{
 		Name:           fullName,
 		Username:       username,
 		Password:       password,
+		HomeDirectory:  homeDirName,
 		HashedPassword: bcryptPassword,
 	}
 }
 
 // Creates and saves a new tenant into the database
-func CreateTenant(Dbm *gorp.DbMap, username string, password string, fullName string) *Tenant {
+func CreateTenant(Dbm *gorp.DbMap, username, password, fullName string) *Tenant {
 
 	demoUser := NewTenant(username, password, fullName)
 
@@ -76,7 +101,7 @@ func DeleteTenant(Dbm *gorp.DbMap, tenant *Tenant) {
 }
 
 // Returns true if there is a tenant registered in the database with the given password
-func IsValidTenant(dbmap *gorp.DbMap, username string, password string) (*Tenant, bool) {
+func IsValidTenant(dbmap *gorp.DbMap, username, password string) (*Tenant, bool) {
 
 	// try to load the user by username from the db
 	tenant := Tenant{}

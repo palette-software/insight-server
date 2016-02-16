@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"time"
 )
 
@@ -42,17 +41,17 @@ func (c *App) Index() revel.Result {
 	return c.Render()
 }
 
-// Returns a sanitized filename with all non-alphanumeric characters replaced by dashes
-func sanitizeName(name string) string {
-	// sanitize the filename
-	// TODO: refactor this to a static if golang regexp is thread-safe / re-enterant
-	reg, err := regexp.Compile("[^A-Za-z0-9]+")
-	if err != nil {
-		revel.ERROR.Printf("Error compiling regexp: %v", err)
-	}
+//// Returns a sanitized filename with all non-alphanumeric characters replaced by dashes
+//func SanitizeName(name string) string {
+//// sanitize the filename
+//// TODO: refactor this to a static if golang regexp is thread-safe / re-enterant
+//reg, err := regexp.Compile("[^A-Za-z0-9]+")
+//if err != nil {
+//revel.ERROR.Printf("Error compiling regexp: %v", err)
+//}
 
-	return reg.ReplaceAllString(name, "-")
-}
+//return reg.ReplaceAllString(name, "-")
+//}
 
 // get the hash of the contents of the file, so that even files
 // uploaded at the same time can be differentiated (this is important for the
@@ -76,12 +75,12 @@ func getUploadPath(tenant string, pkg string, filename string, requestTime time.
 	fileTimestamp := requestTime.Format("15-04--05-00")
 
 	// get the extension and basename
-	fileBaseName := sanitizeName(path.Base(filename))
-	fileExtName := sanitizeName(path.Ext(filename))
+	fileBaseName := models.SanitizeName(path.Base(filename))
+	fileExtName := models.SanitizeName(path.Ext(filename))
 	fullFileName := fmt.Sprintf("%v-%v-%v.%v", fileBaseName, fileTimestamp, fileHash, fileExtName[1:])
 
 	// the file name is the sanitized file name
-	return filepath.ToSlash(path.Join(OUTPUT_DIR, sanitizeName(tenant), "uploads", sanitizeName(pkg), folderTimestamp, fullFileName))
+	return filepath.ToSlash(path.Join(OUTPUT_DIR, models.SanitizeName(tenant), "uploads", models.SanitizeName(pkg), folderTimestamp, fullFileName))
 }
 
 // Interceptor filter for all actions in controllers that require authentication
