@@ -25,6 +25,7 @@ const (
 )
 
 // The result of an upload operation is of this type.
+// We are returning this as JSON when replying to a valid Upload() request
 type UploadResponse struct {
 	UploadPath string
 	UploadTime time.Time
@@ -40,18 +41,6 @@ type App struct {
 func (c *App) Index() revel.Result {
 	return c.Render()
 }
-
-//// Returns a sanitized filename with all non-alphanumeric characters replaced by dashes
-//func SanitizeName(name string) string {
-//// sanitize the filename
-//// TODO: refactor this to a static if golang regexp is thread-safe / re-enterant
-//reg, err := regexp.Compile("[^A-Za-z0-9]+")
-//if err != nil {
-//revel.ERROR.Printf("Error compiling regexp: %v", err)
-//}
-
-//return reg.ReplaceAllString(name, "-")
-//}
 
 // get the hash of the contents of the file, so that even files
 // uploaded at the same time can be differentiated (this is important for the
@@ -110,6 +99,8 @@ func (c *App) CheckUserAuth() revel.Result {
 }
 
 // checks if the "md5" URL parameter sent matches fileHash (if there is such a parameter)
+// Since url.Values.Get() returns an empty string if the given
+// parameter value is not found, we check against that
 func checkSentMd5(sentMd5, fileHash string) bool {
 
 	// if we are provided with an md5 parameter, check it if the hash is correct

@@ -14,8 +14,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/revel/revel"
 )
 
 const (
@@ -72,8 +70,6 @@ func fileCheckContents(fileName string, contents string) bool {
 		return false
 	}
 
-	revel.TRACE.Printf("conetnts: %v", fileContents)
-
 	// check the contents
 	return bytes.Compare([]byte(contents), fileContents) == 0
 }
@@ -87,7 +83,6 @@ func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filena
 	// send the request with http auth
 	postUri := routes.App.Upload(pkg, filename)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
-	revel.INFO.Printf("----> URL: %v", t.BaseUrl()+postUri)
 
 	postRequest.SetBasicAuth(tenant, password)
 	postRequest.Send()
