@@ -33,12 +33,12 @@ type UploadResponse struct {
 }
 
 // The application controller itself
-type App struct {
+type CsvUpload struct {
 	*revel.Controller
 	Tenant *models.Tenant
 }
 
-func (c *App) Index() revel.Result {
+func (c *CsvUpload) Index() revel.Result {
 	return c.Render()
 }
 
@@ -51,7 +51,7 @@ func getContentHash(fileContents []byte) string {
 }
 
 // Creates an authentication error response
-func (c *App) respondWith(status int) revel.Result {
+func (c *CsvUpload) respondWith(status int) revel.Result {
 	c.Response.Status = status
 	return c.Render()
 }
@@ -76,7 +76,7 @@ func getUploadPath(tenantHome, pkg, filename string, requestTime time.Time, file
 //
 // Checks the auth information from the request, and fails if it isnt there or the auth
 // info does not correspond to the
-func (c *App) CheckUserAuth() revel.Result {
+func (c *CsvUpload) CheckUserAuth() revel.Result {
 	username, password, authOk := c.Request.BasicAuth()
 	if !authOk {
 		revel.INFO.Printf("[AUTH] No auth information provided in request")
@@ -113,7 +113,7 @@ func checkSentMd5(sentMd5, fileHash string) bool {
 }
 
 // Handle an actual upload
-func (c *App) Upload(pkg, filename string) revel.Result {
+func (c *CsvUpload) Upload(pkg, filename string) revel.Result {
 
 	// parse the full request, so we can use the Request.Form parameters that
 	// are passed to us

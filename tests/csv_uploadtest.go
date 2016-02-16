@@ -31,13 +31,13 @@ const (
 // TEST GROUP SETUP
 // ================
 
-type AppTest struct {
+type CsvUploadTest struct {
 	testing.TestSuite
 
 	tenant *models.Tenant
 }
 
-func (t *AppTest) Before() {
+func (t *CsvUploadTest) Before() {
 	// create a tenant for the test run
 	var err error = nil
 	t.tenant, err = models.CreateTenant(controllers.Dbm, testTenantUsername, testTenantPassword, "Test User", testTenantUsername)
@@ -47,7 +47,7 @@ func (t *AppTest) Before() {
 	}
 }
 
-func (t *AppTest) After() {
+func (t *CsvUploadTest) After() {
 	// delete the existing test tenant, so the DB stays relatively clean
 	models.DeleteTenant(controllers.Dbm, t.tenant)
 }
@@ -77,11 +77,11 @@ func fileCheckContents(fileName string, contents string) bool {
 // TESTING HELPERS
 // ===============
 // Tries to upload the contents of a file then returns the possible uploaded path
-func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filename string, contents string) controllers.UploadResponse {
+func sendAsUpload(t *CsvUploadTest, tenant string, password string, pkg string, filename string, contents string) controllers.UploadResponse {
 	postReader := strings.NewReader(contents)
 
 	// send the request with http auth
-	postUri := routes.App.Upload(pkg, filename)
+	postUri := routes.CsvUpload.Upload(pkg, filename)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
 
 	postRequest.SetBasicAuth(tenant, password)
@@ -118,12 +118,12 @@ func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filena
 // ----------
 
 // check for a simple upload
-func (t *AppTest) TestIncorrectPasswordShouldNotWork() {
+func (t *CsvUploadTest) TestIncorrectPasswordShouldNotWork() {
 
 	postReader := strings.NewReader("HELLO WORLD")
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testPkg, testFileName)
+	postUri := routes.CsvUpload.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
 	// supplly an invalid password
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword+"----")
@@ -133,12 +133,12 @@ func (t *AppTest) TestIncorrectPasswordShouldNotWork() {
 }
 
 // check for a simple upload
-func (t *AppTest) TestIncorrectUserShouldNotWork() {
+func (t *CsvUploadTest) TestIncorrectUserShouldNotWork() {
 
 	postReader := strings.NewReader("HELLO WORLD")
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testPkg, testFileName)
+	postUri := routes.CsvUpload.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
 	// supplly an invalid password
 	postRequest.SetBasicAuth(testTenantUsername+"----", testTenantPassword)
@@ -147,33 +147,17 @@ func (t *AppTest) TestIncorrectUserShouldNotWork() {
 	t.AssertStatus(401)
 }
 
-//// Check if we can use a users login credentials to write to another users
-//// logs
-//func (t *AppTest) TestUsernameShouldMatchTenant() {
-
-//postReader := strings.NewReader("HELLO WORLD")
-
-//// send the request with http auth
-//postUri := routes.App.Upload(testTenantUsername+"-alt", testPkg, testFileName)
-//postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
-//// supplly an invalid password
-//postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
-//postRequest.Send()
-
-//t.AssertStatus(403)
-//}
-
 // UPLOAD TESTS
 // ------------
 
 // check for a simple upload
-func (t *AppTest) TestThatFilesCanBeUploaded() {
+func (t *CsvUploadTest) TestThatFilesCanBeUploaded() {
 	sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, "HELLO WORLD")
 }
 
 // check for uploading the same file name multiple times, but the contents and files must be
 // different
-func (t *AppTest) TestMultipleFilesSameName() {
+func (t *CsvUploadTest) TestMultipleFilesSameName() {
 	// check if both files upload properly
 	uploadPath1 := sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, "HELLO WORLD")
 	uploadPath2 := sendAsUpload(t, testTenantUsername, testTenantPassword, testPkg, testFileName, "Hello world 2")
@@ -185,7 +169,7 @@ func (t *AppTest) TestMultipleFilesSameName() {
 // ================
 
 // check for a simple upload
-func (t *AppTest) TestFileSiginitureOk() {
+func (t *CsvUploadTest) TestFileSiginitureOk() {
 
 	data := "HELLO WORLD"
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
@@ -195,7 +179,7 @@ func (t *AppTest) TestFileSiginitureOk() {
 }
 
 // check for a simple upload
-func (t *AppTest) TestFileSiginitureFail() {
+func (t *CsvUploadTest) TestFileSiginitureFail() {
 
 	data := "HELLO WORLD 2"
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
@@ -205,7 +189,7 @@ func (t *AppTest) TestFileSiginitureFail() {
 }
 
 // Tests if sending a signature with the request properly rejects wrong data
-func (t *AppTest) TestSendingMd5SignatureRejection() {
+func (t *CsvUploadTest) TestSendingMd5SignatureRejection() {
 
 	data := "HELLO WORLD"
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
@@ -214,7 +198,7 @@ func (t *AppTest) TestSendingMd5SignatureRejection() {
 	postReader := strings.NewReader(data + "--")
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testPkg, testFileName)
+	postUri := routes.CsvUpload.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
 	postRequest.Send()
@@ -224,7 +208,7 @@ func (t *AppTest) TestSendingMd5SignatureRejection() {
 }
 
 // Tests if sending a signature with the request properly rejects wrong data
-func (t *AppTest) TestSendingMd5SignatureAcceptance() {
+func (t *CsvUploadTest) TestSendingMd5SignatureAcceptance() {
 
 	data := "HELLO WORLD"
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(data)))
@@ -232,7 +216,7 @@ func (t *AppTest) TestSendingMd5SignatureAcceptance() {
 	postReader := strings.NewReader(data)
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testPkg, testFileName)
+	postUri := routes.CsvUpload.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
 	postRequest.Send()
@@ -244,7 +228,7 @@ func (t *AppTest) TestSendingMd5SignatureAcceptance() {
 // TENANT OUTPUT CONFIGURATION
 // ===========================
 
-func (t *AppTest) TestTenantOutputDirectory() {
+func (t *CsvUploadTest) TestTenantOutputDirectory() {
 	const TEST_DIR = "test-home"
 	// create a temporary tenant
 	tenant, err := models.CreateTenant(controllers.Dbm, testTenantUsername+"-", testTenantPassword, "Test User", TEST_DIR)
