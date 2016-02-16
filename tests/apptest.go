@@ -41,22 +41,17 @@ type AppTest struct {
 
 func (t *AppTest) Before() {
 	// create a tenant for the test run
-	t.tenant = createTestTenant(testTenantUsername, testTenantPassword)
+	var err error = nil
+	t.tenant, err = models.CreateTenant(controllers.Dbm, testTenantUsername, testTenantPassword, "Test User", testTenantUsername)
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (t *AppTest) After() {
 	// delete the existing test tenant, so the DB stays relatively clean
-	deleteTestTenant(t.tenant)
-}
-
-// creates a tenant in the database for testing
-func createTestTenant(username string, password string) *models.Tenant {
-	return models.CreateTenant(controllers.Dbm, username, password, "Test User")
-}
-
-// removes a tenant from the database
-func deleteTestTenant(tenant *models.Tenant) {
-	models.DeleteTenant(controllers.Dbm, tenant)
+	models.DeleteTenant(controllers.Dbm, t.tenant)
 }
 
 // SIMPLE HELPERS
@@ -247,4 +242,18 @@ func (t *AppTest) TestSendingMd5SignatureAcceptance() {
 
 	// since the data and the md5 hash matches, we should be ok here
 	t.AssertOk()
+}
+
+func (t *AppTest) TestTenantOutputDirectory() {
+	const TEST_DIR = "test-home"
+	// create a temporary tenant
+	tenant, err := models.CreateTenant(controllers.Dbm, testTenantUsername+"-", testTenantPassword, "Test User", TEST_DIR)
+	if err != nil {
+		panic(err)
+	}
+	// delete the created tenant on exit
+	defer models.DeleteTenant(controllers.Dbm, tenant)
+
+	response := sendAsUpload(t, testTenantUsername+"-", testTenantPassword, testPkg, testFileName, "HELLO WORLD")
+	t.Assertf(strings.Contains(response.UploadPath, TEST_DIR), "Upload path '%v' does not contain the users home directory '%v'", response.UploadPath, TEST_DIR)
 }

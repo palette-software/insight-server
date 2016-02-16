@@ -82,14 +82,14 @@ func NewTenantWithHome(username, password, fullName, homeDir string) *Tenant {
 }
 
 // Creates and saves a new tenant into the database
-func CreateTenant(Dbm *gorp.DbMap, username, password, fullName string) *Tenant {
+func CreateTenant(Dbm *gorp.DbMap, username, password, fullName, homeDir string) (*Tenant, error) {
 
-	demoUser := NewTenant(username, password, fullName)
+	demoUser := NewTenantWithHome(username, password, fullName, homeDir)
 
 	if err := Dbm.Insert(demoUser); err != nil {
-		panic(err)
+		return nil, err
 	}
-	return demoUser
+	return demoUser, nil
 }
 
 // Deletes a tenant from the database

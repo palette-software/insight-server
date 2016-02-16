@@ -68,7 +68,7 @@ func (c *App) respondWith(status int) revel.Result {
 }
 
 /// Returns the path where a file needs to be placed
-func getUploadPath(tenant string, pkg string, filename string, requestTime time.Time, fileHash string) string {
+func getUploadPath(tenantHome, pkg, filename string, requestTime time.Time, fileHash string) string {
 	// the folder name is only the date
 	folderTimestamp := requestTime.Format("2006-01-02")
 	// the file name gets the timestamp appended (only time)
@@ -80,7 +80,7 @@ func getUploadPath(tenant string, pkg string, filename string, requestTime time.
 	fullFileName := fmt.Sprintf("%v-%v-%v.%v", fileBaseName, fileTimestamp, fileHash, fileExtName[1:])
 
 	// the file name is the sanitized file name
-	return filepath.ToSlash(path.Join(OUTPUT_DIR, models.SanitizeName(tenant), "uploads", models.SanitizeName(pkg), folderTimestamp, fullFileName))
+	return filepath.ToSlash(path.Join(OUTPUT_DIR, models.SanitizeName(tenantHome), "uploads", models.SanitizeName(pkg), folderTimestamp, fullFileName))
 }
 
 // Interceptor filter for all actions in controllers that require authentication
@@ -158,7 +158,8 @@ func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
 	}
 
 	// get the output path
-	outputPath := getUploadPath(tenant, pkg, filename, requestTime, fileHash)
+	outputPath := getUploadPath(c.Tenant.HomeDirectory, pkg, filename, requestTime, fileHash)
+	revel.INFO.Printf("output path is: %v =====> %v", c.Tenant, outputPath)
 
 	// do some minimal logging
 	revel.INFO.Printf("got %v bytes for %v / %v / %v -- hash is: %v", len(content), tenant, pkg, filename, fileHash)
