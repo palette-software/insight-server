@@ -8,6 +8,8 @@ import (
 	"regexp"
 )
 
+// Represents a client that -after successful authentication-
+// can upload files to HomeDirectory
 type Tenant struct {
 	// The id in the database
 	TenantId int
@@ -30,8 +32,12 @@ func (u *Tenant) String() string {
 
 // A regex for matching any non-whitespace character
 var userRegex = regexp.MustCompile("^\\w*$")
+
+// validator regex for the home directory name
 var directoryRegex = regexp.MustCompile("^[a-z-_]+$")
 
+// Validator function for a Tenant
+// TODO: validate uniqieness of username
 func (user *Tenant) Validate(v *revel.Validation) {
 	v.Check(user.Username,
 		revel.Required{},
@@ -53,6 +59,7 @@ func (user *Tenant) Validate(v *revel.Validation) {
 	)
 }
 
+// Helper function to validate a password
 func ValidatePassword(v *revel.Validation, password string) *revel.ValidationResult {
 	return v.Check(password,
 		revel.Required{},
@@ -101,7 +108,8 @@ func DeleteTenant(Dbm *gorp.DbMap, tenant *Tenant) {
 }
 
 // Returns true if there is a tenant registered in the database with the given password
-func IsValidTenant(dbmap *gorp.DbMap, username, password string) (*Tenant, bool) {
+//func IsValidTenant(dbmap *gorp.DbMap, username, password string) (*Tenant, bool) {
+func TenantFromAuthentication(dbmap *gorp.DbMap, username, password string) *Tenant {
 
 	// try to load the user by username from the db
 	tenant := Tenant{}
@@ -109,14 +117,14 @@ func IsValidTenant(dbmap *gorp.DbMap, username, password string) (*Tenant, bool)
 
 	if err != nil {
 		revel.TRACE.Printf("cannot load user: %v", err)
-		return nil, false
+		return nil
 	}
 
 	// check the password hash
 	checkResult := bcrypt.CompareHashAndPassword(tenant.HashedPassword, []byte(password))
 	if checkResult == nil {
-		return &tenant, true
+		return &tenant
 	} else {
-		return nil, false
+		return nil
 	}
 }

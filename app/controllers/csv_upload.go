@@ -83,9 +83,9 @@ func (c *CsvUpload) CheckUserAuth() revel.Result {
 		return c.respondWith(401)
 	}
 
-	// check password / username
-	tenant, isValidTenant := models.IsValidTenant(Dbm, username, password)
-	if !isValidTenant {
+	// check password / username and get the tenant
+	tenant := models.TenantFromAuthentication(Dbm, username, password)
+	if tenant == nil {
 		revel.INFO.Printf("[auth] not a valid user: %v", username)
 		return c.respondWith(401)
 	}
