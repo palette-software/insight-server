@@ -85,8 +85,10 @@ func sendAsUpload(t *AppTest, tenant string, password string, pkg string, filena
 	postReader := strings.NewReader(contents)
 
 	// send the request with http auth
-	postUri := routes.App.Upload(tenant, pkg, filename)
+	postUri := routes.App.Upload(pkg, filename)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
+	revel.INFO.Printf("----> URL: %v", t.BaseUrl()+postUri)
+
 	postRequest.SetBasicAuth(tenant, password)
 	postRequest.Send()
 
@@ -126,7 +128,7 @@ func (t *AppTest) TestIncorrectPasswordShouldNotWork() {
 	postReader := strings.NewReader("HELLO WORLD")
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	postUri := routes.App.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
 	// supplly an invalid password
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword+"----")
@@ -141,7 +143,7 @@ func (t *AppTest) TestIncorrectUserShouldNotWork() {
 	postReader := strings.NewReader("HELLO WORLD")
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	postUri := routes.App.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
 	// supplly an invalid password
 	postRequest.SetBasicAuth(testTenantUsername+"----", testTenantPassword)
@@ -150,21 +152,21 @@ func (t *AppTest) TestIncorrectUserShouldNotWork() {
 	t.AssertStatus(401)
 }
 
-// Check if we can use a users login credentials to write to another users
-// logs
-func (t *AppTest) TestUsernameShouldMatchTenant() {
+//// Check if we can use a users login credentials to write to another users
+//// logs
+//func (t *AppTest) TestUsernameShouldMatchTenant() {
 
-	postReader := strings.NewReader("HELLO WORLD")
+//postReader := strings.NewReader("HELLO WORLD")
 
-	// send the request with http auth
-	postUri := routes.App.Upload(testTenantUsername+"-alt", testPkg, testFileName)
-	postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
-	// supplly an invalid password
-	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
-	postRequest.Send()
+//// send the request with http auth
+//postUri := routes.App.Upload(testTenantUsername+"-alt", testPkg, testFileName)
+//postRequest := t.PostCustom(t.BaseUrl()+postUri, "text/plain", postReader)
+//// supplly an invalid password
+//postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
+//postRequest.Send()
 
-	t.AssertStatus(403)
-}
+//t.AssertStatus(403)
+//}
 
 // UPLOAD TESTS
 // ------------
@@ -217,7 +219,7 @@ func (t *AppTest) TestSendingMd5SignatureRejection() {
 	postReader := strings.NewReader(data + "--")
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	postUri := routes.App.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
 	postRequest.Send()
@@ -235,7 +237,7 @@ func (t *AppTest) TestSendingMd5SignatureAcceptance() {
 	postReader := strings.NewReader(data)
 
 	// send the request with http auth
-	postUri := routes.App.Upload(testTenantUsername, testPkg, testFileName)
+	postUri := routes.App.Upload(testPkg, testFileName)
 	postRequest := t.PostCustom(t.BaseUrl()+postUri+"?md5="+hash, "text/plain", postReader)
 	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword)
 	postRequest.Send()
@@ -243,6 +245,9 @@ func (t *AppTest) TestSendingMd5SignatureAcceptance() {
 	// since the data and the md5 hash matches, we should be ok here
 	t.AssertOk()
 }
+
+// TENANT OUTPUT CONFIGURATION
+// ===========================
 
 func (t *AppTest) TestTenantOutputDirectory() {
 	const TEST_DIR = "test-home"

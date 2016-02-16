@@ -90,7 +90,7 @@ func getUploadPath(tenantHome, pkg, filename string, requestTime time.Time, file
 func (c *App) CheckUserAuth() revel.Result {
 	username, password, authOk := c.Request.BasicAuth()
 	if !authOk {
-		revel.INFO.Printf("[auth] No auth information provided in request")
+		revel.INFO.Printf("[AUTH] No auth information provided in request")
 		return c.respondWith(401)
 	}
 
@@ -122,7 +122,7 @@ func checkSentMd5(sentMd5, fileHash string) bool {
 }
 
 // Handle an actual upload
-func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
+func (c *App) Upload(pkg, filename string) revel.Result {
 
 	// parse the full request, so we can use the Request.Form parameters that
 	// are passed to us
@@ -130,12 +130,8 @@ func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
 		return c.RenderError(err)
 	}
 
-	// check if the tenant is a valid one (the CheckUserAuth() fn should have already
-	// pre-filled this field for us)
-	if tenant != c.Tenant.Username {
-		// we signal a 403 because "Unlike a 401 Unauthorized response, authenticating will make no difference."
-		return c.respondWith(403)
-	}
+	// make a local copy the tenant
+	tenant := c.Tenant
 
 	// get the request time
 	requestTime := time.Now()
@@ -158,11 +154,10 @@ func (c *App) Upload(tenant string, pkg string, filename string) revel.Result {
 	}
 
 	// get the output path
-	outputPath := getUploadPath(c.Tenant.HomeDirectory, pkg, filename, requestTime, fileHash)
-	revel.INFO.Printf("output path is: %v =====> %v", c.Tenant, outputPath)
+	outputPath := getUploadPath(tenant.HomeDirectory, pkg, filename, requestTime, fileHash)
 
 	// do some minimal logging
-	revel.INFO.Printf("got %v bytes for %v / %v / %v -- hash is: %v", len(content), tenant, pkg, filename, fileHash)
+	revel.INFO.Printf("got %v bytes for tenant '%v': %v / %v -- hash is: %v", len(content), tenant.Username, pkg, filename, fileHash)
 
 	// create the directory of the file
 	err = os.MkdirAll(filepath.Dir(outputPath), OUTPUT_DEFAULT_DIRMODE)

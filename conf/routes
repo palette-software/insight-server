@@ -7,7 +7,7 @@ module:testrunner
 GET     /                                       App.Index
 
 # Uploading a file
-POST    /upload/:tenant/:pkg/:filename         App.Upload
+POST    /upload/:pkg/:filename                  App.Upload
 
 # Ignore favicon requests
 GET     /favicon.ico                            404
