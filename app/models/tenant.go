@@ -128,3 +128,14 @@ func TenantFromAuthentication(dbmap *gorp.DbMap, username, password string) *Ten
 		return nil
 	}
 }
+
+func TenantFromHomeDirectory(dbmap *gorp.DbMap, homeDirName string) (*Tenant, error) {
+	tenant := Tenant{}
+	// find the tenant
+	err := dbmap.SelectOne(&tenant, "select * from Tenant where HomeDirectory=", homeDirName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tenant, nil
+}

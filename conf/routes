@@ -4,10 +4,12 @@
 
 module:testrunner
 
-GET     /                                       CsvUpload.Index
+GET     /                                       Stats.Index
 
 # Uploading a file
 POST    /upload/:pkg/:filename                  CsvUpload.Upload
+
+GET     /stats                                  Stats.Index
 
 # Ignore favicon requests
 GET     /favicon.ico                            404

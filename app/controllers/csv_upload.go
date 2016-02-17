@@ -18,8 +18,6 @@ const (
 	MB
 	GB
 
-	OUTPUT_DIR = "c:\\tmp\\uploads"
-
 	OUTPUT_DEFAULT_MODE    = 0644
 	OUTPUT_DEFAULT_DIRMODE = 777
 )
@@ -36,10 +34,6 @@ type UploadResponse struct {
 type CsvUpload struct {
 	*revel.Controller
 	Tenant *models.Tenant
-}
-
-func (c *CsvUpload) Index() revel.Result {
-	return c.Render()
 }
 
 // get the hash of the contents of the file, so that even files
@@ -64,12 +58,14 @@ func getUploadPath(tenantHome, pkg, filename string, requestTime time.Time, file
 	fileTimestamp := requestTime.Format("15-04--05-00")
 
 	// get the extension and basename
+	tenantHomeDir := models.SanitizeName(tenantHome)
+	pkgDir := models.SanitizeName(pkg)
 	fileBaseName := models.SanitizeName(path.Base(filename))
 	fileExtName := models.SanitizeName(path.Ext(filename))
 	fullFileName := fmt.Sprintf("%v-%v-%v.%v", fileBaseName, fileTimestamp, fileHash, fileExtName[1:])
 
 	// the file name is the sanitized file name
-	return filepath.ToSlash(path.Join(OUTPUT_DIR, models.SanitizeName(tenantHome), "uploads", models.SanitizeName(pkg), folderTimestamp, fullFileName))
+	return filepath.ToSlash(path.Join(models.GetOutputDirectory(), tenantHomeDir, "uploads", pkgDir, folderTimestamp, fullFileName))
 }
 
 // Interceptor filter for all actions in controllers that require authentication
@@ -148,7 +144,7 @@ func (c *CsvUpload) Upload(pkg, filename string) revel.Result {
 	outputPath := getUploadPath(tenant.HomeDirectory, pkg, filename, requestTime, fileHash)
 
 	// do some minimal logging
-	revel.INFO.Printf("got %v bytes for tenant '%v': %v / %v -- hash is: %v", len(content), tenant.Username, pkg, filename, fileHash)
+	revel.INFO.Printf("[UPLOAD] got %v bytes for tenant '%v': %v / %v -- hash is: %v", len(content), tenant.Username, pkg, filename, fileHash)
 
 	// create the directory of the file
 	err = os.MkdirAll(filepath.Dir(outputPath), OUTPUT_DEFAULT_DIRMODE)
@@ -162,6 +158,13 @@ func (c *CsvUpload) Upload(pkg, filename string) revel.Result {
 		return c.RenderError(err)
 	}
 
+	// log that we were successful
+	revel.INFO.Printf("[UPLOAD] Saved to '%v'", outputPath)
+
 	// render some nice output
 	return c.RenderJson(UploadResponse{outputPath, requestTime, fileHash})
+}
+
+func (c *CsvUpload) GetUsage() {
+
 }
