@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"github.com/go-gorp/gorp"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/palette-software/insight-webservice-go/app/models"
+	"github.com/palette-software/insight-server/app/models"
 	"github.com/revel/modules/db/app"
 	"github.com/revel/revel"
 )

@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"github.com/palette-software/insight-webservice-go/app/models"
+	"github.com/palette-software/insight-server/app/models"
 	"github.com/revel/revel"
 	"io/ioutil"
 	"os"

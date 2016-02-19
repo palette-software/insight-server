@@ -1,3 +1,46 @@
+# Notes from T
+
+Run the tests by:
+
+```bash
+revel test github.com/palette-software/insight-server test
+```
+
+
+And run a test server by
+
+```bash
+revel run github.com/palette-software/insight-server dev
+```
+
+The test runner is available then at:
+
+```
+http://localhost:9000/@tests
+```
+
+Or run in prod with HTTPS enabled (certs are in the root directory)
+with:
+
+```bash
+revel run github.com/palette-software/insight-server prod
+```
+
+
+More about the HTTPS cert process can be found in the
+
+```
+server.key.info
+```
+
+file.
+
+
+## Original README
+
+--
+
+
 # Welcome to Revel
 
 ## Getting Started

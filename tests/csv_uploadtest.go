@@ -1,9 +1,9 @@
 package tests
 
 import (
-	"github.com/palette-software/insight-webservice-go/app/controllers"
-	"github.com/palette-software/insight-webservice-go/app/models"
-	"github.com/palette-software/insight-webservice-go/app/routes"
+	"github.com/palette-software/insight-server/app/controllers"
+	"github.com/palette-software/insight-server/app/models"
+	"github.com/palette-software/insight-server/app/routes"
 	"github.com/revel/revel/testing"
 
 	"bytes"
