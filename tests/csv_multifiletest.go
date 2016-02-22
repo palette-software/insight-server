@@ -35,7 +35,7 @@ func packageManifest(files []MultiFileInput, writer *multipart.Writer) error {
 
 	// serialize the manifest into a JSON and write it to the request
 	if err := json.NewEncoder(manifestWriter).Encode(&manifest); err != nil {
-		panic(err)
+		return err
 	}
 
 	return nil
