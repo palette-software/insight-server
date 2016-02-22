@@ -19,7 +19,7 @@ const (
 	GB
 
 	OUTPUT_DEFAULT_MODE    = 0644
-	OUTPUT_DEFAULT_DIRMODE = 777
+	OUTPUT_DEFAULT_DIRMODE = 0755
 )
 
 // The result of an upload operation is of this type.
