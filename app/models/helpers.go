@@ -3,6 +3,7 @@ package models
 import (
 	"github.com/revel/revel"
 	"regexp"
+	"time"
 )
 
 const (
@@ -22,3 +23,6 @@ func SanitizeName(name string) string {
 func GetOutputDirectory() string {
 	return revel.Config.StringDefault(outputDirectoryConfigKey, defaultOutputDirectory)
 }
+
+// make a nonsensical time for marking invalid responses
+var NonsenseTime time.Time = time.Unix(int64(0), 0)
