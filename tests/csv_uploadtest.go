@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 )
 
 const (
@@ -74,6 +73,22 @@ func fileCheckContents(fileName string, contents string) bool {
 	return bytes.Compare([]byte(contents), fileContents) == 0
 }
 
+// checks if a file is available at
+func checkUpload(t *CsvUploadTest, uploadResponse *controllers.UploadResponse, filename, contents string) bool {
+	//extract the upload time
+	uploadPath := uploadResponse.UploadPath
+	// check if the Name field is correct in the reply
+	t.Assertf(uploadResponse.Name == filename, "The output response must return the same filename '%v' as we have sent", filename)
+	// check the returned time
+	t.Assertf(uploadResponse.UploadTime != models.NonsenseTime, "Invalid time returned by the service: %v", string(t.ResponseBody))
+	// check for the existance of the uploaded file
+	t.Assertf(fileExists(uploadPath), "Output file '%v' has not been created", uploadPath)
+	// check the contents of the uploaded file
+	t.Assertf(fileCheckContents(uploadPath, contents), "Contents of output file '%v' does not match the test content", uploadPath)
+
+	return true
+}
+
 // TESTING HELPERS
 // ===============
 // Tries to upload the contents of a file then returns the possible uploaded path
@@ -93,23 +108,15 @@ func sendAsUpload(t *CsvUploadTest, tenant string, password string, pkg string, 
 	t.Assertf(len(t.ResponseBody) > 0, "The response for uploads must be larger then 0 bytes")
 	// create a string reader for the response body so we can decode it
 	bodyReader := bytes.NewReader(t.ResponseBody)
-	// make a nonsensical time for marking invalid responses
-	nonsenseTime := time.Unix(int64(0), 0)
 	// create a dummy value for parsing into
-	uploadResponse := controllers.UploadResponse{"", nonsenseTime, ""}
+	uploadResponse := controllers.UploadResponse{controllers.UploadFile{"", ""}, "", models.NonsenseTime}
 	// try to deserialize the request body
 	err := json.NewDecoder(bodyReader).Decode(&uploadResponse)
 	if err != nil {
 		panic(err)
 	}
-	//extract the upload time
-	uploadPath := uploadResponse.UploadPath
-	// check the returned time
-	t.Assertf(uploadResponse.UploadTime != nonsenseTime, "Invalid time returned by the service: %v", string(t.ResponseBody))
-	// check for the existance of the uploaded file
-	t.Assertf(fileExists(uploadPath), "Output file '%v' has not been created", uploadPath)
-	// check the contents of the uploaded file
-	t.Assertf(fileCheckContents(uploadPath, contents), "Contents of output file '%v' does not match the test content", uploadPath)
+
+	checkUpload(t, &uploadResponse, filename, contents)
 
 	return uploadResponse
 }

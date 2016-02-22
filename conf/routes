@@ -9,6 +9,9 @@ GET     /                                       Stats.Index
 # Uploading a file
 POST    /upload/:pkg/:filename                  CsvUpload.Upload
 
+# Uploading more files
+POST    /upload-many/:pkg
+
 GET     /stats                                  Stats.Index
 
 # Ignore favicon requests
