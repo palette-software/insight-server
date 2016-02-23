@@ -1,0 +1,171 @@
+# this is an example of the Uber API
+# as a demonstration of an API spec in YAML
+swagger: '2.0'
+info:
+  title: Palette Insight Server API
+  description: API for sending files to the Palette Insight Server
+  version: "1.0.0"
+# the domain of the service
+host: insight-api-test.palette-software.com
+# array of all schemes that your API supports
+schemes:
+  - https
+# will be prefixed to all paths
+basePath: /
+produces:
+  - application/json
+
+securityDefinitions:
+  basicAuth:
+    type: basic
+    description: |
+        HTTP Basic Authentication. Works over `HTTP` and `HTTPS`.
+
+        The username and password can be pre-set on a per-tenant basis (and more tenants can work into the same directory).
+
+parameters:
+  pkg:
+    name: pkg
+    in: path
+    description: The name of the outermost directory where to put this file.
+    required: true
+    type: string
+
+
+responses:
+  defaultError:
+    description: Unexpected error
+    
+
+
+
+paths:
+  /upload/{pkg}/{filename}:
+    post:
+      summary: Upload a single file
+      description: |
+        This endpoint allows the upload of a single file, mainly to test
+        if the server is working correctly.
+
+        The files will be uploaded into UPLOADS_HOMOE/tenant/pkg/<TIMESTAMP_DAY>/<FILENAME>-<TIME>-<MD5>
+
+      security:
+       - basicAuth: []
+
+      parameters:
+        - $ref: '#/parameters/pkg'
+        - name: filename
+          in: path
+          required: true
+          description: The name of the file.
+          type: string
+
+      tags:
+        - Upload
+
+      responses:
+        200:
+          description: The JSON status of the upload.
+          schema:
+            $ref: '#/definitions/UploadResult'
+        409:
+          description: MD5 error in the uploaded file
+          schema:
+            $ref: '#/definitions/UploadResult'
+        default:
+          $ref: '#/responses/defaultError'
+
+  /upload-many/{pkg}:
+    post:
+      summary: Upload more files and get proper errors back
+      description: |
+        This is the main endpoint of the service: it allows uploading of more
+        then one file in a single request.
+
+        ### Constructing a request ###
+
+        First, add the files to the multipart post request with each file going
+        into a field named after the file (for example, for ```log.txt``` the
+        field name will be ```log.txt```)
+
+        After the request is set up, add a manifest to the request as a JSON
+        encoded field called ```_manifest```. The manifest data type can be
+        found in the Models section of this document.
+      consumes:
+        - multipart/form-data
+
+      security:
+        - basicAuth: []
+
+      parameters:
+        - $ref: '#/parameters/pkg'
+
+      tags:
+        - Upload
+
+      responses:
+        200:
+          description: The JSON status of the upload
+          schema:
+            $ref: '#/definitions/UploadMannyResponse'
+
+        default:
+          $ref: '#/responses/defaultError'
+
+
+
+definitions:
+  FileManifest:
+    description: |
+      Describes a file in the uploaded request. The go name of the struct is ```UploadFile```.
+    properties:
+      Name:
+        type: string
+        description: The file name of the file.
+      Md5:
+        type: string
+        description: The MD5 of the file
+
+  Manifest:
+    description: |
+      Defines the files in the uploaded request we care about. The go name of the struct is ```UploadManyRequest```.
+    properties:
+      Files:
+        type: array
+        items:
+          $ref: '#/definitions/FileManifest'
+
+  UploadResult:
+    description: |
+      The result of an upload operation.
+      Check the Status field for the error code.
+    properties:
+      Name:
+        type: string
+        description: The file name of the file.
+      Md5:
+        type: string
+        description: The MD5 of the file
+      UploadPath:
+        type: string
+        description: The exact location on the server where the files are uploaded to. (useful for testing)
+      UploadTime:
+        type: string
+        format: date-time
+        description: The time the upload was initiated (influences the timestamps on the directories/files)
+      Status:
+        type: integer
+        format: int32
+        description: |
+          The HTTP-like status of this upload. 200 - everything OK. 409 - MD5 error. 500 - something went wrong.
+
+  UploadMannyResponse:
+    properties:
+      Files:
+        description: |
+          For each file in the upload manifest there is one entry in this array.
+        type: array
+        items:
+          $ref: '#/definitions/UploadResult'
+
+
