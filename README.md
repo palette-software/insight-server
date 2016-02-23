@@ -36,7 +36,13 @@ server.key.info
 file.
 
 
-## Original README
+## API Documentation
+
+
+A basic documentation using OpenAPI is available in the docs folder, or
+a HTML-ized version is available in the docs/generated folder.
+
+# ORIGINAL README FOLLOWS
 
 --
 
