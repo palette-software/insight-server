@@ -129,7 +129,6 @@ func checkMultiUploadResponse(t *CsvMultiUploadTest, files []MultiFileInput, upl
 
 	for i, input := range files {
 		// get the original one here
-		revel.INFO.Printf("Checking file: %v", input.Filename)
 		fileName := input.Filename
 		// compare with the uploaded one
 		checkerFn := t.parent.checkUploadNoAssert
