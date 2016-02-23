@@ -6,6 +6,7 @@ import (
 
 	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -54,6 +55,31 @@ type UploadResponse struct {
 	UploadFile
 	UploadPath string
 	UploadTime time.Time
+	Status     int
+	Error      string
+}
+
+const (
+	HTTP_OK = 200
+)
+
+// Returns true if the response is an ok one
+func (r *UploadResponse) IsOK() bool {
+	return r.Status == HTTP_OK
+}
+
+// Quick accessor to update the status and the error string
+func (r UploadResponse) SetStatusAndErrorMessage(status int, err string) (UploadResponse, error) {
+	r.Status = status
+	r.Error = err
+	return r, errors.New(err)
+}
+
+// Quick accessor to update the status and the error string
+func (r UploadResponse) SetStatusAndError(status int, err error) (UploadResponse, error) {
+	r.Status = status
+	r.Error = fmt.Sprintf("%v", err)
+	return r, err
 }
 
 // The result of an uploadMany operation.
@@ -192,42 +218,37 @@ func (c *CsvUpload) parseManifest() (*UploadManyRequest, error) {
 }
 
 // internal helper that handles the uploading of a file
-func (c *CsvUpload) handleUpload(pkg, filename string, content []byte, dataMD5 string, requestTime time.Time) (UploadResponse, error, int) {
+func (c *CsvUpload) handleUpload(pkg, filename string, content []byte, dataMD5 string, requestTime time.Time) (response UploadResponse, outErr error) {
 
 	// make a local copy the tenant
 	tenant := c.Tenant
-
-	// calculate the hash
 	fileHash := getContentHash(content)
+	homeDir := tenant.HomeDirectory
+	outputPath := getUploadPath(tenant.HomeDirectory, pkg, filename, requestTime, fileHash)
+	response = UploadResponse{UploadFile{filename, fileHash}, outputPath, requestTime, 200, ""}
 
 	// check the MD5 if the client sent it to us
 	if !checkSentMd5(dataMD5, fileHash) {
-		// fail here with a 409 - Conflict for Md5 mismatches
-		return UploadResponse{}, fmt.Errorf("Md5 for '%v' does not match"), 409
+		return response.SetStatusAndErrorMessage(409, fmt.Sprintf("Md5 for '%v' does not match", filename))
 	}
-
-	homeDir := tenant.HomeDirectory
-
-	// get the output path
-	outputPath := getUploadPath(tenant.HomeDirectory, pkg, filename, requestTime, fileHash)
 
 	// do some minimal logging
 	revel.INFO.Printf("[UPLOAD] got %v bytes for home directory '%v': %v / %v -- hash is: %v", len(content), homeDir, pkg, filename, fileHash)
 
 	// create the directory of the file
 	if err := os.MkdirAll(filepath.Dir(outputPath), OUTPUT_DEFAULT_DIRMODE); err != nil {
-		return UploadResponse{}, err, 500
+		return response.SetStatusAndError(500, err)
 	}
 
 	// write out the contents to a new file
 	if err := ioutil.WriteFile(outputPath, content, OUTPUT_DEFAULT_MODE); err != nil {
-		return UploadResponse{}, err, 500
+		return response.SetStatusAndError(500, err)
 	}
 
 	// log that we were successful
 	revel.INFO.Printf("[UPLOAD] Saved to '%v'", outputPath)
 
-	return UploadResponse{UploadFile{filename, fileHash}, outputPath, requestTime}, nil, 200
+	return response.SetStatusAndError(200, nil)
 }
 
 //
@@ -251,9 +272,9 @@ func (c *CsvUpload) Upload(pkg, filename string) revel.Result {
 	}
 
 	// Do the actual uploading
-	response, err, respCode := c.handleUpload(pkg, filename, content, c.Request.Form.Get("md5"), time.Now())
+	response, err := c.handleUpload(pkg, filename, content, c.Request.Form.Get("md5"), time.Now())
 	if err != nil {
-		c.Response.Status = respCode
+		c.Response.Status = response.Status
 		return c.RenderError(err)
 	}
 
@@ -280,22 +301,29 @@ func (c *CsvUpload) UploadMany(pkg string) revel.Result {
 	for i, uploadedFile := range manifest.Files {
 		// check if we have this file in the request
 		fileData, hasFile := formValues[uploadedFile.Name]
+		ok := true
+
+		response := UploadResponse{uploadedFile, "<NO PATH>", requestTime, 404, ""}
+
 		if !hasFile {
-			return c.RenderError(fmt.Errorf("Missing file in manifest from upload: '%v'", uploadedFile.Name))
+			ok = false
+			response.SetStatusAndError(404, fmt.Errorf("Missing file in manifest from upload: '%v'", uploadedFile.Name))
 		}
 
 		// check if the file count is ok
-		if len(fileData) != 1 {
-			return c.RenderError(fmt.Errorf("File '%v' listed more then once in the request body", uploadedFile.Name))
+		if ok && (len(fileData) != 1) {
+			ok = false
+			response.SetStatusAndError(404, fmt.Errorf("File '%v' listed more then once in the request body", uploadedFile.Name))
 		}
 
-		// upload this file
-		response, err, errorCode := c.handleUpload(pkg, uploadedFile.Name, []byte(fileData[0]), uploadedFile.Md5, requestTime)
-		if err != nil {
-			c.Response.Status = errorCode
-			return c.RenderError(err)
+		// do the actual upload if we are fine
+		if ok {
+			// upload this file
+			// if we have an error, we should handle that error by saving it in the response
+			response, err = c.handleUpload(pkg, uploadedFile.Name, []byte(fileData[0]), uploadedFile.Md5, requestTime)
 		}
 
+		// add it to the list of files
 		results.Files[i] = response
 
 	}

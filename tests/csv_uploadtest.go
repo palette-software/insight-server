@@ -6,6 +6,8 @@ import (
 	"github.com/palette-software/insight-server/app/routes"
 	"github.com/revel/revel/testing"
 
+	"github.com/go-gorp/gorp"
+
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
@@ -36,19 +38,31 @@ type CsvUploadTest struct {
 	tenant *models.Tenant
 }
 
-func (t *CsvUploadTest) Before() {
+/////////////
+
+func makeTestTenant(Dbm *gorp.DbMap) *models.Tenant {
 	// create a tenant for the test run
-	var err error = nil
-	t.tenant, err = models.CreateTenant(controllers.Dbm, testTenantUsername, testTenantPassword, "Test User", testTenantUsername)
+	tenant, err := models.CreateTenant(Dbm, testTenantUsername, testTenantPassword, "Test User", testTenantUsername)
 
 	if err != nil {
 		panic(err)
 	}
+	return tenant
+}
+
+func deleteTestTenant(Dbm *gorp.DbMap, tenant *models.Tenant) {
+	// delete the existing test tenant, so the DB stays relatively clean
+	models.DeleteTenant(Dbm, tenant)
+}
+
+/////////////
+func (t *CsvUploadTest) Before() {
+	t.tenant = makeTestTenant(controllers.Dbm)
 }
 
 func (t *CsvUploadTest) After() {
+	deleteTestTenant(controllers.Dbm, t.tenant)
 	// delete the existing test tenant, so the DB stays relatively clean
-	models.DeleteTenant(controllers.Dbm, t.tenant)
 }
 
 // SIMPLE HELPERS
@@ -74,7 +88,7 @@ func fileCheckContents(fileName string, contents string) bool {
 }
 
 // checks if a file is available at
-func checkUpload(t *CsvUploadTest, uploadResponse *controllers.UploadResponse, filename, contents string) bool {
+func (t *CsvUploadTest) checkUpload(uploadResponse *controllers.UploadResponse, filename, contents string) bool {
 	//extract the upload time
 	uploadPath := uploadResponse.UploadPath
 	// check if the Name field is correct in the reply
@@ -83,10 +97,23 @@ func checkUpload(t *CsvUploadTest, uploadResponse *controllers.UploadResponse, f
 	t.Assertf(uploadResponse.UploadTime != models.NonsenseTime, "Invalid time returned by the service: %v", string(t.ResponseBody))
 	// check for the existance of the uploaded file
 	t.Assertf(fileExists(uploadPath), "Output file '%v' has not been created", uploadPath)
+	// check if the upload is 200
+	t.Assertf(uploadResponse.Status == controllers.HTTP_OK, "The upload status must be 200 for '%v' (is: %v)", filename, uploadResponse.Status)
 	// check the contents of the uploaded file
 	t.Assertf(fileCheckContents(uploadPath, contents), "Contents of output file '%v' does not match the test content", uploadPath)
 
 	return true
+}
+
+// Does the same checks as checkUpload but does not assert
+func (t *CsvUploadTest) checkUploadNoAssert(uploadResponse *controllers.UploadResponse, filename, contents string) bool {
+	//extract the upload time
+	uploadPath := uploadResponse.UploadPath
+	return uploadResponse.Name == filename &&
+		uploadResponse.UploadTime != models.NonsenseTime &&
+		fileExists(uploadPath) &&
+		uploadResponse.IsOK() &&
+		fileCheckContents(uploadPath, contents)
 }
 
 // TESTING HELPERS
@@ -109,14 +136,14 @@ func sendAsUpload(t *CsvUploadTest, tenant string, password string, pkg string, 
 	// create a string reader for the response body so we can decode it
 	bodyReader := bytes.NewReader(t.ResponseBody)
 	// create a dummy value for parsing into
-	uploadResponse := controllers.UploadResponse{controllers.UploadFile{"", ""}, "", models.NonsenseTime}
+	uploadResponse := controllers.UploadResponse{controllers.UploadFile{"", ""}, "", models.NonsenseTime, 200, ""}
 	// try to deserialize the request body
 	err := json.NewDecoder(bodyReader).Decode(&uploadResponse)
 	if err != nil {
 		panic(err)
 	}
 
-	checkUpload(t, &uploadResponse, filename, contents)
+	t.checkUpload(&uploadResponse, filename, contents)
 
 	return uploadResponse
 }
