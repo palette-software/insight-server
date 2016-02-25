@@ -10,9 +10,11 @@ GET     /                                       Stats.Index
 POST    /upload/:pkg/:filename                  CsvUpload.Upload
 
 # Uploading more files
-POST    /upload-many/:pkg
+POST    /upload-many/:pkg                       CsvUpload.UploadMany
 
 GET     /stats                                  Stats.Index
+
+GET     /users/create-test                      Users.CreateTest
 
 # Ignore favicon requests
 GET     /favicon.ico                            404

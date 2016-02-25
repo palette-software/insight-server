@@ -4,7 +4,9 @@ import (
 	"github.com/palette-software/insight-server/app/models"
 	"github.com/revel/revel"
 
+	"bytes"
 	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -109,7 +111,7 @@ func getContentHash(fileContents []byte) string {
 // Creates an authentication error response
 func (c *CsvUpload) respondWith(status int) revel.Result {
 	c.Response.Status = status
-	return c.Render()
+	return c.RenderText("")
 }
 
 // Creates an authentication error response
@@ -172,13 +174,21 @@ func getUploadPath(tenantHome, pkg, filename string, requestTime time.Time, file
 // parameter value is not found, we check against that
 func checkSentMd5(sentMd5, fileHash string) bool {
 
-	// if we are provided with an md5 parameter, check it if the hash is correct
-	if sentMd5 != "" && sentMd5 != fileHash {
+	// If the client hasnt sent an Md5, we cosider it a valid hash
+	if sentMd5 == "" {
+		return true
+	}
+
+	// decode the bytes
+	sentMd5Bytes, sentErr := hex.DecodeString(sentMd5)
+	localMd5Bytes, localErr := hex.DecodeString(fileHash)
+
+	if sentErr != nil || localErr != nil {
+		revel.INFO.Printf("Md5 decode error strings are: '%v', '%v' errors are: %v // %v", sentMd5, fileHash, sentErr, localErr)
 		return false
 	}
 
-	// otherwise we are ok
-	return true
+	return bytes.Compare(sentMd5Bytes, localMd5Bytes) == 0
 }
 
 // parses the manifest out of the quest body
@@ -229,7 +239,7 @@ func (c *CsvUpload) handleUpload(pkg, filename string, content []byte, dataMD5 s
 
 	// check the MD5 if the client sent it to us
 	if !checkSentMd5(dataMD5, fileHash) {
-		return response.SetStatusAndErrorMessage(409, fmt.Sprintf("Md5 for '%v' does not match", filename))
+		return response.SetStatusAndErrorMessage(409, fmt.Sprintf("Md5 for '%v' does not match '%s' vs '%s'", filename, dataMD5, fileHash))
 	}
 
 	// do some minimal logging
