@@ -4,7 +4,6 @@ import (
 	"github.com/palette-software/insight-server/app/models"
 	"github.com/revel/revel/testing"
 
-	"fmt"
 	"reflect"
 	"strings"
 )

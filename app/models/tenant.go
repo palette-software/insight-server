@@ -88,10 +88,36 @@ func NewTenantWithHome(username, password, fullName, homeDir string) *Tenant {
 	}
 }
 
+//  Helper functino to create a new Tenant with a token
+func NewTenantWithHomeAndToken(username string, password []byte, fullName, homeDir string) *Tenant {
+	bcryptPassword, _ := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+	// make a valid homedir name out of the homeDir string
+	homeDirName := SanitizeName(homeDir)
+
+	return &Tenant{
+		Name:           fullName,
+		Username:       username,
+		HomeDirectory:  homeDirName,
+		HashedPassword: bcryptPassword,
+	}
+}
+
 // Creates and saves a new tenant into the database
 func CreateTenant(Dbm *gorp.DbMap, username, password, fullName, homeDir string) (*Tenant, error) {
 
 	demoUser := NewTenantWithHome(username, password, fullName, homeDir)
+
+	if err := Dbm.Insert(demoUser); err != nil {
+		return nil, err
+	}
+	return demoUser, nil
+}
+
+// Creates and saves a new tenant into the database
+func CreateTenantWithToken(Dbm *gorp.DbMap, username string, password []byte, fullName string) (*Tenant, error) {
+
+	// use the username as home directory for now
+	demoUser := NewTenantWithHomeAndToken(username, password, fullName, username)
 
 	if err := Dbm.Insert(demoUser); err != nil {
 		return nil, err

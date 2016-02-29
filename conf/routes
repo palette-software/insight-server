@@ -16,6 +16,9 @@ GET     /stats                                  Stats.Index
 
 GET     /users/create-test                      Users.CreateTest
 
+GET     /users/new                              Users.New
+POST    /users/create                           Users.CreateFromLicense
+
 # Ignore favicon requests
 GET     /favicon.ico                            404
 

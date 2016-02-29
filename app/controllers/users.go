@@ -3,10 +3,8 @@ package controllers
 import (
 	"github.com/palette-software/insight-server/app/models"
 	"github.com/revel/revel"
-	//"io/ioutil"
-	//"os"
-	//"path"
-	//"path/filepath"
+
+	"strings"
 )
 
 // The application controller itself
@@ -22,4 +20,29 @@ func (c *Users) CreateTest() revel.Result {
 	}
 
 	return c.RenderJson(tenant)
+}
+
+func (c *Users) New() revel.Result {
+	return c.Render()
+}
+
+func (c *Users) CreateFromLicense() revel.Result {
+	var licenseText string
+	c.Params.Bind(&licenseText, "license")
+
+	// get the license string
+	r := strings.NewReader(licenseText)
+	license, err := models.ReadLicense(r)
+	if err != nil {
+		panic(err)
+	}
+
+	user, err := models.CreateTenantWithToken(Dbm, license.LicenseId, license.Token, license.Owner)
+
+	if err != nil {
+		panic(err)
+	}
+
+	// if the license is valid, save a new user
+	return c.RenderJson(user)
 }
