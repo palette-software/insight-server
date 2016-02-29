@@ -12,24 +12,6 @@ http://<ENDPOINT>/users/new
 This form allows you to create a user from a license. On success, the
 server returns a JSON object of the newly created user.
 
-## Adding a test user for testing with the agent:
-
-There is an endpoint to create a tenant with the credentials:
-
-```
-username: test
-password: test
-```
-
-that can be created by:
-
-```bash
-curl http://localhost:9000/users/create-test
-```
-
-Currently each time you call this endpoint, a new tenant gets added (until
-username uniqueness validation is added).
-
 ## Running the tests
 
 Run the tests by:
