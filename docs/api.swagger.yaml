@@ -112,6 +112,48 @@ paths:
         default:
           $ref: '#/responses/defaultError'
 
+  /users/create:
+    post:
+      summary: Creates a user from a submitted license
+      description: |
+        Creates a new user form the data in the license:
+
+        * the full name will be the licenses ```owner``` field
+        * the username will be the ```licenseId``` field
+        * the auth token will be the licenses token
+        * the home directory will be the licenseId field (with unsafe characters sanitized)
+        * license validity date is ignored
+
+        Currently this endpoint does not do any authentication, but this will change soon.
+
+        Currently this endpoint does not verify the cryptographic signature of the license.
+
+      consumes:
+        - application/x-www-form-urlencoded
+
+      parameters:
+        - name: license
+          in: body
+          required: true
+          description: The license as a Base64 encoded string
+          type: string
+
+      tags:
+        - Tenants
+        - Admin
+
+      reponses:
+        200:
+          description: The JSON representation of the newly created tenant
+          schema:
+            $ref: "#/definitions/Tenant"
+
+        500:
+          $ref: "#/responses/defaultError"
+
+
+
+
 
 
 definitions:
@@ -167,5 +209,25 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/UploadResult'
+
+  Tenant:
+    properties:
+      TenantId:
+        type: integer
+        format: int64
+        description: The id of the tenant in the database
+      Name:
+        type: string
+        description: The full name of the tenant
+      Password:
+        type: string
+        description: Placeholder.
+      HomeDirectory:
+        type: string
+        descrirption: The directory the files uploaded by this tenant reside in.
+      HashedPassword:
+        type: string
+        description: The BCrypted hash of the token
+
 
 

@@ -7,11 +7,12 @@ import (
 	"strings"
 )
 
-// The application controller itself
+// The users controller
 type Users struct {
 	*revel.Controller
 }
 
+// Creates a test user (deprecated)
 func (c *Users) CreateTest() revel.Result {
 	tenant, err := models.CreateTenant(Dbm, "test", "test", "Test User", "test")
 
@@ -22,10 +23,12 @@ func (c *Users) CreateTest() revel.Result {
 	return c.RenderJson(tenant)
 }
 
+// Displays the create user from license form
 func (c *Users) New() revel.Result {
 	return c.Render()
 }
 
+// Creates a new user from a license.
 func (c *Users) CreateFromLicense() revel.Result {
 	var licenseText string
 	c.Params.Bind(&licenseText, "license")

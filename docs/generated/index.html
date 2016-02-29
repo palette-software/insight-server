@@ -21,42 +21,68 @@
         https
     </div>
     
-        <h2 id="swagger--summary-no-tags">Summary</h2>
-        <table class="table table-bordered table-condensed swagger--summary">
-            <thead>
-            <tr>
-                <th>Path</th>
-                <th>Operation</th>
-                <th>Description</th>
-            </tr>
-            </thead>
-            <tbody>
-                    <tr>
-                            <td class="swagger--summary-path" rowspan="1">
-                                <a href="#path--upload-many--pkg-">/upload-many/{pkg}</a>
-                            </td>
-                        <td>
-                            <a href="#operation--upload-many--pkg--post">POST</a>
-                        </td>
-                        <td>
-                            <p>Upload more files and get proper errors back</p>
         
-                        </td>
+        <h2 id="swagger--summary-tags">Summary</h2>
+            <h3 id="tag-Upload" class="swagger-summary-tag">Tag: Upload</h3>
+            
+        
+            <table class="table table-bordered table-condensed swagger--summary">
+                <thead>
+                <tr>
+                    <th>Operation</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><a href="#operation--upload--pkg---filename--post">POST /upload/{pkg}/{filename}</a></td>
+                        <td><p>Upload a single file</p>
+        </td>
                     </tr>
                     <tr>
-                            <td class="swagger--summary-path" rowspan="1">
-                                <a href="#path--upload--pkg---filename-">/upload/{pkg}/{filename}</a>
-                            </td>
-                        <td>
-                            <a href="#operation--upload--pkg---filename--post">POST</a>
-                        </td>
-                        <td>
-                            <p>Upload a single file</p>
-        
-                        </td>
+                        <td><a href="#operation--upload-many--pkg--post">POST /upload-many/{pkg}</a></td>
+                        <td><p>Upload more files and get proper errors back</p>
+        </td>
                     </tr>
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+            <h3 id="tag-Tenants" class="swagger-summary-tag">Tag: Tenants</h3>
+            
+        
+            <table class="table table-bordered table-condensed swagger--summary">
+                <thead>
+                <tr>
+                    <th>Operation</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><a href="#operation--users-create-post">POST /users/create</a></td>
+                        <td><p>Creates a user from a submitted license</p>
+        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 id="tag-Admin" class="swagger-summary-tag">Tag: Admin</h3>
+            
+        
+            <table class="table table-bordered table-condensed swagger--summary">
+                <thead>
+                <tr>
+                    <th>Operation</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><a href="#operation--users-create-post">POST /users/create</a></td>
+                        <td><p>Creates a user from a submitted license</p>
+        </td>
+                    </tr>
+                </tbody>
+            </table>
+        
     
     
         <h2>Security</h2>
@@ -354,6 +380,46 @@
                             </table>
                         </section>
                 </div>
+            </div>    
+        <span id="path--users-create"></span>
+            <div id="operation--users-create-post" class="swagger--panel-operation-post panel">
+                <div class="panel-heading">
+                    <div class="operation-summary">Creates a user from a submitted license</div>
+                    <h3 class="panel-title"><span class="operation-name">POST</span> <strong>/users/create</strong></h3>
+                        Tags:
+                            <a href="#tag-Tenants">Tenants</a>, 
+                            <a href="#tag-Admin">Admin</a>
+                </div>
+                <div class="panel-body">
+                    <section class="sw-operation-description">
+                        <p>Creates a new user form the data in the license:</p>
+            <ul>
+            <li>the full name will be the licenses <code>owner</code> field</li>
+            <li>the username will be the <code>licenseId</code> field</li>
+            <li>the auth token will be the licenses token</li>
+            <li>the home directory will be the licenseId field (with unsafe characters sanitized)</li>
+            <li>license validity date is ignored</li>
+            </ul>
+            <p>Currently this endpoint does not do any authentication, but this will change soon.</p>
+            <p>Currently this endpoint does not verify the cryptographic signature of the license.</p>
+            
+                    </section>
+                        
+                            <section class="sw-request-body">
+                                
+                                    <p><span class="label label-default">application/x-www-form-urlencoded</span> 
+                        </p>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><p>The license as a Base64 encoded string</p>
+                        </p>
+                                            </div>
+                                            <div class="col-md-6 sw-request-model">
+                        </div>
+                                        </div>
+                            </section>        
+                    
+                </div>
             </div>
         <h2>Parameter definitions</h2>
         <table id="table-parameter-definitions" class="table">
@@ -492,6 +558,87 @@
                                                                             
                                                                         </div>
                                                                     </section>                </div>
+                                            </dd>
+                                    </dl>
+                                </section>
+                    </div>
+                </div>        
+                <div id="definition-Tenant" class="panel panel-definition">
+                        <div class="panel-heading">
+                                <h3 class="panel-title"><a name="/definitions/Tenant"></a>Tenant:
+                                    <span class="json-property-type"><span class="json-property-type">object</span>
+                <span class="json-property-range" title="Value limits"></span>
+                
+                </span>
+                                </h3>
+                        </div>
+                    <div class="panel-body">
+                            
+                                <section class="json-schema-properties">
+                                    <dl>
+                                            <dt data-property-name="TenantId">
+                                                <span class="json-property-name">TenantId:</span>
+                                                <span class="json-property-type">integer</span>    <span class="json-property-format">(int64)</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>The id of the tenant in the database</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                            <dt data-property-name="Name">
+                                                <span class="json-property-name">Name:</span>
+                                                <span class="json-property-type">string</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>The full name of the tenant</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                            <dt data-property-name="Password">
+                                                <span class="json-property-name">Password:</span>
+                                                <span class="json-property-type">string</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>Placeholder.</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                            <dt data-property-name="HomeDirectory">
+                                                <span class="json-property-name">HomeDirectory:</span>
+                                                <span class="json-property-type">string</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                            <dt data-property-name="HashedPassword">
+                                                <span class="json-property-name">HashedPassword:</span>
+                                                <span class="json-property-type">string</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>The BCrypted hash of the token</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
                                             </dd>
                                     </dl>
                                 </section>

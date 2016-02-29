@@ -68,10 +68,16 @@ func ValidatePassword(v *revel.Validation, password string) *revel.ValidationRes
 	)
 }
 
+// Creating tenants
+///////////////////
+
 //  Helper functino to create a new Tenant
 func NewTenant(username, password, fullName string) *Tenant {
 	return NewTenantWithHome(username, password, fullName, username)
 }
+
+// Creating tenants with passwords (deprecated)
+///////////////////////////////////////////////
 
 //  Helper functino to create a new Tenant
 func NewTenantWithHome(username, password, fullName, homeDir string) *Tenant {
@@ -88,6 +94,20 @@ func NewTenantWithHome(username, password, fullName, homeDir string) *Tenant {
 	}
 }
 
+// Creates and saves a new tenant into the database
+func CreateTenant(Dbm *gorp.DbMap, username, password, fullName, homeDir string) (*Tenant, error) {
+
+	demoUser := NewTenantWithHome(username, password, fullName, homeDir)
+
+	if err := Dbm.Insert(demoUser); err != nil {
+		return nil, err
+	}
+	return demoUser, nil
+}
+
+// Creating tenants from license
+////////////////////////////////
+
 //  Helper functino to create a new Tenant with a token
 func NewTenantWithHomeAndToken(username string, password []byte, fullName, homeDir string) *Tenant {
 	bcryptPassword, _ := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
@@ -100,17 +120,6 @@ func NewTenantWithHomeAndToken(username string, password []byte, fullName, homeD
 		HomeDirectory:  homeDirName,
 		HashedPassword: bcryptPassword,
 	}
-}
-
-// Creates and saves a new tenant into the database
-func CreateTenant(Dbm *gorp.DbMap, username, password, fullName, homeDir string) (*Tenant, error) {
-
-	demoUser := NewTenantWithHome(username, password, fullName, homeDir)
-
-	if err := Dbm.Insert(demoUser); err != nil {
-		return nil, err
-	}
-	return demoUser, nil
 }
 
 // Creates and saves a new tenant into the database
@@ -132,6 +141,9 @@ func DeleteTenant(Dbm *gorp.DbMap, tenant *Tenant) {
 		panic(err)
 	}
 }
+
+// Getting a tenant from pieces of information
+//////////////////////////////////////////////
 
 // Returns true if there is a tenant registered in the database with the given password
 //func IsValidTenant(dbmap *gorp.DbMap, username, password string) (*Tenant, bool) {
