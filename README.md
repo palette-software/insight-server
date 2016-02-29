@@ -1,5 +1,17 @@
 # Notes from T
 
+## Adding a user from a license
+
+To add a user to the authorized users on the server, navigate your
+browser to the following url:
+
+```
+http://<ENDPOINT>/users/new
+```
+
+This form allows you to create a user from a license. On success, the
+server returns a JSON object of the newly created user.
+
 ## Adding a test user for testing with the agent:
 
 There is an endpoint to create a tenant with the credentials:
