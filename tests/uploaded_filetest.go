@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"github.com/revel/revel"
 	"github.com/revel/revel/testing"
 
 	"github.com/palette-software/insight-server/app/models"
@@ -8,6 +9,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -29,7 +31,8 @@ func (t *UploadedFileTest) TestSingleUploadedFile() {
 	fileMd5a := md5.Sum([]byte(testContent))
 	fileMd5 := fileMd5a[0:]
 
-	basePath := models.GetOutputDirectory()
+	// create a testing directory inside the uploads directory for
+	basePath := path.Join(models.GetOutputDirectory(), "testing")
 	reqTime := time.Date(2016, 03, 15, 12, 00, 00, 00, time.UTC)
 
 	uploadedFile, err := models.NewUploadedFile(basePath, filename, reqTime, testReader)
@@ -41,4 +44,7 @@ func (t *UploadedFileTest) TestSingleUploadedFile() {
 	t.Assert(uploadedFile.Filename == filename)
 	t.Assert(uploadedFile.UploadedPath == expectedUploadPath)
 	t.Assert(bytes.Equal(uploadedFile.Md5, fileMd5))
+
+	revel.INFO.Printf("Removing temporary file '%v'", uploadedFile.UploadedPath)
+	t.Assert(os.Remove(uploadedFile.UploadedPath) == nil)
 }

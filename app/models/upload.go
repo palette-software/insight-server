@@ -73,6 +73,7 @@ func getUploadPathForFile(filename, fileHash string, requestTime time.Time) stri
 func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, reader io.Reader) (*UploadedFile, error) {
 
 	hash := md5.New()
+
 	// create a TeeReader that automatically forwards bytes read from the file to
 	// the md5 hasher's reader
 	readerWithMd5 := io.TeeReader(reader, hash)
@@ -126,9 +127,6 @@ func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, rea
 }
 
 // Create a new UploadedCsv struct from the provided parameters.
-// As io.Reader provides no way of cloning the reader itself,
-// we need to pass both file and metadata readers twice so we can
-// use it for both copying and hashing
 func NewUploadedCsv(tenant *Tenant, pkg, filename, filemd5 string, requestTime time.Time, fileReader, metadataReader io.Reader) (*UploadedCsv, error) {
 
 	// get the base path for uploads
