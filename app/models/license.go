@@ -7,14 +7,12 @@ import "C"
 */
 
 import (
-	"github.com/linkedin/goavro"
+	"gopkg.in/yaml.v2"
 
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"sync"
 	"time"
 )
 
@@ -67,6 +65,17 @@ func removeEd25519Signature(signedMsg []byte) ([]byte, error) {
 // License
 ////////////////
 
+// The YAML-serialized format of the license
+type yamlLicense struct {
+	Seed          int32     `yaml:"seed"`
+	Owner         string    `yaml:"owner"`
+	LicenseId     string    `yaml:"licenseId"`
+	CoreCount     int32     `yaml:"coreCount"`
+	Token         string    `yaml:"token"`
+	ValidUntilUTC time.Time `yaml:"validUntilUTC"`
+}
+
+// The License data structure
 type License struct {
 	Seed          int32
 	Owner         string
@@ -76,45 +85,45 @@ type License struct {
 	ValidUntilUTC time.Time
 }
 
-// Creates an Avro codec for desr
-func createLicenseAvroCodec() (goavro.Codec, error) {
-	codec, err := goavro.NewCodec(LICENSE_AVRO_SCHEMA)
-	if err != nil {
-		return nil, err
-	}
-	return codec, nil
-}
+//// Creates an Avro codec for desr
+//func createLicenseAvroCodec() (goavro.Codec, error) {
+//codec, err := goavro.NewCodec(LICENSE_AVRO_SCHEMA)
+//if err != nil {
+//return nil, err
+//}
+//return codec, nil
+//}
 
-var licenseCodecInstance goavro.Codec
-var once sync.Once
+//var licenseCodecInstance goavro.Codec
+//var once sync.Once
 
-func getLicenseCodecInstance() goavro.Codec {
-	once.Do(func() {
-		// unless we declare err here, doing a := would create
-		// a new variable named licenseCodecInstance here.
-		var err error
-		licenseCodecInstance, err = createLicenseAvroCodec()
-		if err != nil {
-			// if we cannot deserialize licenses, we should fail
-			// immidately
-			panic(err)
-		}
-	})
-	return licenseCodecInstance
-}
+//func getLicenseCodecInstance() goavro.Codec {
+//once.Do(func() {
+//// unless we declare err here, doing a := would create
+//// a new variable named licenseCodecInstance here.
+//var err error
+//licenseCodecInstance, err = createLicenseAvroCodec()
+//if err != nil {
+//// if we cannot deserialize licenses, we should fail
+//// immidately
+//panic(err)
+//}
+//})
+//return licenseCodecInstance
+//}
 
 // Helper to get fields from avro data without running into
 // the issue of Get() returning two values
 // As this method should only be used in the context of the license,
 // we can safely panic here.
-func getAvroField(r *goavro.Record, field string) interface{} {
-	f, err := r.Get(field)
-	if err != nil {
-		panic(err)
-	}
+//func getAvroField(r *goavro.Record, field string) interface{} {
+//f, err := r.Get(field)
+//if err != nil {
+//panic(err)
+//}
 
-	return f
-}
+//return f
+//}
 
 /// Tries to read and deserialize a license
 func ReadLicense(r io.Reader) (*License, error) {
@@ -138,25 +147,47 @@ func ReadLicense(r io.Reader) (*License, error) {
 		return nil, err
 	}
 
-	// create a reader for the license bytes
-	licenseReader := bytes.NewReader(licenseAvroData)
+	// the yaml format license
+	serializedLicense := yamlLicense{}
 
-	// read the license as avro reacord
-	licenseData, err := getLicenseCodecInstance().Decode(licenseReader)
+	// read the license as YAML
+	err = yaml.Unmarshal(licenseAvroData, &serializedLicense)
 	if err != nil {
 		return nil, err
 	}
 
-	license := licenseData.(*goavro.Record)
+	// decode the base64 encoded token
+	token, err := base64.StdEncoding.DecodeString(serializedLicense.Token)
 
-	// convert it to a proper struct
 	return &License{
-		Owner:     getAvroField(license, "owner").(string),
-		Seed:      getAvroField(license, "seed").(int32),
-		LicenseId: getAvroField(license, "licenseId").(string),
-		CoreCount: getAvroField(license, "coreCount").(int32),
-		Token:     getAvroField(license, "token").([]byte),
-		// convert the validity date the same way as the license generator does
-		ValidUntilUTC: time.Unix(getAvroField(license, "validUntilUTC").(int64), 0),
+		Owner:     serializedLicense.Owner,
+		Seed:      serializedLicense.Seed,
+		LicenseId: serializedLicense.LicenseId,
+		CoreCount: serializedLicense.CoreCount,
+		Token:     token,
+
+		ValidUntilUTC: serializedLicense.ValidUntilUTC,
 	}, nil
+
+	//// create a reader for the license bytes
+	//licenseReader := bytes.NewReader(licenseAvroData)
+
+	//// read the license as avro reacord
+	//licenseData, err := getLicenseCodecInstance().Decode(licenseReader)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//license := licenseData.(*goavro.Record)
+
+	//// convert it to a proper struct
+	//return &License{
+	//Owner:     getAvroField(license, "owner").(string),
+	//Seed:      getAvroField(license, "seed").(int32),
+	//LicenseId: getAvroField(license, "licenseId").(string),
+	//CoreCount: getAvroField(license, "coreCount").(int32),
+	//Token:     getAvroField(license, "token").([]byte),
+	//// convert the validity date the same way as the license generator does
+	//ValidUntilUTC: time.Unix(getAvroField(license, "validUntilUTC").(int64), 0),
+	//}, nil
 }
