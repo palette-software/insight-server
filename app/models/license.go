@@ -85,46 +85,6 @@ type License struct {
 	ValidUntilUTC time.Time
 }
 
-//// Creates an Avro codec for desr
-//func createLicenseAvroCodec() (goavro.Codec, error) {
-//codec, err := goavro.NewCodec(LICENSE_AVRO_SCHEMA)
-//if err != nil {
-//return nil, err
-//}
-//return codec, nil
-//}
-
-//var licenseCodecInstance goavro.Codec
-//var once sync.Once
-
-//func getLicenseCodecInstance() goavro.Codec {
-//once.Do(func() {
-//// unless we declare err here, doing a := would create
-//// a new variable named licenseCodecInstance here.
-//var err error
-//licenseCodecInstance, err = createLicenseAvroCodec()
-//if err != nil {
-//// if we cannot deserialize licenses, we should fail
-//// immidately
-//panic(err)
-//}
-//})
-//return licenseCodecInstance
-//}
-
-// Helper to get fields from avro data without running into
-// the issue of Get() returning two values
-// As this method should only be used in the context of the license,
-// we can safely panic here.
-//func getAvroField(r *goavro.Record, field string) interface{} {
-//f, err := r.Get(field)
-//if err != nil {
-//panic(err)
-//}
-
-//return f
-//}
-
 /// Tries to read and deserialize a license
 func ReadLicense(r io.Reader) (*License, error) {
 
@@ -169,25 +129,4 @@ func ReadLicense(r io.Reader) (*License, error) {
 		ValidUntilUTC: serializedLicense.ValidUntilUTC,
 	}, nil
 
-	//// create a reader for the license bytes
-	//licenseReader := bytes.NewReader(licenseAvroData)
-
-	//// read the license as avro reacord
-	//licenseData, err := getLicenseCodecInstance().Decode(licenseReader)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//license := licenseData.(*goavro.Record)
-
-	//// convert it to a proper struct
-	//return &License{
-	//Owner:     getAvroField(license, "owner").(string),
-	//Seed:      getAvroField(license, "seed").(int32),
-	//LicenseId: getAvroField(license, "licenseId").(string),
-	//CoreCount: getAvroField(license, "coreCount").(int32),
-	//Token:     getAvroField(license, "token").([]byte),
-	//// convert the validity date the same way as the license generator does
-	//ValidUntilUTC: time.Unix(getAvroField(license, "validUntilUTC").(int64), 0),
-	//}, nil
 }
