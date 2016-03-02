@@ -39,6 +39,7 @@ type UploadedCsv struct {
 	Metadata UploadedFile
 
 	// The person uploading this file
+	// TODO: since this contains the hashed auth token of the tenant, it should be better to exclude that somehow
 	Uploader Tenant
 
 	// The package this upload is part of

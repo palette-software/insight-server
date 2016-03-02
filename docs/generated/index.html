@@ -35,13 +35,8 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td><a href="#operation--upload--pkg---filename--post">POST /upload/{pkg}/{filename}</a></td>
-                        <td><p>Upload a single file</p>
-        </td>
-                    </tr>
-                    <tr>
-                        <td><a href="#operation--upload-many--pkg--post">POST /upload-many/{pkg}</a></td>
-                        <td><p>Upload more files and get proper errors back</p>
+                        <td><a href="#operation--upload-with-meta--pkg--post">POST /upload-with-meta/{pkg}</a></td>
+                        <td><p>Upload a single file with metadata</p>
         </td>
                     </tr>
                 </tbody>
@@ -109,32 +104,31 @@
     <h2>Paths</h2>
     
         
-        <span id="path--upload-many--pkg-"></span>
-            <div id="operation--upload-many--pkg--post" class="swagger--panel-operation-post panel">
+        <span id="path--upload-with-meta--pkg-"></span>
+            <div id="operation--upload-with-meta--pkg--post" class="swagger--panel-operation-post panel">
                 <div class="panel-heading">
-                    <div class="operation-summary">Upload more files and get proper errors back</div>
-                    <h3 class="panel-title"><span class="operation-name">POST</span> <strong>/upload-many/{pkg}</strong></h3>
+                    <div class="operation-summary">Upload a single file with metadata</div>
+                    <h3 class="panel-title"><span class="operation-name">POST</span> <strong>/upload-with-meta/{pkg}</strong></h3>
                         Tags:
                             <a href="#tag-Upload">Upload</a>
                 </div>
                 <div class="panel-body">
                     <section class="sw-operation-description">
-                        <p>This is the main endpoint of the service: it allows uploading of more
-            then one file in a single request.</p>
-            <h3 id="constructing-a-request">Constructing a request</h3>
-            <p>First, add the files to the multipart post request with each file going
-            into a field named after the file (for example, for <code>log.txt</code> the
-            field name will be <code>log.txt</code>)</p>
-            <p>After the request is set up, add a manifest to the request as a JSON
-            encoded field called <code>_manifest</code>. The manifest data type can be
-            found in the Models section of this document.</p>
+                        <p>This endpoint receives a single file along a metadata file, and stores it
+            inside the tenants home directory.</p>
             
                     </section>
                         
                             <section class="sw-request-body">
                                 
-                                    <p><span class="label label-default">multipart/form-data</span> 
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><p>The base64-encoded md5 of the file that is uploaded.</p>
                         </p>
+                                            </div>
+                                            <div class="col-md-6 sw-request-model">
+                        </div>
+                                        </div>
                             </section>        
                         <section class="sw-request-params">
                             <table class="table">
@@ -189,134 +183,7 @@
                                                 <div class="col-md-6 sw-response-model">
                                                 <div  class="panel panel-definition">
                                                     <div class="panel-body">
-                                                                <a class="json-schema-ref" href="#/definitions/UploadMannyResponse">UploadMannyResponse</a>
-                                                    </div>
-                                                </div></div>
-                                            
-                                            </div>                </dd>
-                                    <dt class="sw-response-default">
-                                        default 
-                                            <span class="swagger--global"></span> <span class="json-schema--reference"><a href="#/responses/defaultError">#/responses/defaultError</a></span>
-                                    
-                                    </dt>
-                                    <dd class="sw-response-default">
-                                            <div class="row">
-                                                <div class="col-md-12">
-                                                    <p>Unexpected error</p>
-                                            
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                
-                                                <div class="col-md-6 sw-response-model">
-                                            </div>
-                                            
-                                            </div>                </dd>
-                            </dl>
-                        </section>
-                        <section class="sw-request-security">
-                            <table class="table">
-                                <thead>
-                                <tr>
-                                    <th class="sw-request-security-schema"></th>
-                                    <th class="sw-request-security-scopes"></th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                        <tr>
-                                            <td><a href="#security-definition-basicAuth">basicAuth</a></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                </tbody>
-                            </table>
-                        </section>
-                </div>
-            </div>    
-        <span id="path--upload--pkg---filename-"></span>
-            <div id="operation--upload--pkg---filename--post" class="swagger--panel-operation-post panel">
-                <div class="panel-heading">
-                    <div class="operation-summary">Upload a single file</div>
-                    <h3 class="panel-title"><span class="operation-name">POST</span> <strong>/upload/{pkg}/{filename}</strong></h3>
-                        Tags:
-                            <a href="#tag-Upload">Upload</a>
-                </div>
-                <div class="panel-body">
-                    <section class="sw-operation-description">
-                        <p>This endpoint allows the upload of a single file, mainly to test
-            if the server is working correctly.</p>
-            <p>The files will be uploaded into UPLOADS_HOMOE/tenant/pkg/<TIMESTAMP_DAY>/<FILENAME>-<TIME>-<MD5></p>
-            
-                    </section>
-                    
-                        <section class="sw-request-params">
-                            <table class="table">
-                                <thead>
-                                <tr>
-                                    <th class="sw-param-name"></th>
-                                    <th class="sw-param-description"></th>
-                                    <th class="sw-param-type"></th>
-                                    <th class="sw-param-data-type"></th>
-                                    <th class="sw-param-annotation"></th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                        <tr>
-                                            <td>
-                                                pkg
-                                            <td><p>The name of the outermost directory where to put this file.</p>
-                                        </td>
-                                            <td>path</td>
-                                            <td><span class="json-property-type">string</span>
-                                        <span class="json-property-range" title="Value limits"></span>
-                                        
-                                            </td>
-                                            <td>
-                                                    <span class="json-property-required"></span>
-                                                    <span class="swagger--global"></span> <span class="json-schema--reference"><a href="#/parameters/pkg">#/parameters/pkg</a></span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                filename
-                                            <td><p>The name of the file.</p>
-                                        </td>
-                                            <td>path</td>
-                                            <td><span class="json-property-type">string</span>
-                                        <span class="json-property-range" title="Value limits"></span>
-                                        
-                                            </td>
-                                            <td>
-                                                    <span class="json-property-required"></span>
-                                            </td>
-                                        </tr>
-                                </tbody>
-                            </table>
-                        </section>
-                    
-                        <section class="sw-responses">
-                                <p><a href="#sw-default-produces">Uses default content-types: </a>
-                                    <span class="label label-default">application/json</span> 
-                                </p>
-                            
-                            <dl>
-                                    <dt class="sw-response-200">
-                                        200 OK
-                                    
-                                    </dt>
-                                    <dd class="sw-response-200">
-                                            <div class="row">
-                                                <div class="col-md-12">
-                                                    <p>The JSON status of the upload.</p>
-                                            
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                
-                                                <div class="col-md-6 sw-response-model">
-                                                <div  class="panel panel-definition">
-                                                    <div class="panel-body">
-                                                                <a class="json-schema-ref" href="#/definitions/UploadResult">UploadResult</a>
+                                                                <a class="json-schema-ref" href="#/definitions/UploadedCsv">UploadedCsv</a>
                                                     </div>
                                                 </div></div>
                                             
@@ -475,94 +342,6 @@
         <h2>Schema definitions</h2>
     
             
-                <div id="definition-FileManifest" class="panel panel-definition">
-                        <div class="panel-heading">
-                                <h3 class="panel-title"><a name="/definitions/FileManifest"></a>FileManifest:
-                                    <span class="json-property-type"><span class="json-property-type">object</span>
-                <span class="json-property-range" title="Value limits"></span>
-                
-                </span>
-                                </h3>
-                        </div>
-                    <div class="panel-body">
-                                <section class="json-schema-description">
-                                    <p>Describes a file in the uploaded request. The go name of the struct is <code>UploadFile</code>.</p>
-                            
-                                </section>
-                            
-                                <section class="json-schema-properties">
-                                    <dl>
-                                            <dt data-property-name="Name">
-                                                <span class="json-property-name">Name:</span>
-                                                <span class="json-property-type">string</span>
-                                                <span class="json-property-range" title="Value limits"></span>
-                                                
-                                            </dt>
-                                            <dd>
-                                                <p>The file name of the file.</p>
-                                
-                                                <div class="json-inner-schema">
-                                                    
-                                                </div>
-                                            </dd>
-                                            <dt data-property-name="Md5">
-                                                <span class="json-property-name">Md5:</span>
-                                                <span class="json-property-type">string</span>
-                                                <span class="json-property-range" title="Value limits"></span>
-                                                
-                                            </dt>
-                                            <dd>
-                                                <p>The MD5 of the file</p>
-                                
-                                                <div class="json-inner-schema">
-                                                    
-                                                </div>
-                                            </dd>
-                                    </dl>
-                                </section>
-                    </div>
-                </div>        
-                <div id="definition-Manifest" class="panel panel-definition">
-                        <div class="panel-heading">
-                                <h3 class="panel-title"><a name="/definitions/Manifest"></a>Manifest:
-                                    <span class="json-property-type"><span class="json-property-type">object</span>
-                <span class="json-property-range" title="Value limits"></span>
-                
-                </span>
-                                </h3>
-                        </div>
-                    <div class="panel-body">
-                                <section class="json-schema-description">
-                                    <p>Defines the files in the uploaded request we care about. The go name of the struct is <code>UploadManyRequest</code>.</p>
-                            
-                                </section>
-                            
-                                <section class="json-schema-properties">
-                                    <dl>
-                                            <dt data-property-name="Files">
-                                                <span class="json-property-name">Files:</span>
-                                                <span class="json-property-type">object[]</span>
-                                                <span class="json-property-range" title="Value limits"></span>
-                                                
-                                            </dt>
-                                            <dd>
-                                                
-                                                <div class="json-inner-schema">
-                                                    
-                                                                    <section class="json-schema-array-items">
-                                                                        <span class="json-property-type">    <a class="json-schema-ref" href="#/definitions/FileManifest">FileManifest</a>
-                                                                        </span>
-                                                                        <span class="json-property-range" title="Value limits"></span>
-                                                                        
-                                                                        <div class="json-inner-schema">
-                                                                            
-                                                                        </div>
-                                                                    </section>                </div>
-                                            </dd>
-                                    </dl>
-                                </section>
-                    </div>
-                </div>        
                 <div id="definition-Tenant" class="panel panel-definition">
                         <div class="panel-heading">
                                 <h3 class="panel-title"><a name="/definitions/Tenant"></a>Tenant:
@@ -644,9 +423,9 @@
                                 </section>
                     </div>
                 </div>        
-                <div id="definition-UploadMannyResponse" class="panel panel-definition">
+                <div id="definition-UploadedCsv" class="panel panel-definition">
                         <div class="panel-heading">
-                                <h3 class="panel-title"><a name="/definitions/UploadMannyResponse"></a>UploadMannyResponse:
+                                <h3 class="panel-title"><a name="/definitions/UploadedCsv"></a>UploadedCsv:
                                     <span class="json-property-type"><span class="json-property-type">object</span>
                 <span class="json-property-range" title="Value limits"></span>
                 
@@ -657,57 +436,96 @@
                             
                                 <section class="json-schema-properties">
                                     <dl>
-                                            <dt data-property-name="Files">
-                                                <span class="json-property-name">Files:</span>
-                                                <span class="json-property-type">object[]</span>
+                                            <dt data-property-name="Csv">
+                                                <span class="json-property-name">Csv:</span>
+                                                <span class="json-property-type">[object Object]</span>
                                                 <span class="json-property-range" title="Value limits"></span>
                                                 
                                             </dt>
                                             <dd>
-                                                <p>For each file in the upload manifest there is one entry in this array.</p>
+                                                <p>The main CSV file that was uploaded</p>
                                 
                                                 <div class="json-inner-schema">
                                                     
-                                                                    <section class="json-schema-array-items">
-                                                                        <span class="json-property-type">    <a class="json-schema-ref" href="#/definitions/UploadResult">UploadResult</a>
-                                                                        </span>
-                                                                        <span class="json-property-range" title="Value limits"></span>
-                                                                        
-                                                                        <div class="json-inner-schema">
-                                                                            
-                                                                        </div>
-                                                                    </section>                </div>
+                                                </div>
                                             </dd>
-                                    </dl>
-                                </section>
-                    </div>
-                </div>        
-                <div id="definition-UploadResult" class="panel panel-definition">
-                        <div class="panel-heading">
-                                <h3 class="panel-title"><a name="/definitions/UploadResult"></a>UploadResult:
-                                    <span class="json-property-type"><span class="json-property-type">object</span>
-                <span class="json-property-range" title="Value limits"></span>
-                
-                </span>
-                                </h3>
-                        </div>
-                    <div class="panel-body">
-                                <section class="json-schema-description">
-                                    <p>The result of an upload operation.
-                            Check the Status field for the error code.</p>
-                            
-                                </section>
-                            
-                                <section class="json-schema-properties">
-                                    <dl>
-                                            <dt data-property-name="Name">
-                                                <span class="json-property-name">Name:</span>
+                                            <dt data-property-name="Metadata">
+                                                <span class="json-property-name">Metadata:</span>
+                                                <span class="json-property-type">[object Object]</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>The metadata file that was sent along the data</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                            <dt data-property-name="Uploader">
+                                                <span class="json-property-name">Uploader:</span>
+                                                <span class="json-property-type">[object Object]</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>The tenant that uploaded the file.</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                            <dt data-property-name="Package">
+                                                <span class="json-property-name">Package:</span>
                                                 <span class="json-property-type">string</span>
                                                 <span class="json-property-range" title="Value limits"></span>
                                                 
                                             </dt>
                                             <dd>
-                                                <p>The file name of the file.</p>
+                                                <p>The name of tha package this file was uploaded to</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                    </dl>
+                                </section>
+                    </div>
+                </div>        
+                <div id="definition-UploadedFile" class="panel panel-definition">
+                        <div class="panel-heading">
+                                <h3 class="panel-title"><a name="/definitions/UploadedFile"></a>UploadedFile:
+                                    <span class="json-property-type"><span class="json-property-type">object</span>
+                <span class="json-property-range" title="Value limits"></span>
+                
+                </span>
+                                </h3>
+                        </div>
+                    <div class="panel-body">
+                            
+                                <section class="json-schema-properties">
+                                    <dl>
+                                            <dt data-property-name="Filename">
+                                                <span class="json-property-name">Filename:</span>
+                                                <span class="json-property-type">string</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>The filename from the request (to identify the file)</p>
+                                
+                                                <div class="json-inner-schema">
+                                                    
+                                                </div>
+                                            </dd>
+                                            <dt data-property-name="UploadedPath">
+                                                <span class="json-property-name">UploadedPath:</span>
+                                                <span class="json-property-type">string</span>
+                                                <span class="json-property-range" title="Value limits"></span>
+                                                
+                                            </dt>
+                                            <dd>
+                                                <p>The path on the server where the file is stored after upload. Useful for tests.</p>
                                 
                                                 <div class="json-inner-schema">
                                                     
@@ -715,51 +533,12 @@
                                             </dd>
                                             <dt data-property-name="Md5">
                                                 <span class="json-property-name">Md5:</span>
-                                                <span class="json-property-type">string</span>
+                                                <span class="json-property-type">[]byte</span>
                                                 <span class="json-property-range" title="Value limits"></span>
                                                 
                                             </dt>
                                             <dd>
                                                 <p>The MD5 of the file</p>
-                                
-                                                <div class="json-inner-schema">
-                                                    
-                                                </div>
-                                            </dd>
-                                            <dt data-property-name="UploadPath">
-                                                <span class="json-property-name">UploadPath:</span>
-                                                <span class="json-property-type">string</span>
-                                                <span class="json-property-range" title="Value limits"></span>
-                                                
-                                            </dt>
-                                            <dd>
-                                                <p>The exact location on the server where the files are uploaded to. (useful for testing)</p>
-                                
-                                                <div class="json-inner-schema">
-                                                    
-                                                </div>
-                                            </dd>
-                                            <dt data-property-name="UploadTime">
-                                                <span class="json-property-name">UploadTime:</span>
-                                                <span class="json-property-type">string</span>    <span class="json-property-format">(date-time)</span>
-                                                <span class="json-property-range" title="Value limits"></span>
-                                                
-                                            </dt>
-                                            <dd>
-                                                <p>The time the upload was initiated (influences the timestamps on the directories/files)</p>
-                                
-                                                <div class="json-inner-schema">
-                                                    
-                                                </div>
-                                            </dd>
-                                            <dt data-property-name="Status">
-                                                <span class="json-property-name">Status:</span>
-                                                <span class="json-property-type">integer</span>    <span class="json-property-format">(int32)</span>
-                                                <span class="json-property-range" title="Value limits"></span>
-                                                
-                                            </dt>
-                                            <dd>
-                                                <p>The HTTP-like status of this upload. 200 - everything OK. 409 - MD5 error. 500 - something went wrong.</p>
                                 
                                                 <div class="json-inner-schema">
                                                     
