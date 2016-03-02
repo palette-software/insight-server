@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"mime/multipart"
+	"encoding/base64"
 )
 
 const (
@@ -338,4 +340,75 @@ func (c *CsvUpload) UploadMany(pkg string) revel.Result {
 
 	}
 	return c.RenderJson(results)
+}
+
+func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.File, fileName string, err error) {
+
+	// get the file from the form
+	fn := form.File[fieldName]
+	if len(fn) != 1 {
+		err = fmt.Errorf("The request must have exactly 1 '%v' field (has %v).", fieldName, len(fn))
+		return
+	}
+
+	// take the first one
+	uploadedFile := fn[0]
+
+	// set the filename
+	fileName = uploadedFile.Filename
+
+	// get the file reader
+	file, err = uploadedFile.Open()
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// Hanlder for uploading a file with its metadata and validate the md5
+func (c *CsvUpload) UploadWithMetadata(pkg string) revel.Result {
+
+	req := c.Request
+
+	// get the actual file
+	mainFile, fileName, err := getMultipartFile(req.MultipartForm, "_file")
+	if err != nil {
+		panic(err)
+	}
+	defer mainFile.Close()
+
+	// get the metadata file
+	metaFile, _, err := getMultipartFile(req.MultipartForm, "_meta")
+	if err != nil {
+		panic(err)
+	}
+	defer metaFile.Close()
+
+
+	requestTime := time.Now()
+	newUploadedPack, err := models.NewUploadedCsv(c.Tenant, pkg, fileName, requestTime, mainFile, metaFile )
+	if err != nil {
+		panic(err)
+	}
+
+	// check the md5
+	md5Fields := req.MultipartForm.Value["_md5"]
+	if len(md5Fields) != 1 {
+		panic(fmt.Errorf("Only one instance of the '_md5' field allowed in the request"))
+	}
+
+	fileMd5, err := base64.StdEncoding.DecodeString(md5Fields[0])
+	if err != nil {
+		panic(err)
+	}
+
+	// compare the md5
+	if !bytes.Equal(fileMd5, newUploadedPack.Csv.Md5) {
+		c.Response.Status = 409
+		return c.RenderJson("Md5 Error")
+	}
+
+
+	return c.RenderJson(newUploadedPack)
 }

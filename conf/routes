@@ -12,6 +12,8 @@ POST    /upload/:pkg/:filename                  CsvUpload.Upload
 # Uploading more files
 POST    /upload-many/:pkg                       CsvUpload.UploadMany
 
+POST    /upload-with-meta/:pkg                  CsvUpload.UploadWithMetadata
+
 GET     /stats                                  Stats.Index
 
 GET     /users/create-test                      Users.CreateTest

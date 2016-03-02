@@ -149,14 +149,23 @@ func DeleteTenant(Dbm *gorp.DbMap, tenant *Tenant) {
 //func IsValidTenant(dbmap *gorp.DbMap, username, password string) (*Tenant, bool) {
 func TenantFromAuthentication(dbmap *gorp.DbMap, username, password string) *Tenant {
 
+	revel.INFO.Printf("[auth] User check '%v'", username)
+
 	// try to load the user by username from the db
 	tenant := Tenant{}
-	err := dbmap.SelectOne(&tenant, "select * from Tenant where username=?", username)
+	// load the latest user if multiple users are present with the same username
+	err := dbmap.SelectOne(&tenant, "select * from Tenant where username=? order by TenantId desc limit 1", username)
 
 	if err != nil {
-		revel.TRACE.Printf("cannot load user: %v", err)
+		revel.INFO.Printf("cannot load user: %v", err)
 		return nil
 	}
+
+	cpw, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	revel.INFO.Printf("[auth] User found! token len: %v\nhsh:\n'%v'\n'%v'",
+		len([]byte(password)),
+		cpw,
+		tenant.HashedPassword)
 
 	// check the password hash
 	checkResult := bcrypt.CompareHashAndPassword(tenant.HashedPassword, []byte(password))

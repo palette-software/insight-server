@@ -50,7 +50,7 @@ type UploadedCsv struct {
 }
 
 // Gets the path where a certain tenants files for the given package reside
-func getUploadBasePath(tenantHomeDir, pkg string) string {
+func GetUploadBasePath(tenantHomeDir, pkg string) string {
 	return filepath.ToSlash(path.Join(GetOutputDirectory(), tenantHomeDir, "uploads", SanitizeName(pkg)))
 }
 
@@ -69,7 +69,8 @@ func getUploadPathForFile(filename, fileHash string, requestTime time.Time) stri
 	return filepath.ToSlash(path.Join(folderTimestamp, fullFileName))
 }
 
-// tries to create a new uploaded file. This method does not check the md5, just uses it as part of the filename
+// Central function tries to create a new uploaded file.
+// The purpose of this method is to provide a unified upload capability.
 func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, reader io.Reader) (*UploadedFile, error) {
 
 	hash := md5.New()
@@ -127,10 +128,10 @@ func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, rea
 }
 
 // Create a new UploadedCsv struct from the provided parameters.
-func NewUploadedCsv(tenant *Tenant, pkg, filename, filemd5 string, requestTime time.Time, fileReader, metadataReader io.Reader) (*UploadedCsv, error) {
+func NewUploadedCsv(tenant *Tenant, pkg, filename string, requestTime time.Time, fileReader, metadataReader io.Reader) (*UploadedCsv, error) {
 
 	// get the base path for uploads
-	basePath := getUploadBasePath(tenant.HomeDirectory, pkg)
+	basePath := GetUploadBasePath(tenant.HomeDirectory, pkg)
 
 	mainFile, err := NewUploadedFile(basePath, filename, requestTime, fileReader)
 	if err != nil {

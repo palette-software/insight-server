@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+//"github.com/palette-software/insight-server/app/routes"
+//	"mime/multipart"
 )
 
 type UploadedFileTest struct {
@@ -48,3 +50,38 @@ func (t *UploadedFileTest) TestSingleUploadedFile() {
 	revel.INFO.Printf("Removing temporary file '%v'", uploadedFile.UploadedPath)
 	t.Assert(os.Remove(uploadedFile.UploadedPath) == nil)
 }
+
+//
+//func (t* UploadedFileTest) TestMultifileUpload() {
+//	// create a buffer for the upload multipart writer
+//	reqBuffer := &bytes.Buffer{}
+//	// create the writer for the multipart data
+//	writer := multipart.NewWriter(reqBuffer)
+//	// close the request writer
+//	defer writer.Close()
+//
+//	contentType := writer.FormDataContentType()
+//
+//	// pack a file in
+//	fileData := "HELLO WORLD"
+//	metaData := "hello world"
+//
+//
+//
+//
+//	writer.WriteField("_file", "test.txt")
+//	writer.WriteField("_file.md5", fmt.Sprintf("%x", md5.Sum([]byte(fileData))))
+//	writer.WriteField("_file.data", fileData)
+//	writer.WriteField("_meta", "test.txt.meta")
+//	writer.WriteField("_meta.md5", fmt.Sprintf("%x", md5.Sum([]byte(metaData))))
+//	writer.WriteField("_meta.data", metaData)
+//
+//
+//
+//	// send the request with http auth
+//	postUri := routes.CsvUpload.Upload(testPkg, testFileName)
+//	postRequest := t.PostCustom(t.BaseUrl()+postUri, contentType, postReader)
+//	// supplly an invalid password
+//	postRequest.SetBasicAuth(testTenantUsername, testTenantPassword+"----")
+//	postRequest.Send()
+//}
