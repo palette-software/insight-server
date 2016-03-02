@@ -7,10 +7,10 @@ module:testrunner
 GET     /                                       Stats.Index
 
 # Uploading a file
-POST    /upload/:pkg/:filename                  CsvUpload.Upload
+#POST    /upload/:pkg/:filename                  CsvUpload.Upload
 
 # Uploading more files
-POST    /upload-many/:pkg                       CsvUpload.UploadMany
+#POST    /upload-many/:pkg                       CsvUpload.UploadMany
 
 POST    /upload-with-meta/:pkg                  CsvUpload.UploadWithMetadata
 

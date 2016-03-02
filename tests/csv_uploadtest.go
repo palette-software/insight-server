@@ -1,5 +1,6 @@
 package tests
 
+/*
 import (
 	"github.com/palette-software/insight-server/app/controllers"
 	"github.com/palette-software/insight-server/app/models"
@@ -28,7 +29,6 @@ const (
 	testFileContents  = "HELLO WORLD"
 	testFileContents2 = "hello world 2"
 )
-
 // TEST GROUP SETUP
 // ================
 
@@ -275,3 +275,4 @@ func (t *CsvUploadTest) TestTenantOutputDirectory() {
 	response := sendAsUpload(t, testTenantUsername+"-", testTenantPassword, testPkg, testFileName, "HELLO WORLD")
 	t.Assertf(strings.Contains(response.UploadPath, TEST_DIR), "Upload path '%v' does not contain the users home directory '%v'", response.UploadPath, TEST_DIR)
 }
+*/

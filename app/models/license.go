@@ -16,24 +16,6 @@ import (
 	"time"
 )
 
-const (
-	LICENSE_AVRO_SCHEMA = `
-	{
-		"type":"record",
-		"name":"License",
-		"fields":
-				[
-						{ "name":"seed", "type":"int" },
-						{ "name":"owner", "type":"string" },
-						{ "name":"licenseId", "type":"string" },
-						{ "name":"coreCount", "type":"int" },
-						{ "name":"token", "type":"bytes" },
-						{ "name":"validUntilUTC", "type":"long" }
-				]
-	}
-	`
-)
-
 // Faking the crypto
 ////////////////////
 

@@ -149,8 +149,6 @@ func DeleteTenant(Dbm *gorp.DbMap, tenant *Tenant) {
 //func IsValidTenant(dbmap *gorp.DbMap, username, password string) (*Tenant, bool) {
 func TenantFromAuthentication(dbmap *gorp.DbMap, username, password string) *Tenant {
 
-	revel.INFO.Printf("[auth] User check '%v'", username)
-
 	// try to load the user by username from the db
 	tenant := Tenant{}
 	// load the latest user if multiple users are present with the same username
@@ -161,12 +159,6 @@ func TenantFromAuthentication(dbmap *gorp.DbMap, username, password string) *Ten
 		return nil
 	}
 
-	cpw, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	revel.INFO.Printf("[auth] User found! token len: %v\nhsh:\n'%v'\n'%v'",
-		len([]byte(password)),
-		cpw,
-		tenant.HashedPassword)
-
 	// check the password hash
 	checkResult := bcrypt.CompareHashAndPassword(tenant.HashedPassword, []byte(password))
 	if checkResult == nil {
@@ -176,10 +168,11 @@ func TenantFromAuthentication(dbmap *gorp.DbMap, username, password string) *Ten
 	}
 }
 
+// Tries to find a tenant from the database via the username
 func TenantFromHomeDirectory(dbmap *gorp.DbMap, homeDirName string) (*Tenant, error) {
 	tenant := Tenant{}
-	// find the tenant
-	err := dbmap.SelectOne(&tenant, "select * from Tenant where HomeDirectory=", homeDirName)
+	// find the tenant (limit the select results to 1, so selectOne wont fail)
+	err := dbmap.SelectOne(&tenant, "select * from Tenant where HomeDirectory= order by TenantId desc limit 1", homeDirName)
 	if err != nil {
 		return nil, err
 	}

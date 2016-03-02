@@ -1,5 +1,6 @@
 package tests
 
+/*
 import (
 	"github.com/palette-software/insight-server/app/controllers"
 	"github.com/palette-software/insight-server/app/routes"
@@ -215,3 +216,4 @@ func (t *CsvMultiUploadTest) TestMissingFilesListedInManifestShouldFail() {
 	t.Assertf(success[0] == manifestFiles[0].Filename, "The successfully uploaded file has name '%v' instead of '%v'", success[0], manifestFiles[0].Filename)
 	t.Assertf(failed[0] == manifestFiles[1].Filename, "The failed uploaded file has name '%v' instead of '%v'", failed[0], manifestFiles[1].Filename)
 }
+*/

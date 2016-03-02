@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	OUTPUT_DEFAULT_MODE    = 0644
 	OUTPUT_DEFAULT_DIRMODE = 0755
 )
 
