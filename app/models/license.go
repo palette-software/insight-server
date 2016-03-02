@@ -1,11 +1,5 @@
 package models
 
-/*
-// #cgo LDFLAGS: vendor/libsodium-win64/lib/libsodium.a
-// #include "vendor/libsodium-win64/include/sodium.h"
-import "C"
-*/
-
 import (
 	"gopkg.in/yaml.v2"
 
