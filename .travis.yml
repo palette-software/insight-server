@@ -4,7 +4,6 @@ language: go
 go:
   - 1.6
   - 1.5
-  - tip
 
 # optionally specify a list of environments, for example to test different RDBMS
 env:
