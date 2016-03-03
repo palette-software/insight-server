@@ -50,17 +50,6 @@ func CheckUserAuth(internalHandler func(w http.ResponseWriter, req *http.Request
 	}
 }
 
-
-// Returns the current working directory
-func getCurrentPath() string {
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return dir
-
-}
-
 // LICENSES
 // ========
 
