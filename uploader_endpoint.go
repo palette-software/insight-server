@@ -156,7 +156,6 @@ func NewUploadedCsv(username, pkg, filename string, requestTime time.Time, fileR
 	}
 	return &UploadedCsv{
 		Csv:      *mainFile,
-		//Metadata: *metaFile,
 		Uploader: username,
 		Package:  pkg,
 		HasMeta:  true,
@@ -172,7 +171,8 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User) {
 	// parse the multipart form
 	err := req.ParseMultipartForm(128 * 1024 * 1024)
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, "Cannot parse multipart form")
+		return
 	}
 
 	pkg, err := getUrlParam(req.URL, "pkg")
@@ -185,25 +185,29 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User) {
 	// get the actual file
 	mainFile, fileName, err := getMultipartFile(req.MultipartForm, "_file")
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, "Cannot find the field '_file' in the upload request")
+		return
 	}
 	defer mainFile.Close()
 
 	requestTime := time.Now()
 	newUploadedPack, err := NewUploadedCsv(tenant.GetUsername(), pkg, fileName, requestTime, mainFile)
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, fmt.Sprintf("Error while saving uploaded file: %v", err))
+		return
 	}
 
 	// check the md5
 	md5Fields := req.MultipartForm.Value["_md5"]
 	if len(md5Fields) != 1 {
-		panic(fmt.Errorf("Only one instance of the '_md5' field allowed in the request, got: %v", len(md5Fields)))
+		logError(w, http.StatusBadRequest, fmt.Sprintf("Only one instance of the '_md5' field allowed in the request, got: %v", len(md5Fields)))
+		return
 	}
 
 	fileMd5, err := base64.StdEncoding.DecodeString(md5Fields[0])
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, "Cannot Base64 decode the submitted MD5")
+		return
 	}
 
 	// compare the md5
@@ -212,7 +216,6 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User) {
 		return
 	}
 
-	return
 }
 
 // The actual upload handler

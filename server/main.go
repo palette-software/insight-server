@@ -57,9 +57,6 @@ func main() {
 	http.HandleFunc("/", pingHandler)
 
 	authenticator := insight_server.NewLicenseAuthenticator(getLicensesDirectory())
-
-
-	//authenticatedUploadHandler := insight_server.CheckUserAuth( insight_server.UploadHanlder)
 	authenticatedUploadHandler := insight_server.MakeUserAuthHandler(authenticator, insight_server.UploadHandler)
 
 	// declare both endpoints for now. /upload-with-meta is deprecated
