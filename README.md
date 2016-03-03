@@ -1,59 +1,61 @@
 # Notes from T
 
-## Adding a user from a license
 
-To add a user to the authorized users on the server, navigate your
-browser to the following url:
-
-```
-http://<ENDPOINT>/users/new
-```
-
-This form allows you to create a user from a license. On success, the
-server returns a JSON object of the newly created user.
-
-## Running the tests
-
-Run the tests by:
+## Starting the webservice
 
 ```bash
-revel test github.com/palette-software/insight-server test
+cd server
+go build && ./server
 ```
 
-
-And run a test server by
-
-```bash
-revel run github.com/palette-software/insight-server dev
-```
-
-The test runner is available then at:
+or on Windows:
 
 ```
-http://localhost:9000/@tests
+cd server
+go build
+server.exe
 ```
 
-Or run in prod with HTTPS enabled (certs are in the root directory)
-with:
+This starts the webservice on:
 
-```bash
-revel run github.com/palette-software/insight-server prod
+- if the ```PORT``` environment variable is set, then on the port specified by that
+- if it isnt set, then on port 9000
+
+
+## User authentication
+
+On startup, the server tries to load all licenses from:
+
+- if the ```INSIGHT_LICENSES_PATH``` environment variable is set, then from the directory it points to
+- if it isnt set, the license files are loaded from the 'licenses' subdirectory inside the server executables directory
+
+The usernames are the ```licenseId``` field of the license, the authentication token is the ```token``` field of the license.
+
+## Checking if the service is running
+
+```
+$ curl http://localhost:9000/
+PONG
 ```
 
+## Uploading a file
 
-More about the HTTPS cert process can be found in the
-
-```
-server.key.info
-```
-
-file.
-
-
+See the openAPI documentation inside the docs/generated folder
 
 ## API Documentation
-
 
 A basic documentation using OpenAPI is available in the docs folder, or
 a HTML-ized version is available in the docs/generated folder.
 
+
+## Tests
+
+Due to the quick pace of the development, the existing tests have been scrapped for the most part.
+
+Running them:
+
+```bash
+$ go test
+PASS
+ok      github.com/palette-software/insight-server      0.064s
+```

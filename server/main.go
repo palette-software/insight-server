@@ -28,7 +28,7 @@ func getBindAddress() string {
 func main() {
 	insight_server.Boot()
 
-	//http.HandleFunc("/", pingHandler)
+	http.HandleFunc("/", pingHandler)
 	http.HandleFunc("/upload-with-meta", insight_server.CheckUserAuth( insight_server.UploadHanlder))
 
 	bindAddress := getBindAddress()
