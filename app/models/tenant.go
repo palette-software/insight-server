@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	"github.com/go-gorp/gorp"
+	"gopkg.in/gorp.v1"
 	"github.com/revel/revel"
 	"golang.org/x/crypto/bcrypt"
 	"regexp"
@@ -12,7 +12,7 @@ import (
 // can upload files to HomeDirectory
 type Tenant struct {
 	// The id in the database
-	TenantId int
+	Id int
 	// The full name of the tenant
 	Name string
 	// The username and password for the tenant to log in
