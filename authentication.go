@@ -32,11 +32,9 @@ const (
 func CheckUserAuth(internalHandler func(w http.ResponseWriter, req *http.Request, tenant *License)) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 
-		log.Printf("[auth] auth req\n")
-
 		username, password, authOk := req.BasicAuth()
 		if !authOk {
-			logError(w, http.StatusForbidden, "[AUTH] No auth information provided in request")
+			logError(w, http.StatusForbidden, "[auth] No auth information provided in request")
 			return
 		}
 

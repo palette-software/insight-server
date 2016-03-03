@@ -29,7 +29,12 @@ func main() {
 	insight_server.Boot()
 
 	http.HandleFunc("/", pingHandler)
-	http.HandleFunc("/upload-with-meta", insight_server.CheckUserAuth( insight_server.UploadHanlder))
+
+	authenticatedUploadHandler := insight_server.CheckUserAuth( insight_server.UploadHanlder)
+
+	// declare both endpoints for now. /upload-with-meta is deprecated
+	http.HandleFunc("/upload-with-meta", authenticatedUploadHandler)
+	http.HandleFunc("/upload", authenticatedUploadHandler)
 
 	bindAddress := getBindAddress()
 	fmt.Printf("Webservice starting on %v\n", bindAddress)

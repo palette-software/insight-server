@@ -229,8 +229,26 @@ func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.Fi
 	return
 }
 
-// The actual upload handler
-func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
+// Returns an url param, or an error if no such param is available
+func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
+
+	// parse the url params
+	urlParams, err := url.ParseQuery(reqUrl.RawQuery)
+	if err != nil {
+		return "", err
+	}
+
+	// get the package
+	paramVals := urlParams[paramName]
+	if len(paramVals) != 1 {
+		return "", fmt.Errorf("BAD REQUEST: No '%v' parameter provided", paramName)
+	}
+
+	return paramVals[0], nil
+}
+
+// provides an actual implementation of the upload functionnality
+func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *License) {
 
 	// parse the multipart form
 	err := req.ParseMultipartForm(128 * 1024 * 1024)
@@ -238,18 +256,12 @@ func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
 		panic(err)
 	}
 
-	// parse the url params
-	urlParams, err := url.ParseQuery(req.URL.RawQuery)
+	pkg, err := getUrlParam(req.URL, "pkg")
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, "No _pkg parameter provided")
+		return
 	}
 
-	// get the package
-	pkgs := urlParams["pkg"]
-	if len(pkgs) != 1 {
-		http.Error(w, "BAD REQUEST: No 'pkg' parameter provided", 400)
-	}
-	pkg := pkgs[0]
 
 	// get the actual file
 	mainFile, fileName, err := getMultipartFile(req.MultipartForm, "_file")
@@ -282,4 +294,9 @@ func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
 	}
 
 	return
+}
+
+// The actual upload handler
+func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
+	uploadHandlerInner(w,req,tenant)
 }
