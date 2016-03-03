@@ -26,11 +26,6 @@ const (
 // INITIALIZERS
 // ============
 
-// Called on start of the server
-func Boot() {
-	initLicenses()
-}
-
 const (
 	OUTPUT_DEFAULT_DIRMODE = 0755
 )
@@ -172,7 +167,7 @@ func NewUploadedCsv(username, pkg, filename string, requestTime time.Time, fileR
 // ===============
 
 // provides an actual implementation of the upload functionnality
-func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *License) {
+func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User) {
 
 	// parse the multipart form
 	err := req.ParseMultipartForm(128 * 1024 * 1024)
@@ -195,7 +190,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *Licens
 	defer mainFile.Close()
 
 	requestTime := time.Now()
-	newUploadedPack, err := NewUploadedCsv(tenant.LicenseId, pkg, fileName, requestTime, mainFile)
+	newUploadedPack, err := NewUploadedCsv(tenant.GetUsername(), pkg, fileName, requestTime, mainFile)
 	if err != nil {
 		panic(err)
 	}
@@ -221,6 +216,6 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *Licens
 }
 
 // The actual upload handler
-func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
+func UploadHandler(w http.ResponseWriter, req *http.Request, tenant User) {
 	uploadHandlerInner(w, req, tenant)
 }
