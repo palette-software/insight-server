@@ -22,22 +22,9 @@ const (
 	UploadPathEnvKey = "INSIGHT_UPLOAD_HOME"
 )
 
-
-// INITIALIZERS
-// ============
-
-// Called on start of the server
-func Boot() {
-	initLicenses()
-}
-
 const (
 	OUTPUT_DEFAULT_DIRMODE = 0755
 )
-
-
-// DATA MODELS
-// ===========
 
 // A single file that was sent to us by the client
 type UploadedFile struct {
@@ -51,58 +38,71 @@ type UploadedFile struct {
 	Md5          []byte
 }
 
-// Represents an uploaded CSV file with its metadata
-type UploadedCsv struct {
-	// The data file that has been uploaded
-	Csv      UploadedFile
+// Parameters for an upload request
+type uploadRequest struct {
+	username    string
+	pkg         string
+	filename    string
 
-	// The username of the tenant uploading this file
-	Uploader string
-
-	// The package this upload is part of
-	Package  string
-
-	// Indicates if there is metadata coming in with this upload
-	HasMeta  bool
+	requestTime time.Time
+	reader      io.Reader
 }
 
-// Gets the path where a certain tenants files for the given package reside
-func getUploadBasePath(tenantHomeDir, pkg string) string {
-	uploadBaseDir := os.Getenv(UploadPathEnvKey)
-	if uploadBaseDir == "" {
-		uploadBaseDir = path.Join(os.Getenv("TEMP"), "uploads")
+// A generic interface implementing the saving of a file
+type Uploader interface {
+	SaveFile(req *uploadRequest) (*UploadedFile, error)
+}
+
+
+// IMPLEMENTATIONS
+// ===============
+
+type basicUploader struct {
+	// The directory where the files are uploaded
+	baseDir string
+}
+
+// Creates a basic uploader
+func MakeBasicUploader(basePath string) Uploader {
+	log.Printf("[uploader] Using path '%v' for upload root", basePath)
+	return &basicUploader{
+		baseDir: basePath,
 	}
-	return filepath.ToSlash(path.Join(uploadBaseDir, tenantHomeDir, "uploads", SanitizeName(pkg)))
 }
+
 
 // Gets the file path inside the upload directory
-func getUploadPathForFile(filename, fileHash string, requestTime time.Time) string {
+func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte) string {
 	// the folder name is only the date
-	folderTimestamp := requestTime.Format("2006-01-02")
+	folderTimestamp := req.requestTime.Format("2006-01-02")
 	// the file name gets the timestamp appended (only time)
-	fileTimestamp := requestTime.Format("15-04--05-00")
+	fileTimestamp := req.requestTime.Format("15-04--05-00")
 
+	filename := req.filename
 	// get the extension and basename
-	fileBaseName := SanitizeName(filename)
-	fileExtName := SanitizeName(path.Ext(filename))
-	fullFileName := fmt.Sprintf("%v-%v-%v.%v", fileBaseName, fileTimestamp, fileHash, fileExtName[1:])
+	fullFileName := fmt.Sprintf("%v-%v-%x.%v",
+		SanitizeName(filename),
+		fileTimestamp,
+		fileHash,
+		SanitizeName(path.Ext(filename)),
+	)
 
-	return filepath.ToSlash(path.Join(folderTimestamp, fullFileName))
+	return filepath.ToSlash(path.Join(u.baseDir, folderTimestamp, fullFileName))
 }
 
 
 // Central function tries to create a new uploaded file.
 // The purpose of this method is to provide a unified upload capability.
-func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, reader io.Reader) (*UploadedFile, error) {
+func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 
 	hash := md5.New()
 
 	// create a TeeReader that automatically forwards bytes read from the file to
 	// the md5 hasher's reader
-	readerWithMd5 := io.TeeReader(reader, hash)
+	readerWithMd5 := io.TeeReader(req.reader, hash)
 
 	// create a temp file to move the bytes to (we do not yet know the hash of the file)
-	tmpFile, err := ioutil.TempFile("", "temporary-file-contents")
+	tmpFile, err := ioutil.TempFile("", "temporary-file-contents-")
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +117,9 @@ func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, rea
 
 	// get the hash from the teewriter
 	fileHash := hash.Sum(nil)
-	// make a hex string out of the md5
-	md5str := fmt.Sprintf("%x", fileHash)
 
 	// generate the output file name
-	outputPath := filepath.ToSlash(path.Join(uploadBasePath, getUploadPathForFile(filename, md5str, requestTime)))
+	outputPath := u.getUploadPathForFile(req, fileHash)
 
 	// create the output file path
 	if err := os.MkdirAll(filepath.Dir(outputPath), OUTPUT_DEFAULT_DIRMODE); err != nil {
@@ -143,41 +141,24 @@ func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, rea
 	log.Printf("[Upload] Moved '%v' to '%v'\n", tempFilePath, outputPath)
 
 	return &UploadedFile{
-		Filename:     filename,
+		Filename:     req.filename,
 		UploadedPath: outputPath,
 		Md5:          fileHash,
 	}, nil
 }
 
-// Create a new UploadedCsv struct from the provided parameters.
-func NewUploadedCsv(username, pkg, filename string, requestTime time.Time, fileReader io.Reader) (*UploadedCsv, error) {
-
-	// get the base path for uploads
-	basePath := getUploadBasePath(username, pkg)
-
-	mainFile, err := NewUploadedFile(basePath, filename, requestTime, fileReader)
-	if err != nil {
-		return nil, err
-	}
-	return &UploadedCsv{
-		Csv:      *mainFile,
-		//Metadata: *metaFile,
-		Uploader: username,
-		Package:  pkg,
-		HasMeta:  true,
-	}, nil
-}
 
 // UPLOAD HANDLING
 // ===============
 
 // provides an actual implementation of the upload functionnality
-func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *License) {
+func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, uploader Uploader) {
 
 	// parse the multipart form
 	err := req.ParseMultipartForm(128 * 1024 * 1024)
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, "Cannot parse multipart form")
+		return
 	}
 
 	pkg, err := getUrlParam(req.URL, "pkg")
@@ -186,41 +167,54 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *Licens
 		return
 	}
 
-
 	// get the actual file
 	mainFile, fileName, err := getMultipartFile(req.MultipartForm, "_file")
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, "Cannot find the field '_file' in the upload request")
+		return
 	}
 	defer mainFile.Close()
 
 	requestTime := time.Now()
-	newUploadedPack, err := NewUploadedCsv(tenant.LicenseId, pkg, fileName, requestTime, mainFile)
+
+	uploadedFile, err := uploader.SaveFile(&uploadRequest{
+		username: tenant.GetUsername(),
+		pkg: pkg,
+		filename: fileName,
+		requestTime: requestTime,
+		reader: mainFile,
+
+	})
+
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, fmt.Sprintf("Error while saving uploaded file: %v", err))
+		return
 	}
 
 	// check the md5
 	md5Fields := req.MultipartForm.Value["_md5"]
 	if len(md5Fields) != 1 {
-		panic(fmt.Errorf("Only one instance of the '_md5' field allowed in the request, got: %v", len(md5Fields)))
+		logError(w, http.StatusBadRequest, fmt.Sprintf("Only one instance of the '_md5' field allowed in the request, got: %v", len(md5Fields)))
+		return
 	}
 
 	fileMd5, err := base64.StdEncoding.DecodeString(md5Fields[0])
 	if err != nil {
-		panic(err)
+		logError(w, http.StatusBadRequest, "Cannot Base64 decode the submitted MD5")
+		return
 	}
 
 	// compare the md5
-	if !bytes.Equal(fileMd5, newUploadedPack.Csv.Md5) {
+	if !bytes.Equal(fileMd5, uploadedFile.Md5) {
 		logError(w, http.StatusConflict, "CONFLICT: Md5 Error")
 		return
 	}
 
-	return
 }
 
-// The actual upload handler
-func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
-	uploadHandlerInner(w, req, tenant)
+// Creates an http endpoint handler where
+func MakeUploadHandler(uploader Uploader) HandlerFuncWithTenant {
+	return func(w http.ResponseWriter, r *http.Request, tenant User) {
+		uploadHandlerInner(w, r, tenant, uploader)
+	}
 }

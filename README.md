@@ -30,6 +30,17 @@ On startup, the server tries to load all licenses from:
 
 The usernames are the ```licenseId``` field of the license, the authentication token is the ```token``` field of the license.
 
+## Setting the upload path
+
+The ```INSIGHT_UPLOAD_HOME``` environment variable describes the root directory where the uploads are kept. If its not
+set, the ```$TEMP/uploads`` is used. 
+
+For example:
+
+```bash
+INSIGHT_UPLOAD_HOME=/opt/insight-server/uploads PORT=8080 INSIGHT_LICENSES_PATH=/opt/insight-server/licenses ./server
+```
+
 ## Checking if the service is running
 
 ```
