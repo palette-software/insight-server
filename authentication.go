@@ -98,7 +98,7 @@ func loadAllLicenses(licensesRoot string) Licenses {
 	log.Printf("[license] Loaded %v licenses from %v.", len(licenses), glob)
 
 	for _, tenant := range licenses {
-		log.Printf("[license] user: '%v' username: '%v' home: '%v'", tenant.Owner, tenant.LicenseId, getUploadBasePath(tenant.LicenseId, ""))
+		log.Printf("[license] user: '%v' username: '%v'", tenant.Owner, tenant.LicenseId)
 	}
 
 	return licenses
