@@ -88,11 +88,7 @@ type UploadedCsv struct {
 	// The data file that has been uploaded
 	Csv UploadedFile
 
-	// The metadata file that was uploaded
-	Metadata UploadedFile
-
-	// The person uploading this file
-	// TODO: since this contains the hashed auth token of the tenant, it should be better to exclude that somehow
+	// The username of the tenant uploading this file
 	Uploader string
 
 	// The package this upload is part of
@@ -186,7 +182,7 @@ func NewUploadedFile(uploadBasePath, filename string, requestTime time.Time, rea
 }
 
 // Create a new UploadedCsv struct from the provided parameters.
-func NewUploadedCsv(username, pkg, filename string, requestTime time.Time, fileReader, metadataReader io.Reader) (*UploadedCsv, error) {
+func NewUploadedCsv(username, pkg, filename string, requestTime time.Time, fileReader io.Reader) (*UploadedCsv, error) {
 
 	// get the base path for uploads
 	basePath := getUploadBasePath(username, pkg)
@@ -195,22 +191,14 @@ func NewUploadedCsv(username, pkg, filename string, requestTime time.Time, fileR
 	if err != nil {
 		return nil, err
 	}
-
-	metaFile, err := NewUploadedFile(basePath, fmt.Sprintf("%s.meta", filename), requestTime, metadataReader)
-	if err != nil {
-		return nil, err
-	}
-
 	return &UploadedCsv{
 		Csv:      *mainFile,
-		Metadata: *metaFile,
+		//Metadata: *metaFile,
 		Uploader: username,
 		Package:  pkg,
 		HasMeta:  true,
 	}, nil
 }
-// AUTH
-// ====
 
 // UPLOAD HANDLING
 // ===============
@@ -263,9 +251,6 @@ func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
 	}
 	pkg := pkgs[0]
 
-	// get the tenant
-
-
 	// get the actual file
 	mainFile, fileName, err := getMultipartFile(req.MultipartForm, "_file")
 	if err != nil {
@@ -273,15 +258,8 @@ func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
 	}
 	defer mainFile.Close()
 
-	// get the metadata file
-	metaFile, _, err := getMultipartFile(req.MultipartForm, "_meta")
-	if err != nil {
-		panic(err)
-	}
-	defer metaFile.Close()
-
 	requestTime := time.Now()
-	newUploadedPack, err := NewUploadedCsv(tenant.LicenseId, pkg, fileName, requestTime, mainFile, metaFile)
+	newUploadedPack, err := NewUploadedCsv(tenant.LicenseId, pkg, fileName, requestTime, mainFile)
 	if err != nil {
 		panic(err)
 	}
