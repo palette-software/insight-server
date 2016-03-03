@@ -1,5 +1,4 @@
-# Notes from T
-
+# Palette Insight Webservice
 
 ## Starting the webservice
 

@@ -1,57 +1,26 @@
 package insight_server
 
 import (
-
 	"net/http"
-	"mime/multipart"
 	"fmt"
 	"time"
 	"encoding/base64"
 	"bytes"
-	"net/url"
 	"log"
 
 	"path/filepath"
 	"os"
 	"path"
-	"regexp"
 	"io"
 	"crypto/md5"
 	"io/ioutil"
 )
 
 const (
-
-	// The key in the Environment where the files will be uploaded
-	// if no such value is set in the env, use ENV["TEMP"]
+// The key in the Environment where the files will be uploaded
+// if no such value is set in the env, use ENV["TEMP"]
 	UploadPathEnvKey = "INSIGHT_UPLOAD_HOME"
-
 )
-
-// HELPERS
-// =======
-
-// simple helper that logs an error then panics
-func checkErr(err error, msg string) {
-	if err != nil {
-		log.Fatalln(msg, err)
-	}
-}
-
-// The regexp we use for sanitizing any strings to a file name that is valid on all systems
-var sanitizeRegexp = regexp.MustCompile("[^A-Za-z0-9]+")
-
-// Returns a sanitized filename with all non-alphanumeric characters replaced by dashes
-func SanitizeName(name string) string {
-	return sanitizeRegexp.ReplaceAllString(name, "-")
-}
-
-// Writes the error message to the log then responds with an error message
-func logError(w http.ResponseWriter, status int, err string) {
-	log.Println(err)
-	http.Error(w, err, status)
-	return
-}
 
 
 // INITIALIZERS
@@ -73,29 +42,28 @@ const (
 // A single file that was sent to us by the client
 type UploadedFile struct {
 	// The file name this client has sent us
-	Filename string
+	Filename     string
 
 	// The path where the server has stored this file
 	UploadedPath string
 
 	// The md5 of the file
-	Md5 []byte
+	Md5          []byte
 }
 
 // Represents an uploaded CSV file with its metadata
 type UploadedCsv struct {
-
 	// The data file that has been uploaded
-	Csv UploadedFile
+	Csv      UploadedFile
 
 	// The username of the tenant uploading this file
 	Uploader string
 
 	// The package this upload is part of
-	Package string
+	Package  string
 
 	// Indicates if there is metadata coming in with this upload
-	HasMeta bool
+	HasMeta  bool
 }
 
 // Gets the path where a certain tenants files for the given package reside
@@ -203,50 +171,6 @@ func NewUploadedCsv(username, pkg, filename string, requestTime time.Time, fileR
 // UPLOAD HANDLING
 // ===============
 
-
-// Helper to get a part from a multipart message
-func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.File, fileName string, err error) {
-
-	// get the file from the form
-	fn := form.File[fieldName]
-	if len(fn) != 1 {
-		err = fmt.Errorf("The request must have exactly 1 '%v' field (has %v).", fieldName, len(fn))
-		return
-	}
-
-	// take the first one
-	uploadedFile := fn[0]
-
-	// set the filename
-	fileName = uploadedFile.Filename
-
-	// get the file reader
-	file, err = uploadedFile.Open()
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-// Returns an url param, or an error if no such param is available
-func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
-
-	// parse the url params
-	urlParams, err := url.ParseQuery(reqUrl.RawQuery)
-	if err != nil {
-		return "", err
-	}
-
-	// get the package
-	paramVals := urlParams[paramName]
-	if len(paramVals) != 1 {
-		return "", fmt.Errorf("BAD REQUEST: No '%v' parameter provided", paramName)
-	}
-
-	return paramVals[0], nil
-}
-
 // provides an actual implementation of the upload functionnality
 func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *License) {
 
@@ -298,5 +222,5 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant *Licens
 
 // The actual upload handler
 func UploadHanlder(w http.ResponseWriter, req *http.Request, tenant *License) {
-	uploadHandlerInner(w,req,tenant)
+	uploadHandlerInner(w, req, tenant)
 }
