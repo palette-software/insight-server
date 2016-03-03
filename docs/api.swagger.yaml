@@ -1,0 +1,197 @@
+# this is an example of the Uber API
+# as a demonstration of an API spec in YAML
+swagger: '2.0'
+info:
+  title: Palette Insight Server API
+  description: API for sending files to the Palette Insight Server
+  version: "1.0.0"
+# the domain of the service
+host: insight-api-test.palette-software.com
+# array of all schemes that your API supports
+schemes:
+  - https
+# will be prefixed to all paths
+basePath: /
+produces:
+  - application/json
+
+securityDefinitions:
+  basicAuth:
+    type: basic
+    description: |
+        HTTP Basic Authentication. Works over `HTTP` and `HTTPS`.
+
+        The username and password can be pre-set on a per-tenant basis (and more tenants can work into the same directory).
+
+parameters:
+  pkg:
+    name: pkg
+    in: path
+    description: The name of the outermost directory where to put this file.
+    required: true
+    type: string
+
+
+responses:
+  defaultError:
+    description: Unexpected error
+
+
+
+
+paths:
+  /upload-with-meta/{pkg}:
+    post:
+      summary: Upload a single file with metadata
+      description: |
+        This endpoint receives a single file along a metadata file, and stores it
+        inside the tenants home directory.
+      security:
+        - basicAuth: []
+
+      parameters:
+        - $ref: '#/parameters/pkg'
+        - name: _file
+          in: body
+          required: true
+          description: |
+            the contents of the file to upload. the name of the file is determined
+            by the filename of the part in the multipart body.
+          type: binary
+
+        - name: _meta
+          in: body
+          required: true
+          description: |
+            the contents of the metadata file to upload. the name of the file is determined
+            by the filename of the part in the multipart body.
+          type: binary
+
+        - name: md5
+          in: body
+          required: true
+          description: |
+            The base64-encoded md5 of the file that is uploaded.
+          type: string
+
+      tags:
+        - Upload
+
+      responses:
+        200:
+          description: The JSON status of the upload
+          schema:
+            $ref: '#/definitions/UploadedCsv'
+
+        409:
+          description: MD5 error in the uploaded file
+          schema:
+            $ref: '#/definitions/UploadResult'
+
+        default:
+          $ref: '#/responses/defaultError'
+
+
+  /users/create:
+    post:
+      summary: Creates a user from a submitted license
+      description: |
+        Creates a new user form the data in the license:
+
+        * the full name will be the licenses ```owner``` field
+        * the username will be the ```licenseId``` field
+        * the auth token will be the licenses token
+        * the home directory will be the licenseId field (with unsafe characters sanitized)
+        * license validity date is ignored
+
+        Currently this endpoint does not do any authentication, but this will change soon.
+
+        Currently this endpoint does not verify the cryptographic signature of the license.
+
+      consumes:
+        - application/x-www-form-urlencoded
+
+      parameters:
+        - name: license
+          in: body
+          required: true
+          description: The license as a Base64 encoded string
+          type: string
+
+      tags:
+        - Tenants
+        - Admin
+
+      reponses:
+        200:
+          description: The JSON representation of the newly created tenant
+          schema:
+            $ref: "#/definitions/Tenant"
+
+        500:
+          $ref: "#/responses/defaultError"
+
+
+
+
+
+
+definitions:
+
+  Tenant:
+    properties:
+      TenantId:
+        type: integer
+        format: int64
+        description: The id of the tenant in the database
+      Name:
+        type: string
+        description: The full name of the tenant
+      Password:
+        type: string
+        description: Placeholder.
+      HomeDirectory:
+        type: string
+        descrirption: The directory the files uploaded by this tenant reside in.
+      HashedPassword:
+        type: string
+        description: The BCrypted hash of the token
+
+
+  UploadedFile:
+    properties:
+      Filename:
+        type: string
+        description: The filename from the request (to identify the file)
+
+      UploadedPath:
+        type: string
+        description: The path on the server where the file is stored after upload. Useful for tests.
+
+      Md5:
+        type: "[]byte"
+        description: The MD5 of the file
+
+  UploadedCsv:
+    properties:
+      Csv:
+        description: The main CSV file that was uploaded
+        type:
+          $ref: '#/definitions/UploadedFile'
+      Metadata:
+        description: The metadata file that was sent along the data
+        type:
+          $ref: '#/definitions/UploadedFile'
+
+      Uploader:
+        description: The tenant that uploaded the file.
+        type:
+          $ref: '#/definitions/Tenant'
+
+      Package:
+        description: The name of tha package this file was uploaded to
+        type: string
+
+
+
+
