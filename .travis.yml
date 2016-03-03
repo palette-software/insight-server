@@ -1,11 +1,10 @@
-# see http://about.travis-ci.org/docs/user/languages/php/ for more hints
+# see http://about.travis-ci.org/docs/user/languages/go/ for more hints
 language: go
 
 go:
   - 1.6
   - 1.5
 
-# optionally specify a list of environments, for example to test different RDBMS
 env:
   - PORT=9000 INSIGHT_UPLOAD_HOME=/tmp/uploads
 
