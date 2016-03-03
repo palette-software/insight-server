@@ -1,4 +1,4 @@
-package models
+package insight_server
 
 import (
 	"gopkg.in/yaml.v2"
