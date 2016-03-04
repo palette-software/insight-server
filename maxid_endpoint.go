@@ -88,7 +88,7 @@ func (m *fileMaxIdBackend)getFileName(username, tableName string) string {
 
 func (m *fileMaxIdBackend)SaveMaxId(username, tableName, maxid string) error {
 	fileName := m.getFileName(username, tableName)
-	log.Printf("[maxid] writing maxid '%v' for table '%v' into file '%v' ", maxid, tableName,fileName )
+	log.Printf("[maxid] writing maxid '%s' for table '%v' into file '%v' ", maxid, tableName,fileName )
 
 
 	// create the output file path
