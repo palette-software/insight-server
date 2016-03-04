@@ -61,6 +61,11 @@ GET /maxid?table=http_requests
 * ```maxid``` must be a string
 
 
+The maxids are stored in:
+
+* The directory pointed to by the ```INSIGHT_MAXID_PATH``` or the ```_maxid``` subfolder of the working directory.
+
+
 ## Checking if the service is running
 
 ```
