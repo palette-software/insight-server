@@ -87,7 +87,7 @@ func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte
 		SanitizeName(path.Ext(filename)),
 	)
 
-	return filepath.ToSlash(path.Join(u.baseDir, folderTimestamp, fullFileName))
+	return filepath.ToSlash(path.Join(u.baseDir, req.username, "uploads", folderTimestamp, fullFileName))
 }
 
 
@@ -113,7 +113,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[Upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
+	log.Printf("[upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
 
 	// get the hash from the teewriter
 	fileHash := hash.Sum(nil)
@@ -138,7 +138,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 		return nil, err
 	}
 
-	log.Printf("[Upload] Moved '%v' to '%v'\n", tempFilePath, outputPath)
+	log.Printf("[upload] Moved '%v' to '%v'\n", tempFilePath, outputPath)
 
 	return &UploadedFile{
 		Filename:     req.filename,
@@ -152,8 +152,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 // ===============
 
 // provides an actual implementation of the upload functionnality
-func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, uploader Uploader) {
-	log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
+func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, uploader Uploader, maxidbackend MaxIdBackend) {
 
 	// parse the multipart form
 	err := req.ParseMultipartForm(128 * 1024 * 1024)
@@ -162,6 +161,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 		return
 	}
 
+	// get the package
 	pkg, err := getUrlParam(req.URL, "pkg")
 	if err != nil {
 		logError(w, http.StatusBadRequest, "No _pkg parameter provided")
@@ -211,11 +211,23 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 		return
 	}
 
+	// get the maxid if any
+	maxid, err := getUrlParam(req.URL, "maxid")
+	if err == nil {
+		tableName, tnError := getTableNameFromFilename(fileName)
+		if tnError != nil {
+			logError(w, http.StatusBadRequest, fmt.Sprintf("%v", err))
+			return
+		}
+		// if we have the maxid parameter, save it
+		maxidbackend.SaveMaxId(tenant.GetUsername(), tableName, maxid)
+	}
+
 }
 
 // Creates an http endpoint handler where
-func MakeUploadHandler(uploader Uploader) HandlerFuncWithTenant {
+func MakeUploadHandler(uploader Uploader, maxidBackend MaxIdBackend) HandlerFuncWithTenant {
 	return func(w http.ResponseWriter, r *http.Request, tenant User) {
-		uploadHandlerInner(w, r, tenant, uploader)
+		uploadHandlerInner(w, r, tenant, uploader, maxidBackend)
 	}
 }

@@ -20,6 +20,11 @@ const (
 // The key in the Environment where the files will be uploaded
 // if no such value is set in the env, use ENV["TEMP"]
 	UploadPathEnvKey = "INSIGHT_UPLOAD_HOME"
+
+// The key in the env where the maxid files are stored
+	MaxidDirectoryKey = "INSIGHT_MAXID_PATH"
+// The path to the directory where the maxid is stored
+	MaxIdBasePath = "_maxid"
 )
 
 func pingHandler(w http.ResponseWriter, req *http.Request) {
@@ -66,19 +71,58 @@ func getLicensesDirectory() string {
 	return licensesRoot
 }
 
+
+// tries to get a string from the Environment and returns
+// defaults when its not set
+func getFromEnv(key, defaults string) string {
+	// get the licenses root directory from the env if possible
+	v := os.Getenv(key)
+	if v == "" {
+		v = defaults
+	}
+	return v
+}
+
+
+// Adds basic request logging to the wrapped handler
+func withRequestLog(innerHandler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[http] {%v} %v%v?%v", r.Method, r.URL.Host, r.URL.Path, r.URL.RawQuery )
+		innerHandler(w, r)
+	}
+}
+
 func main() {
 
 	http.HandleFunc("/", pingHandler)
 
+	// create the maxid backend
+	maxIdBackendDirectory := getFromEnv(MaxidDirectoryKey, path.Join(getUploadBasePath(), MaxIdBasePath))
+	maxIdBackend := insight_server.MakeFileMaxIdBackend(maxIdBackendDirectory)
+
+	// create the authenticator
 	authenticator := insight_server.NewLicenseAuthenticator(getLicensesDirectory())
 	uploader := insight_server.MakeBasicUploader(getUploadBasePath())
-	uploadHandler := insight_server.MakeUploadHandler(uploader)
 
-	authenticatedUploadHandler := insight_server.MakeUserAuthHandler(authenticator, uploadHandler)
+	// create the upload endpoint
+	authenticatedUploadHandler := withRequestLog(
+		insight_server.MakeUserAuthHandler(
+			authenticator,
+			insight_server.MakeUploadHandler(uploader, maxIdBackend),
+		),
+	)
+	// create the maxid handler
+	maxIdHandler := withRequestLog(
+		insight_server.MakeUserAuthHandler(
+			authenticator,
+			insight_server.MakeMaxIdHandler(maxIdBackend),
+		),
+	)
 
 	// declare both endpoints for now. /upload-with-meta is deprecated
 	http.HandleFunc("/upload-with-meta", authenticatedUploadHandler)
 	http.HandleFunc("/upload", authenticatedUploadHandler)
+	http.HandleFunc("/maxid", maxIdHandler)
 
 	bindAddress := getBindAddress()
 	fmt.Printf("Webservice starting on %v\n", bindAddress)
