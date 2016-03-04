@@ -113,7 +113,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[Upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
+	log.Printf("[upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
 
 	// get the hash from the teewriter
 	fileHash := hash.Sum(nil)
@@ -138,7 +138,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 		return nil, err
 	}
 
-	log.Printf("[Upload] Moved '%v' to '%v'\n", tempFilePath, outputPath)
+	log.Printf("[upload] Moved '%v' to '%v'\n", tempFilePath, outputPath)
 
 	return &UploadedFile{
 		Filename:     req.filename,
@@ -153,7 +153,6 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 
 // provides an actual implementation of the upload functionnality
 func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, uploader Uploader, maxidbackend MaxIdBackend) {
-	log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
 
 	// parse the multipart form
 	err := req.ParseMultipartForm(128 * 1024 * 1024)

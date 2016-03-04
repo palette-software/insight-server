@@ -83,6 +83,15 @@ func getFromEnv(key, defaults string) string {
 	return v
 }
 
+
+// Adds basic request logging to the wrapped handler
+func withRequestLog(innerHandler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[http] {%v} %v%v?%v", r.Method, r.URL.Host, r.URL.Path, r.URL.RawQuery )
+		innerHandler(w, r)
+	}
+}
+
 func main() {
 
 	http.HandleFunc("/", pingHandler)
@@ -96,14 +105,18 @@ func main() {
 	uploader := insight_server.MakeBasicUploader(getUploadBasePath())
 
 	// create the upload endpoint
-	authenticatedUploadHandler := insight_server.MakeUserAuthHandler(
-		authenticator,
-		insight_server.MakeUploadHandler(uploader, maxIdBackend),
+	authenticatedUploadHandler := withRequestLog(
+		insight_server.MakeUserAuthHandler(
+			authenticator,
+			insight_server.MakeUploadHandler(uploader, maxIdBackend),
+		),
 	)
 	// create the maxid handler
-	maxIdHandler := insight_server.MakeUserAuthHandler(
-		authenticator,
-		insight_server.MakeMaxIdHandler(maxIdBackend),
+	maxIdHandler := withRequestLog(
+		insight_server.MakeUserAuthHandler(
+			authenticator,
+			insight_server.MakeMaxIdHandler(maxIdBackend),
+		),
 	)
 
 	// declare both endpoints for now. /upload-with-meta is deprecated
