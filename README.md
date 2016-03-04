@@ -41,6 +41,26 @@ For example:
 INSIGHT_UPLOAD_HOME=/opt/insight-server/uploads PORT=8080 INSIGHT_LICENSES_PATH=/opt/insight-server/licenses ./server
 ```
 
+## MaxIds
+
+For streaming tables, the webservice provides an endpoint and upload integration:
+
+* the agent sends a ```maxid``` field with the streaming table CSV files, which designates the last record sent by the agent from
+  that table
+
+```
+POST /upload?pkg=public&table=http_requests&maxid=abcdef123
+```
+
+* later the agent can retrieve this ```maxid``` for the specific table by:
+
+```
+GET /maxid?table=http_requests
+```
+ 
+* ```maxid``` must be a string
+
+
 ## Checking if the service is running
 
 ```
