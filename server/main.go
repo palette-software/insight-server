@@ -22,7 +22,8 @@ const (
 	UploadPathEnvKey = "INSIGHT_UPLOAD_HOME"
 )
 
-func pingHandler(w http.ResponseWriter, r *http.Request) {
+func pingHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
 	fmt.Fprintf(w, "PONG")
 }
 
