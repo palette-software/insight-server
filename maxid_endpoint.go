@@ -25,7 +25,13 @@ func MakeMaxIdHandler(backend MaxIdBackend) HandlerFuncWithTenant {
 		w.Header().Set("Content-Type", "text/plain")
 		maxId, err := backend.GetMaxId(tenant.GetUsername(), tableName)
 		if err != nil {
+			if os.IsNotExist(err) {
+				logError(w, http.StatusNoContent, "")
+				return
+			}
+
 			logError(w, http.StatusInternalServerError, fmt.Sprintf("Error while reading: %v", err))
+			return
 		}
 
 		// this write triggers s w.WriteHeader(http.StatusOK)
