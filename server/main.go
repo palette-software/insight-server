@@ -23,7 +23,7 @@ const (
 )
 
 func pingHandler(w http.ResponseWriter, req *http.Request) {
-    log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
+	log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
 	fmt.Fprintf(w, "PONG")
 }
 
