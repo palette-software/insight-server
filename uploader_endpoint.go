@@ -153,7 +153,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 
 // provides an actual implementation of the upload functionnality
 func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, uploader Uploader) {
-    log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
+	log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
 
 	// parse the multipart form
 	err := req.ParseMultipartForm(128 * 1024 * 1024)
