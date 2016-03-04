@@ -1,22 +1,18 @@
-# see http://about.travis-ci.org/docs/user/languages/go/ for more hints
 language: go
-
 go:
-  - 1.6
-  - 1.5
-
-global:
-  - secure: "iK8Zcm1f3/BbCvMgEISgZ0WvmHpk2V4EQHycZlae1hGB2Xr8R9MmIV+fu19+lBu1QOSBpXmUeVJvSwfe9sJHYTKJbcsHeGQM7AIAESvIOiIIZbEDp98WGXwEfxQ1733TgeEX10St4PK8kE3v7G+E5qYhUffjO4DLuE9BfmaQRei2BbcG382rnj9c8vYWF4O00fZEzcDvnwvD9IaeQnB4Jy4e0kkHsIJfvOkwdxbLf6amX9Q7fF7SqBnxHgmvitHef2RBMjBfjT8StUqrBoUVt93j2XXY8m6WWpggaAjilWzvb9Kw9W4XwLryqM+cMCOnbx14SxElrAmmxKjdRFPlSuAWbVaX7O5rK4aANMxXJ7paNUk9bqaWXKor+NsUQ5HC3zPHTRHsmV53J2Yd9bk7n2joAswNXvdN1+KzHY87jUbxZLSakSJ7aSW8ac8MMaUAEzmZizzmqSWBNXfpWFmqvtpjS7fP2zwWfz6f2YWIoVL0n/4+jIWJTR+Ai6fT6RDK3J+gj9A3U4KC2k328nV5mTxFB8SkqWpmJ5RUE6gtE5AZzIcba0mF3l7qKAjD3RjugnPqZ+16fmjjOM60dEeFjhkS43kHF9b7yO+Lk2l+66ruQg4pERj2TbuZqGf6kb95zcflE2vZQ5IjtsswwiDWCIoOI2Praf5UU22fcMl7lkw="
-
+- 1.6
+- 1.5
 env:
-  - PORT=9000 INSIGHT_UPLOAD_HOME=/tmp/uploads
-
+- PORT=9000 INSIGHT_UPLOAD_HOME=/tmp/uploads
 after_success:
-    - zip insight-server.zip $GOPATH/bin/*
-
+- zip insight-server.zip $GOPATH/bin/*
 deploy:
   provider: releases
-  api_key: $GITHUB_TOKEN
-  file:
-    - insight-server.zip
+  api_key:
+    secure: SsFDMxXEMPWGfF/STq6Ik2XbVBI4bZHt9UbjRSN2Id8St5pdTSowSTCcGIHC42JTXfSPVUSSex4D4f/c5avISpqz5m3MWug6wR5da6QTJ16phlRWUlcFHIkwJGqtlkWXwGDBO1GGN1tpknmM9Q41p2QLkTM2ycq1TFCFSIs0J8HanBoYqjfl/JgVaYcZuUkP/XuB/PIS3HNgbwLit2zKBK/mxSNhb1D0GKKoHQXGKxC1OPjXa4z7AjwowqWLWH+3lMl3xtmIMjXg8xJRkWrw4Q6EH+iY9zqvAnOGqUrEtAN3KCVjV7c2+JBc/7ObRk4Zk9L4lJxZxAR5ZFbP8EwwlXiYF0Wxtpa9OxeaLpkHAxFGjeDZS6HzRKa0pU+Coc0ERll3ibZf5jehdLzQ7Q7N7AzXxtLSwChE+WYzEdGTLT7avar3ZieUy5t38+WPEEhPryDoh6GAAWCPctsnvoqeLUs+EO2qvxLqLfEXNth1tMx8tiNkB8KQtknCpUftmuvsJNXQtz8Qe4CDMfasfeecYTz3XauwtbjeDH65Xzc2UwBt6uRNdk3fuG4tnLyuVoTGCCM+uNk2AC/d1EXGJKzEU/bz/fTfim4/nD2jtDANN8Z7m/aHSJTIPoK60mL/OdyVtZT80Pq1Mo2XGBT90sS/Z45txiRAdK+u9KCJww/c9jo=
+  file: insight-server.zip
+  on:
+    repo: palette-software/insight-server
   skip_cleanup: true
+  on:
+      tags: true
