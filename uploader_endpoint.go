@@ -17,12 +17,11 @@ import (
 )
 
 const (
-// The key in the Environment where the files will be uploaded
-// if no such value is set in the env, use ENV["TEMP"]
-	UploadPathEnvKey = "INSIGHT_UPLOAD_HOME"
-)
+// The maximum size of the message we are willing to parse
+// when dealing with multipart messages
+	multipartMaxSize = 128 * 1024 * 1024
 
-const (
+// The directory persions to use when creating a new directory
 	OUTPUT_DEFAULT_DIRMODE = 0755
 )
 
@@ -40,6 +39,7 @@ type UploadedFile struct {
 
 // Parameters for an upload request
 type uploadRequest struct {
+	sourceHost  string
 	username    string
 	pkg         string
 	filename    string
@@ -87,7 +87,14 @@ func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte
 		SanitizeName(path.Ext(filename)),
 	)
 
-	return filepath.ToSlash(path.Join(u.baseDir, req.username, "uploads", folderTimestamp, fullFileName))
+	return filepath.ToSlash(path.Join(
+		u.baseDir,
+		req.username,
+		"uploads",
+		req.sourceHost,
+		folderTimestamp,
+		fullFileName,
+	))
 }
 
 
@@ -155,16 +162,23 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, uploader Uploader, maxidbackend MaxIdBackend) {
 
 	// parse the multipart form
-	err := req.ParseMultipartForm(128 * 1024 * 1024)
+	err := req.ParseMultipartForm(multipartMaxSize)
 	if err != nil {
 		logError(w, http.StatusBadRequest, "Cannot parse multipart form")
 		return
 	}
 
-	// get the package
+	// get the package from the URL
 	pkg, err := getUrlParam(req.URL, "pkg")
 	if err != nil {
 		logError(w, http.StatusBadRequest, "No _pkg parameter provided")
+		return
+	}
+
+	// get the source host from the URL
+	sourceHost, err := getUrlParam(req.URL, "host")
+	if err != nil {
+		logError(w, http.StatusBadRequest, "No _host parameter provided")
 		return
 	}
 
@@ -179,6 +193,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	requestTime := time.Now()
 
 	uploadedFile, err := uploader.SaveFile(&uploadRequest{
+		sourceHost: sourceHost,
 		username: tenant.GetUsername(),
 		pkg: pkg,
 		filename: fileName,
