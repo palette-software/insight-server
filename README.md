@@ -63,7 +63,7 @@ GET /maxid?table=http_requests
 
 The maxids are stored in:
 
-* The directory pointed to by the ```INSIGHT_MAXID_PATH``` or the ```_maxid``` subfolder of the working directory.
+* The directory pointed to by the ```INSIGHT_MAXID_PATH``` or the ```_maxid``` subfolder of the upload base directory.
 
 
 ## Checking if the service is running
@@ -82,6 +82,23 @@ See the openAPI documentation inside the docs/generated folder
 A basic documentation using OpenAPI is available in the docs folder, or
 a HTML-ized version is available in the docs/generated folder.
 
+## Configuration
+
+The webservice uses the 'flag' library to handle configuration via both configuration files and environment variables.
+
+For more information on the flag library see [github.com/namsral/flag](https://github.com/namsral/flag).
+
+The environment variables and their corresponding configuration file values and command line flags are:
+
+
+| Type   | Flag                                       | Environment                               | File                                      |
+|--------|--------------------------------------------|-------------------------------------------|-------------------------------------------|
+| string | -upload_path=/opt/insight-agent/uploads    | UPLOAD_PATH=/opt/insight-agent/uploads    | upload_path=/opt/insight-agent/uploads    |
+| string | -maxid_path=/opt/insight-agent/maxids      | MAXID_PATH=/opt/insight-agent/maxids      | maxid_path=/opt/insight-agent/maxids      |
+| string | -licenses_path=/opt/insight-agent/licenses | LICENSES_PATH=/opt/insight-agent/licenses | licenses_path=/opt/insight-agent/licenses |
+| string | -config dev.config                         | CONFIG=dev.config                         | config=dev.config                         |
+| int    | -bind_port 8080                            | BIND_PORT=8080                            | bind_port=8080                            |
+| string | -bind_address 127.0.0.1                    | BIND_ADDRESS=127.0.0.1                    | bind_address=127.0.0.1                    |
 
 ## Tests
 

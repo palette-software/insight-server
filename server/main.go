@@ -5,26 +5,12 @@ import (
 	"net/http"
 
 	"github.com/palette-software/insight-server"
+
+// Command line
+	"github.com/namsral/flag"
 	"os"
-	"path"
 	"path/filepath"
 	"log"
-)
-
-const (
-// The key in ENV where the license files are looked up.
-// If this key isnt provided, the 'licenses' subdirectory of the working directory is used
-	LicenseDirectoryKey = "INSIGHT_LICENSES_PATH"
-// The address where the server will bind itself
-	BindAddress = ":9000"
-// The key in the Environment where the files will be uploaded
-// if no such value is set in the env, use ENV["TEMP"]
-	UploadPathEnvKey = "INSIGHT_UPLOAD_HOME"
-
-// The key in the env where the maxid files are stored
-	MaxidDirectoryKey = "INSIGHT_MAXID_PATH"
-// The path to the directory where the maxid is stored
-	MaxIdBasePath = "_maxid"
 )
 
 func pingHandler(w http.ResponseWriter, req *http.Request) {
@@ -32,23 +18,6 @@ func pingHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "PONG")
 }
 
-func getBindAddress() string {
-	port := os.Getenv("PORT")
-	if port == "" {
-		return BindAddress
-	}
-	return fmt.Sprintf(":%v", port)
-}
-
-
-// Gets the path where a certain tenants files for the given package reside
-func getUploadBasePath() string {
-	uploadBaseDir := os.Getenv(UploadPathEnvKey)
-	if uploadBaseDir == "" {
-		return path.Join(os.Getenv("TEMP"), "uploads")
-	}
-	return uploadBaseDir
-}
 
 // Returns the current working directory
 func getCurrentPath() string {
@@ -61,58 +30,63 @@ func getCurrentPath() string {
 
 }
 
-func getLicensesDirectory() string {
-
-	// get the licenses root directory from the env if possible
-	licensesRoot := os.Getenv(LicenseDirectoryKey)
-	if licensesRoot == "" {
-		licensesRoot = path.Join(getCurrentPath(), "licenses")
-	}
-	return licensesRoot
-}
-
-
-// tries to get a string from the Environment and returns
-// defaults when its not set
-func getFromEnv(key, defaults string) string {
-	// get the licenses root directory from the env if possible
-	v := os.Getenv(key)
-	if v == "" {
-		v = defaults
-	}
-	return v
-}
-
 
 // Adds basic request logging to the wrapped handler
-func withRequestLog(innerHandler http.HandlerFunc) http.HandlerFunc {
+func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[http] {%v} %v%v?%v", r.Method, r.URL.Host, r.URL.Path, r.URL.RawQuery )
+		log.Printf("[http] (handler:%s) {%v} %v%v?%v", name, r.Method, r.URL.Host, r.URL.Path, r.URL.RawQuery)
 		innerHandler(w, r)
 	}
 }
 
 func main() {
 
+	var uploadBasePath, maxIdDirectory, licensesDirectory, bindAddress string
+	var bindPort int
+
+	flag.StringVar(&uploadBasePath, "upload_path",
+		filepath.Join(os.Getenv("TEMP"), "uploads"),
+		"The root directory for the uploads to go into.",
+	)
+	// Since we have to provide defaults to flag before they are parsed
+	// we cannot have paths dependent on one another
+	flag.StringVar(&maxIdDirectory, "maxid_path",
+		filepath.Join(os.Getenv("TEMP"), "uploads", "maxid"),
+		"The root directory for the maxid files to go into.",
+	)
+
+	flag.StringVar(&licensesDirectory, "licenses_path",
+		filepath.Join(getCurrentPath(), "licenses"),
+		"The directory the licenses are loaded from on start.",
+	)
+
+	flag.IntVar(&bindPort, "port", 9000, "The port the server is binding itself to")
+	flag.StringVar(&bindAddress, "bind_address", "", "The address to bind to. Leave empty for default .")
+
+	flag.String("config", "", "Configuration file to use.")
+
+	flag.Parse()
+
 	http.HandleFunc("/", pingHandler)
 
+	// create the uploader
+	uploader := insight_server.MakeBasicUploader(filepath.ToSlash(uploadBasePath))
+
 	// create the maxid backend
-	maxIdBackendDirectory := getFromEnv(MaxidDirectoryKey, path.Join(getUploadBasePath(), MaxIdBasePath))
-	maxIdBackend := insight_server.MakeFileMaxIdBackend(maxIdBackendDirectory)
+	maxIdBackend := insight_server.MakeFileMaxIdBackend(maxIdDirectory)
 
 	// create the authenticator
-	authenticator := insight_server.NewLicenseAuthenticator(getLicensesDirectory())
-	uploader := insight_server.MakeBasicUploader(getUploadBasePath())
+	authenticator := insight_server.NewLicenseAuthenticator(licensesDirectory)
 
 	// create the upload endpoint
-	authenticatedUploadHandler := withRequestLog(
+	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
 			authenticator,
 			insight_server.MakeUploadHandler(uploader, maxIdBackend),
 		),
 	)
 	// create the maxid handler
-	maxIdHandler := withRequestLog(
+	maxIdHandler := withRequestLog("maxid",
 		insight_server.MakeUserAuthHandler(
 			authenticator,
 			insight_server.MakeMaxIdHandler(maxIdBackend),
@@ -124,7 +98,8 @@ func main() {
 	http.HandleFunc("/upload", authenticatedUploadHandler)
 	http.HandleFunc("/maxid", maxIdHandler)
 
-	bindAddress := getBindAddress()
-	fmt.Printf("Webservice starting on %v\n", bindAddress)
-	http.ListenAndServe(bindAddress, nil)
+	//bindAddress := getBindAddress()
+	bindAddressWithPort := fmt.Sprintf("%s:%v", bindAddress, bindPort)
+	fmt.Printf("Webservice starting on %v\n", bindAddressWithPort)
+	http.ListenAndServe(bindAddressWithPort, nil)
 }
