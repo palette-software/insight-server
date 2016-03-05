@@ -118,6 +118,15 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 		return err
 	}
 
+	// close and delete the input file
+	log.Printf("[metadata] removing temporary '%s'", inf.Name())
+	inf.Close()
+	err = os.Remove(inf.Name())
+	if err != nil {
+		return err
+	}
+
+
 	// defer moving to the default move handler
 	return MoveHandler(&UploadCallbackCtx{
 		SourceFile: outf.Name(),

@@ -109,7 +109,11 @@ func parseServerlogFile(serverlog ServerlogToParse) (error) {
 		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
 	}
 
-	return nil
+
+	// after we are done, remove the original serverlogs file
+	f.Close()
+	log.Printf("[serverlogs] removing temporary '%s'", filename)
+	return os.Remove(filename)
 }
 
 var serverlogsCsvHeader []string = []string{
