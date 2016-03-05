@@ -175,7 +175,7 @@ func ParseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 		outerJson := ServerlogOuterJson{}
 
 		if err = jsonDecoder.Decode(&outerJson); err != nil {
-			log.Println("[serverlogs.json] Parse error: %v", err)
+			log.Println("[serverlogs.json] Parse error: ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
 				Json: logRow,
@@ -190,7 +190,7 @@ func ParseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 		// dont have to care about what data is inside
 		innerStr, err := json.Marshal(outerJson.V)
 		if err != nil {
-			log.Println("[serverlogs.json] Inner JSON remarshaling error: %v", err)
+			log.Println("[serverlogs.json] Inner JSON remarshaling error: ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
 				Json: logRow,
