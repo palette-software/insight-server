@@ -1,13 +1,11 @@
 package main
 
 import (
+	"github.com/palette-software/insight-server"
+	"github.com/namsral/flag"
+
 	"fmt"
 	"net/http"
-
-	"github.com/palette-software/insight-server"
-
-// Command line
-	"github.com/namsral/flag"
 	"os"
 	"path/filepath"
 	"log"
