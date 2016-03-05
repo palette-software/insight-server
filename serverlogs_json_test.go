@@ -7,6 +7,12 @@ import (
 
 const SAMPLELOGS_FILE = "testdata/serverlogs.csv"
 
+func assert(t *testing.T, val bool, msg string) {
+	if !val {
+		t.Fatalf("%s", msg)
+	}
+}
+
 func assertInt(t *testing.T, a, b int, msg string) {
 	if a != b {
 		t.Fatalf("%s: %v vs %v", msg, a, b)
@@ -27,7 +33,7 @@ func TestServerlogsImport(t *testing.T) {
 	}
 	defer f.Close()
 
-	serverlogs, errorRows, err := ParseServerlogs(f)
+	serverlogs, errorRows, err := parseServerlogs(f)
 
 	if err != nil {
 		panic(err)

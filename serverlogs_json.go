@@ -61,7 +61,7 @@ func parseServerlogFile(filename string) (error) {
 	}
 	defer f.Close()
 
-	serverlogs, errorRows, err := ParseServerlogs(f)
+	serverlogs, errorRows, err := parseServerlogs(f)
 
 	if err != nil {
 		return err
@@ -145,7 +145,9 @@ func writeAsCsv(filename, prefix string, headers []string, rows [][]string) (str
 	return outputPath, nil
 }
 
-func ParseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
+// Parses a serverlogs file by parsing the outer json level and re-marshaling
+// the inner json back into a string so talend can do its own parsing later.
+func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
 
 	csvReader := makeCsvReader(r)
 
