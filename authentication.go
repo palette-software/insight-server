@@ -11,9 +11,6 @@ import (
 )
 
 const (
-// The key in ENV where the license files are looked up.
-// If this key isnt provided, the 'licenses' subdirectory of the working directory is used
-	LicenseDirectoryKey = "INSIGHT_LICENSES_PATH"
 // The glob to use for getting the license files (relative to the path of the working directory)
 	LicenseGlob = "*.license"
 )
@@ -40,23 +37,20 @@ type Authenticator interface {
 // Generates a http.HandlerFunc that calls innerHandler with with the additional parameter of
 // the authenticated user.
 //
-// The users are gotten from the licenses list which is filled on startup.
-//
-// Checks the auth information from the request, and fails if it isnt there or the auth
-// info does not correspond to the
+// The users are gotten from the license files loaded on startup.
 func MakeUserAuthHandler(authenticator Authenticator, internalHandler HandlerFuncWithTenant) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		username, password, authOk := r.BasicAuth()
 		if !authOk {
-			logError(w, http.StatusForbidden, "[auth] No auth information provided in request")
+			writeResponse(w, http.StatusForbidden, "[auth] No auth information provided in request")
 			return
 		}
 
 		// check password / username and get the tenant
 		tenant, err := authenticator.authenticate(username, []byte(password))
 		if err != nil {
-			logError(w, http.StatusForbidden, fmt.Sprintf("[auth] not a valid user: %v -- %v", username, err))
+			writeResponse(w, http.StatusForbidden, fmt.Sprintf("[auth] not a valid user: %v -- %v", username, err))
 			return
 		}
 
@@ -70,8 +64,21 @@ func MakeUserAuthHandler(authenticator Authenticator, internalHandler HandlerFun
 
 type Licenses map[string]*License
 
-//// The map of licenseId -> License which we use for authentication.
-//var licenses Licenses
+//  Tries to load a license from a file
+func loadLicenseFromFile(filename string) (*License, error) {
+
+	licenseFile, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer licenseFile.Close()
+
+	license, err := ReadLicense(licenseFile)
+	if err != nil {
+		return nil, err
+	}
+	return license, nil
+}
 
 // Loads all licenses from the license directory
 func loadAllLicenses(licensesRoot string) Licenses {
@@ -80,17 +87,12 @@ func loadAllLicenses(licensesRoot string) Licenses {
 	// get a list of all files inside licenseRoot
 	glob := filepath.Join(licensesRoot, LicenseGlob)
 	files, _ := filepath.Glob(glob)
-	fmt.Println(files) // contains a list of all files in the current directory
 
 	for _, f := range files {
-		licenseFile, err := os.Open(f)
+		license, err := loadLicenseFromFile(f)
 		if err != nil {
+			log.Printf("[license] Error reading license '%s': '%v'", f, err)
 			break
-		}
-
-		license, err := ReadLicense(licenseFile)
-		if err != nil {
-			log.Printf("[license] Error reading %v: %v", f, err)
 		}
 		licenses[license.LicenseId] = license
 	}
@@ -119,7 +121,7 @@ func (l *License) GetToken() []byte {
 }
 
 type LicenseAuthenticator struct {
-	licenses map[string]*License
+	licenses Licenses
 }
 
 // Creates a new license authenticator base on licenses from the given directory
@@ -130,7 +132,7 @@ func NewLicenseAuthenticator(licensesRoot string) Authenticator {
 }
 
 
-// Implements the authentication based on the licenses
+// Implements the authentication based on the licenses loaded from licensesRoot
 func (a *LicenseAuthenticator) authenticate(username string, password []byte) (User, error) {
 
 	// try to load the user by username from the db

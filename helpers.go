@@ -29,8 +29,8 @@ func SanitizeName(name string) string {
 }
 
 // Writes the error message to the log then responds with an error message
-func logError(w http.ResponseWriter, status int, err string) {
-	log.Println(err)
+func writeResponse(w http.ResponseWriter, status int, err string) {
+	log.Printf("[http] {%v}: %s", status, err)
 	http.Error(w, err, status)
 	return
 }
