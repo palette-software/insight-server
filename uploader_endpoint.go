@@ -14,6 +14,7 @@ import (
 	"io"
 	"crypto/md5"
 	"io/ioutil"
+	"regexp"
 )
 
 const (
@@ -33,6 +34,9 @@ type UploadedFile struct {
 	// The path where the server has stored this file
 	UploadedPath string
 
+	// The path where the output should go
+	TargetPath   string
+
 	// The md5 of the file
 	Md5          []byte
 }
@@ -48,9 +52,26 @@ type uploadRequest struct {
 	reader      io.Reader
 }
 
+type UploadCallbackCtx struct {
+	SourceFile, OutputDir, OutputFile string
+}
+
+type UploadCallbackFn func(ctx *UploadCallbackCtx) (error)
+type UploadCallback struct {
+	Name          string
+	Pkg, Filename *regexp.Regexp
+	Handler       UploadCallbackFn
+}
+
 // A generic interface implementing the saving of a file
 type Uploader interface {
 	SaveFile(req *uploadRequest) (*UploadedFile, error)
+	// Registers a callback that gets called with the uploaded filename if
+	// both packageRegexp matches the package and filenameRegexp matches the
+	// filename
+	AddCallback(callback *UploadCallback)
+
+	ApplyCallbacks(pkg, filename string, ctx *UploadCallbackCtx) error
 }
 
 
@@ -59,7 +80,9 @@ type Uploader interface {
 
 type basicUploader struct {
 	// The directory where the files are uploaded
-	baseDir string
+	baseDir   string
+
+	callbacks []*UploadCallback
 }
 
 // Creates a basic uploader
@@ -67,6 +90,7 @@ func MakeBasicUploader(basePath string) Uploader {
 	log.Printf("[uploader] Using path '%v' for upload root", basePath)
 	return &basicUploader{
 		baseDir: basePath,
+		callbacks: []*UploadCallback{},
 	}
 }
 
@@ -142,20 +166,72 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 	// close the temp file, so writes get flushed
 	tmpFile.Close()
 
-	// move the output file to the new path with the new name
-	err = os.Rename(tempFilePath, outputPath)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("[upload] Moved '%v' to '%v'\n", tempFilePath, outputPath)
-
 	return &UploadedFile{
 		Filename:     req.filename,
-		UploadedPath: outputPath,
+		UploadedPath: tempFilePath,
+		TargetPath:   outputPath,
 		Md5:          fileHash,
 	}, nil
 }
+
+// The default fallback handler that gets invoked if
+// no handlers are found
+func MoveHandler(c *UploadCallbackCtx) error {
+
+	// move the output file to the new path with the new name
+	err := os.Rename(c.SourceFile, c.OutputFile)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[upload] Moved '%v' to '%v'\n", c.SourceFile, c.OutputFile)
+	return nil
+}
+
+func (u *basicUploader) AddCallback(c *UploadCallback) {
+	u.callbacks = append(u.callbacks, c)
+}
+
+// Applies callbacks after a file is uploaded succesfully
+func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallbackCtx) (error) {
+
+	// function that wraps invoking the handler
+	invokeHandler := func(name string, handler UploadCallbackFn) error {
+		log.Printf("[uploader.callbacks] Invoking callback: %s with '%v'", name, ctx)
+		err := handler(ctx)
+		if err != nil {
+			log.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s", name, pkg, filename)
+			return err
+		}
+		return nil
+	}
+
+	// if we have this handled
+	handled := false
+
+	// try each added handler
+	for _, callback := range u.callbacks {
+		if callback.Pkg.MatchString(pkg) && callback.Filename.MatchString(filename) {
+			err := invokeHandler(callback.Name, callback.Handler)
+			if err != nil {
+				return err
+			}
+			handled = true
+		}
+	}
+
+	// fallback handler
+	if !handled {
+		err := invokeHandler("fallback", MoveHandler)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+
 
 
 // UPLOAD HANDLING
@@ -239,6 +315,18 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 		}
 		// if we have the maxid parameter, save it
 		maxidbackend.SaveMaxId(tenant.GetUsername(), tableName, maxid)
+	}
+
+	// apply any callbacks
+	err = uploader.ApplyCallbacks(pkg, fileName,
+		&UploadCallbackCtx{
+			SourceFile: uploadedFile.UploadedPath,
+			OutputDir: filepath.Dir(uploadedFile.TargetPath),
+			OutputFile: uploadedFile.TargetPath,
+		})
+	if err != nil {
+		writeResponse(w, http.StatusInternalServerError, "Error in upload callbacks")
+		return
 	}
 
 	// signal that everything went ok
