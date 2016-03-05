@@ -33,8 +33,6 @@ func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc
 	}
 }
 
-
-
 func main() {
 
 	var uploadBasePath, maxIdDirectory, licensesDirectory, bindAddress string
@@ -82,8 +80,8 @@ func main() {
 		Name: "Serverlogs parsing",
 		Pkg: regexp.MustCompile(""),
 		Filename: regexp.MustCompile("^serverlogs-"),
-		Handler: func(outputPath string) error {
-			serverlogsParser <- outputPath
+		Handler: func(c *insight_server.UploadCallbackCtx) error {
+			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile}
 			return nil
 		},
 	})
@@ -92,19 +90,7 @@ func main() {
 		Name: "Serverlogs metadata addition",
 		Pkg: regexp.MustCompile(""),
 		Filename: regexp.MustCompile("^metadata-"),
-		Handler: func(outputPath string) error {
-			f, err := os.OpenFile(outputPath, os.O_APPEND|os.O_WRONLY, 0600)
-			if err != nil {
-				return err
-			}
-
-			defer f.Close()
-
-			if _, err = f.WriteString(insight_server.ServerlogsMetaString); err != nil {
-				return err
-			}
-			return nil
-		},
+		Handler: insight_server.MetadataUploadHandler,
 	})
 	// create the upload endpoint
 	authenticatedUploadHandler := withRequestLog("upload",

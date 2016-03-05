@@ -34,14 +34,17 @@ type ErrorRow struct {
 	Error string
 }
 
+type ServerlogToParse struct {
+	SourceFile, OutputFile string
+}
 
 // Creates a new parser that accepts filenames on the channel returned
-func MakeServerlogParser(bufferSize int) (chan string) {
-	input := make(chan string, bufferSize)
+func MakeServerlogParser(bufferSize int) (chan ServerlogToParse) {
+	input := make(chan ServerlogToParse, bufferSize)
 	go func() {
 		for {
-			filename := <-input
-			err := parseServerlogFile(filename)
+			serverlog := <-input
+			err := parseServerlogFile(serverlog)
 			if err != nil {
 				// log the error but keep on spinning
 				log.Printf("[serverlogs] ERROR: %s", err)
@@ -52,57 +55,12 @@ func MakeServerlogParser(bufferSize int) (chan string) {
 	return input
 }
 
-type metaTable struct {
-	schema, name string
-}
-
-type metaColumn struct {
-	table metaTable
-	column, formatType string
-}
-
-var serverlogsTable metaTable = metaTable{
-	"public",  "preparsed_serverlogs",
-}
-
-var serverlogsErrorTable metaTable = metaTable{
-	"public",  "error_serverlogs",
-}
-var preparsedServerlogsColumns []metaColumn = []metaColumn {
-	metaColumn{ serverlogsTable, "filename", "text" },
-	metaColumn{ serverlogsTable, "host_name", "text" },
-	metaColumn{ serverlogsTable, "ts", "text" },
-	metaColumn{ serverlogsTable, "pid", "integer" },
-	metaColumn{ serverlogsTable, "tid", "integer" },
-	metaColumn{ serverlogsTable, "req", "text" },
-	metaColumn{ serverlogsTable, "sess", "text" },
-	metaColumn{ serverlogsTable, "site", "text" },
-	metaColumn{ serverlogsTable, "user", "text" },
-	metaColumn{ serverlogsTable, "k", "text" },
-	metaColumn{ serverlogsTable, "v", "text" },
-
-	metaColumn{ serverlogsErrorTable, "error", "text" },
-	metaColumn{ serverlogsErrorTable, "line", "text" },
-}
-
-func makeMetaString(cols []metaColumn) string {
-	o := make([]string, len(cols))
-	for i, col := range cols {
-		o[i] = fmt.Sprintf( "%s\v%s\v%s\v%s\v%d",
-			col.table.schema,
-			col.table.name,
-			col.column,
-			col.formatType,
-			i)
-	}
-	return strings.Join(o, "\r\n")
-}
-
-var ServerlogsMetaString string = makeMetaString(preparsedServerlogsColumns)
-
 //////////////////////////////////
 
-func parseServerlogFile(filename string) (error) {
+func parseServerlogFile(serverlog ServerlogToParse) (error) {
+
+	filename := serverlog.SourceFile
+	outputPath := serverlog.OutputFile
 
 	// open the log file
 	f, err := os.Open(filename)
@@ -130,7 +88,7 @@ func parseServerlogFile(filename string) (error) {
 				o.K, row.Inner,
 			}
 		}
-		outputFile, err := writeAsCsv(filename, "preparsed", serverlogsCsvHeader, serverlogRowsAsStr)
+		outputFile, err := writeAsCsv(outputPath, "preparsed", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
 			return err
 		}
@@ -144,7 +102,7 @@ func parseServerlogFile(filename string) (error) {
 			errorRowsAsStr[i] = []string{row.Error, row.Json }
 		}
 		// write it as csv
-		errorsFile, err := writeAsCsv(filename, "errors", []string{"error", "line"}, errorRowsAsStr)
+		errorsFile, err := writeAsCsv(outputPath, "errors", []string{"error", "line"}, errorRowsAsStr)
 		if err != nil {
 			return err
 		}
