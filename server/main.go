@@ -11,11 +11,6 @@ import (
 	"log"
 )
 
-func pingHandler(w http.ResponseWriter, req *http.Request) {
-	log.Printf("[HTTP] {%v} Request arrived to: %v\n", req.Method, req.URL)
-	fmt.Fprintf(w, "PONG")
-}
-
 
 // Returns the current working directory
 func getCurrentPath() string {
@@ -65,7 +60,7 @@ func main() {
 
 	flag.Parse()
 
-	http.HandleFunc("/", pingHandler)
+	http.HandleFunc("/", withRequestLog("ping", insight_server.PingHandler))
 
 	// create the uploader
 	uploader := insight_server.MakeBasicUploader(filepath.ToSlash(uploadBasePath))
