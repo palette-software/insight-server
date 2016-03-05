@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"strings"
 	"log"
+	"os"
+	"io/ioutil"
+	"path/filepath"
 )
 
 // The outer Json wrapper
@@ -29,6 +32,158 @@ type ServerlogOutputRow struct {
 type ErrorRow struct {
 	Json  string
 	Error string
+}
+
+
+// Creates a new parser that accepts filenames on the channel returned
+func MakeServerlogParser(bufferSize int) (chan string){
+	input := make(chan string, bufferSize)
+	go func(){
+		for {
+			filename := <- input
+			err := parseServerlogFile(filename)
+			if err != nil {
+				// log the error but keep on spinning
+				log.Printf("[serverlogs] ERROR: %s", err)
+			}
+
+		}
+	}()
+	return input
+}
+
+func parseServerlogFile(filename string) (error) {
+
+	// open the log file
+	f, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	serverlogs, errorRows, err := ParseServerlogs(f)
+
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[serverlogs] Parsed %d lines with %d error lines from '%s'", len(serverlogs), len(errorRows), filename)
+
+
+
+	if len(serverlogs) > 0 {
+		outputFile, err := writeCsv(filename, serverlogs)
+		if err != nil {
+			return err
+		}
+		log.Printf("[serverlogs] written pre-parsed serverlogs to: '%s'", outputFile)
+	}
+
+	if len(errorRows) > 0 {
+		errorsFile, err := writeErrors(filename, errorRows)
+		if err != nil {
+			return err
+		}
+		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
+	}
+
+	return nil
+}
+
+var serverlogsCsvHeader []string = []string{
+	"filename", "host_name", "ts", "pid", "tid",
+	"sev", "req", "sess", "site", "user",
+	"k", "v",
+}
+
+func writeErrors(filename string, rows []ErrorRow) (string, error) {
+	tmpFile, err := ioutil.TempFile("", "serverlogs-errors-csv-output")
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+
+	csvWriter := makeCsvWriter(tmpFile)
+	csvWriter.Write(serverlogsCsvHeader)
+
+	for _, row := range rows {
+		csvWriter.Write([]string{ row.Error, row.Json })
+	}
+
+	csvWriter.Flush()
+
+	// check for errors in flush
+	err = csvWriter.Error()
+	if err != nil {
+		return "", err
+	}
+
+	outputPath := fmt.Sprintf("%s/errors-%s", filepath.Dir(filename), filepath.Base(filename))
+
+	// Get the temp file name before closing it
+	tempFilePath := tmpFile.Name()
+
+	// close the temp file, so writes get flushed
+	tmpFile.Close()
+
+	// move the output file to the new path with the new name
+	err = os.Rename(tempFilePath, outputPath)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("[serverlogs.parsed] Moved '%v' to '%v'\n", tempFilePath, outputPath)
+	return outputPath, nil
+}
+
+func writeCsv(filename string, rows []ServerlogOutputRow) (string, error) {
+
+
+	tmpFile, err := ioutil.TempFile("", "serverlogs-csv-output")
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+
+	csvWriter := makeCsvWriter(tmpFile)
+	csvWriter.Write(serverlogsCsvHeader)
+
+	for _, row := range rows {
+		o := &row.Outer
+		csvWriter.Write([]string{
+			row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
+			o.Sev, o.Req, o.Sess, o.Site, o.User,
+			o.K, row.Inner,
+		})
+	}
+
+	csvWriter.Flush()
+
+	// check for errors in flush
+	err = csvWriter.Error()
+	if err != nil {
+		return "", err
+	}
+
+	outputPath := fmt.Sprintf("%s/preprocessed-%s", filepath.Dir(filename), filepath.Base(filename))
+
+	// Get the temp file name before closing it
+	tempFilePath := tmpFile.Name()
+
+	// close the temp file, so writes get flushed
+	tmpFile.Close()
+
+	// move the output file to the new path with the new name
+	err = os.Rename(tempFilePath, outputPath)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("[serverlogs.parsed] Moved '%v' to '%v'\n", tempFilePath, outputPath)
+
+	return outputPath, nil
 }
 
 func ParseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
@@ -105,4 +260,12 @@ func makeCsvReader(r io.Reader) *csv.Reader {
 	reader.FieldsPerRecord = 3
 	reader.LazyQuotes = true
 	return reader
+}
+
+
+func makeCsvWriter(w io.Writer) *csv.Writer {
+	writer := csv.NewWriter(w)
+	writer.Comma = '\v'
+	writer.UseCRLF = true
+	return writer
 }

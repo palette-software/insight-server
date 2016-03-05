@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"log"
+	"regexp"
 )
 
 
@@ -70,6 +71,20 @@ func main() {
 
 	// create the authenticator
 	authenticator := insight_server.NewLicenseAuthenticator(licensesDirectory)
+
+
+	// create the server logs parser
+	serverlogsParser := insight_server.MakeServerlogParser(16)
+
+	uploader.AddCallback(&insight_server.UploadCallback{
+		Name: "Serverlogs parsing",
+		Pkg: regexp.MustCompile(""),
+		Filename: regexp.MustCompile("^serverlogs-"),
+		Handler: func(outputPath string) error {
+			serverlogsParser <- outputPath
+			return nil
+		},
+	})
 
 	// create the upload endpoint
 	authenticatedUploadHandler := withRequestLog("upload",

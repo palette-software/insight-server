@@ -14,6 +14,7 @@ import (
 	"io"
 	"crypto/md5"
 	"io/ioutil"
+	"regexp"
 )
 
 const (
@@ -48,9 +49,23 @@ type uploadRequest struct {
 	reader      io.Reader
 }
 
+type UploadCallbackFn func(filename string)(error)
+type UploadCallback struct {
+	Name string
+	Pkg, Filename *regexp.Regexp
+	Handler UploadCallbackFn
+}
+
 // A generic interface implementing the saving of a file
 type Uploader interface {
 	SaveFile(req *uploadRequest) (*UploadedFile, error)
+
+	// Registers a callback that gets called with the uploaded filename if
+	// both packageRegexp matches the package and filenameRegexp matches the
+	// filename
+	AddCallback(callback *UploadCallback)
+
+	ApplyCallbacks(pkg, filename, outputPath string) error
 }
 
 
@@ -60,6 +75,8 @@ type Uploader interface {
 type basicUploader struct {
 	// The directory where the files are uploaded
 	baseDir string
+
+	callbacks []*UploadCallback
 }
 
 // Creates a basic uploader
@@ -67,6 +84,7 @@ func MakeBasicUploader(basePath string) Uploader {
 	log.Printf("[uploader] Using path '%v' for upload root", basePath)
 	return &basicUploader{
 		baseDir: basePath,
+		callbacks: []*UploadCallback{},
 	}
 }
 
@@ -158,6 +176,28 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 }
 
 
+func (u *basicUploader) AddCallback(c *UploadCallback) {
+	u.callbacks = append(u.callbacks, c)
+}
+
+// Applies callbacks after a file is uploaded succesfully
+func (u *basicUploader) ApplyCallbacks(pkg, filename, outputPath string) (error) {
+
+	for _, callback := range u.callbacks {
+		if callback.Pkg.MatchString(pkg) && callback.Filename.MatchString(filename) {
+			log.Printf("[uploader.callbacks] Invoking callback: %s with '%s'", callback.Name, outputPath)
+			err := callback.Handler(outputPath)
+			if err != nil {
+				log.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s", callback.Name, pkg, filename )
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+
 // UPLOAD HANDLING
 // ===============
 
@@ -239,6 +279,13 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 		}
 		// if we have the maxid parameter, save it
 		maxidbackend.SaveMaxId(tenant.GetUsername(), tableName, maxid)
+	}
+
+	// apply any callbacks
+	err = uploader.ApplyCallbacks(pkg, fileName, uploadedFile.UploadedPath)
+	if err != nil {
+		writeResponse(w, http.StatusInternalServerError, "Error in upload callbacks")
+		return
 	}
 
 	// signal that everything went ok
