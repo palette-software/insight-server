@@ -43,14 +43,14 @@ func MakeUserAuthHandler(authenticator Authenticator, internalHandler HandlerFun
 
 		username, password, authOk := r.BasicAuth()
 		if !authOk {
-			logError(w, http.StatusForbidden, "[auth] No auth information provided in request")
+			writeResponse(w, http.StatusForbidden, "[auth] No auth information provided in request")
 			return
 		}
 
 		// check password / username and get the tenant
 		tenant, err := authenticator.authenticate(username, []byte(password))
 		if err != nil {
-			logError(w, http.StatusForbidden, fmt.Sprintf("[auth] not a valid user: %v -- %v", username, err))
+			writeResponse(w, http.StatusForbidden, fmt.Sprintf("[auth] not a valid user: %v -- %v", username, err))
 			return
 		}
 

@@ -164,28 +164,28 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	// parse the multipart form
 	err := req.ParseMultipartForm(multipartMaxSize)
 	if err != nil {
-		logError(w, http.StatusBadRequest, "Cannot parse multipart form")
+		writeResponse(w, http.StatusBadRequest, "Cannot parse multipart form")
 		return
 	}
 
 	// get the package from the URL
 	pkg, err := getUrlParam(req.URL, "pkg")
 	if err != nil {
-		logError(w, http.StatusBadRequest, "No _pkg parameter provided")
+		writeResponse(w, http.StatusBadRequest, "No _pkg parameter provided")
 		return
 	}
 
 	// get the source host from the URL
 	sourceHost, err := getUrlParam(req.URL, "host")
 	if err != nil {
-		logError(w, http.StatusBadRequest, "No _host parameter provided")
+		writeResponse(w, http.StatusBadRequest, "No _host parameter provided")
 		return
 	}
 
 	// get the actual file
 	mainFile, fileName, err := getMultipartFile(req.MultipartForm, "_file")
 	if err != nil {
-		logError(w, http.StatusBadRequest, "Cannot find the field '_file' in the upload request")
+		writeResponse(w, http.StatusBadRequest, "Cannot find the field '_file' in the upload request")
 		return
 	}
 	defer mainFile.Close()
@@ -203,26 +203,26 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	})
 
 	if err != nil {
-		logError(w, http.StatusBadRequest, fmt.Sprintf("Error while saving uploaded file: %v", err))
+		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while saving uploaded file: %v", err))
 		return
 	}
 
 	// check the md5
 	md5Fields := req.MultipartForm.Value["_md5"]
 	if len(md5Fields) != 1 {
-		logError(w, http.StatusBadRequest, fmt.Sprintf("Only one instance of the '_md5' field allowed in the request, got: %v", len(md5Fields)))
+		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Only one instance of the '_md5' field allowed in the request, got: %v", len(md5Fields)))
 		return
 	}
 
 	fileMd5, err := base64.StdEncoding.DecodeString(md5Fields[0])
 	if err != nil {
-		logError(w, http.StatusBadRequest, "Cannot Base64 decode the submitted MD5")
+		writeResponse(w, http.StatusBadRequest, "Cannot Base64 decode the submitted MD5")
 		return
 	}
 
 	// compare the md5
 	if !bytes.Equal(fileMd5, uploadedFile.Md5) {
-		logError(w, http.StatusConflict, "CONFLICT: Md5 Error")
+		writeResponse(w, http.StatusConflict, "CONFLICT: Md5 Error")
 		return
 	}
 
@@ -231,12 +231,15 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	if err == nil {
 		tableName, tnError := getTableNameFromFilename(fileName)
 		if tnError != nil {
-			logError(w, http.StatusBadRequest, fmt.Sprintf("%v", err))
+			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("%v", err))
 			return
 		}
 		// if we have the maxid parameter, save it
 		maxidbackend.SaveMaxId(tenant.GetUsername(), tableName, maxid)
 	}
+
+	// signal that everything went ok
+	writeResponse(w, http.StatusOK, "")
 
 }
 
