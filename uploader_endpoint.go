@@ -73,26 +73,29 @@ func MakeBasicUploader(basePath string) Uploader {
 
 // Gets the file path inside the upload directory
 func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte) string {
-	// the folder name is only the date
-	folderTimestamp := req.requestTime.Format("2006-01-02")
 	// the file name gets the timestamp appended (only time)
 	fileTimestamp := req.requestTime.Format("15-04--05-00")
 
 	filename := req.filename
+	fileExt := path.Ext(filename)
 	// get the extension and basename
-	fullFileName := fmt.Sprintf("%v-%v-%x.%v",
+	fullFileName := fmt.Sprintf("%v-%v-%032x.%v",
 		SanitizeName(filename),
 		fileTimestamp,
 		fileHash,
-		SanitizeName(path.Ext(filename)),
+		// remove the '.' from the file extension
+		SanitizeName(fileExt[1:]),
 	)
 
 	return filepath.ToSlash(path.Join(
 		u.baseDir,
 		req.username,
 		"uploads",
+		req.pkg,
 		req.sourceHost,
-		folderTimestamp,
+		// the folder name is only the date
+		// TODO: this may be necessary later
+		//req.requestTime.Format("2006-01-02"),
 		fullFileName,
 	))
 }
