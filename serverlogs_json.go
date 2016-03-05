@@ -52,6 +52,56 @@ func MakeServerlogParser(bufferSize int) (chan string) {
 	return input
 }
 
+type metaTable struct {
+	schema, name string
+}
+
+type metaColumn struct {
+	table metaTable
+	column, formatType string
+}
+
+var serverlogsTable metaTable = metaTable{
+	"public",  "preparsed_serverlogs",
+}
+
+var serverlogsErrorTable metaTable = metaTable{
+	"public",  "error_serverlogs",
+}
+var preparsedServerlogsColumns []metaColumn = []metaColumn {
+	metaColumn{ serverlogsTable, "filename", "text" },
+	metaColumn{ serverlogsTable, "host_name", "text" },
+	metaColumn{ serverlogsTable, "ts", "text" },
+	metaColumn{ serverlogsTable, "pid", "integer" },
+	metaColumn{ serverlogsTable, "tid", "integer" },
+	metaColumn{ serverlogsTable, "req", "text" },
+	metaColumn{ serverlogsTable, "sess", "text" },
+	metaColumn{ serverlogsTable, "site", "text" },
+	metaColumn{ serverlogsTable, "user", "text" },
+	metaColumn{ serverlogsTable, "k", "text" },
+	metaColumn{ serverlogsTable, "v", "text" },
+
+	metaColumn{ serverlogsErrorTable, "error", "text" },
+	metaColumn{ serverlogsErrorTable, "line", "text" },
+}
+
+func makeMetaString(cols []metaColumn) string {
+	o := make([]string, len(cols))
+	for i, col := range cols {
+		o[i] = fmt.Sprintf( "%s\v%s\v%s\v%s\v%d",
+			col.table.schema,
+			col.table.name,
+			col.column,
+			col.formatType,
+			i)
+	}
+	return strings.Join(o, "\r\n")
+}
+
+var ServerlogsMetaString string = makeMetaString(preparsedServerlogsColumns)
+
+//////////////////////////////////
+
 func parseServerlogFile(filename string) (error) {
 
 	// open the log file
@@ -127,7 +177,7 @@ func writeAsCsv(filename, prefix string, headers []string, rows [][]string) (str
 		return "", err
 	}
 
-	outputPath := fmt.Sprintf("%s/%s-%s", filepath.Dir(filename), prefix, filepath.Base(filename))
+	outputPath := fmt.Sprintf("%s/%s_%s", filepath.Dir(filename), prefix, filepath.Base(filename))
 
 	// Get the temp file name before closing it
 	tempFilePath := tmpFile.Name()

@@ -33,6 +33,8 @@ func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc
 	}
 }
 
+
+
 func main() {
 
 	var uploadBasePath, maxIdDirectory, licensesDirectory, bindAddress string
@@ -86,6 +88,24 @@ func main() {
 		},
 	})
 
+	uploader.AddCallback(&insight_server.UploadCallback{
+		Name: "Serverlogs metadata addition",
+		Pkg: regexp.MustCompile(""),
+		Filename: regexp.MustCompile("^metadata-"),
+		Handler: func(outputPath string) error {
+			f, err := os.OpenFile(outputPath, os.O_APPEND|os.O_WRONLY, 0600)
+			if err != nil {
+				return err
+			}
+
+			defer f.Close()
+
+			if _, err = f.WriteString(insight_server.ServerlogsMetaString); err != nil {
+				return err
+			}
+			return nil
+		},
+	})
 	// create the upload endpoint
 	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
