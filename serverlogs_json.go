@@ -36,11 +36,11 @@ type ErrorRow struct {
 
 
 // Creates a new parser that accepts filenames on the channel returned
-func MakeServerlogParser(bufferSize int) (chan string){
+func MakeServerlogParser(bufferSize int) (chan string) {
 	input := make(chan string, bufferSize)
-	go func(){
+	go func() {
 		for {
-			filename := <- input
+			filename := <-input
 			err := parseServerlogFile(filename)
 			if err != nil {
 				// log the error but keep on spinning
@@ -69,10 +69,18 @@ func parseServerlogFile(filename string) (error) {
 
 	log.Printf("[serverlogs] Parsed %d lines with %d error lines from '%s'", len(serverlogs), len(errorRows), filename)
 
-
-
 	if len(serverlogs) > 0 {
-		outputFile, err := writeCsv(filename, serverlogs)
+		// make csv-compatible output
+		serverlogRowsAsStr := make([][]string, len(serverlogs))
+		for i, row := range serverlogs {
+			o := &row.Outer
+			serverlogRowsAsStr[i] = []string{
+				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
+				o.Sev, o.Req, o.Sess, o.Site, o.User,
+				o.K, row.Inner,
+			}
+		}
+		outputFile, err := writeAsCsv(filename, "preparsed", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
 			return err
 		}
@@ -80,7 +88,13 @@ func parseServerlogFile(filename string) (error) {
 	}
 
 	if len(errorRows) > 0 {
-		errorsFile, err := writeErrors(filename, errorRows)
+		// make csv-compatible output
+		errorRowsAsStr := make([][]string, len(errorRows))
+		for i, row := range errorRows {
+			errorRowsAsStr[i] = []string{row.Error, row.Json }
+		}
+		// write it as csv
+		errorsFile, err := writeAsCsv(filename, "errors", []string{"error", "line"}, errorRowsAsStr)
 		if err != nil {
 			return err
 		}
@@ -96,22 +110,16 @@ var serverlogsCsvHeader []string = []string{
 	"k", "v",
 }
 
-func writeErrors(filename string, rows []ErrorRow) (string, error) {
-	tmpFile, err := ioutil.TempFile("", "serverlogs-errors-csv-output")
+func writeAsCsv(filename, prefix string, headers []string, rows [][]string) (string, error) {
+	tmpFile, err := ioutil.TempFile("", fmt.Sprintf("serverlogs-%s-output", prefix))
 	if err != nil {
 		return "", err
 	}
 	defer tmpFile.Close()
 
-
 	csvWriter := makeCsvWriter(tmpFile)
-	csvWriter.Write(serverlogsCsvHeader)
-
-	for _, row := range rows {
-		csvWriter.Write([]string{ row.Error, row.Json })
-	}
-
-	csvWriter.Flush()
+	csvWriter.Write(headers)
+	csvWriter.WriteAll(rows)
 
 	// check for errors in flush
 	err = csvWriter.Error()
@@ -119,7 +127,7 @@ func writeErrors(filename string, rows []ErrorRow) (string, error) {
 		return "", err
 	}
 
-	outputPath := fmt.Sprintf("%s/errors-%s", filepath.Dir(filename), filepath.Base(filename))
+	outputPath := fmt.Sprintf("%s/%s-%s", filepath.Dir(filename), prefix, filepath.Base(filename))
 
 	// Get the temp file name before closing it
 	tempFilePath := tmpFile.Name()
@@ -133,56 +141,7 @@ func writeErrors(filename string, rows []ErrorRow) (string, error) {
 		return "", err
 	}
 
-	log.Printf("[serverlogs.parsed] Moved '%v' to '%v'\n", tempFilePath, outputPath)
-	return outputPath, nil
-}
-
-func writeCsv(filename string, rows []ServerlogOutputRow) (string, error) {
-
-
-	tmpFile, err := ioutil.TempFile("", "serverlogs-csv-output")
-	if err != nil {
-		return "", err
-	}
-	defer tmpFile.Close()
-
-
-	csvWriter := makeCsvWriter(tmpFile)
-	csvWriter.Write(serverlogsCsvHeader)
-
-	for _, row := range rows {
-		o := &row.Outer
-		csvWriter.Write([]string{
-			row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
-			o.Sev, o.Req, o.Sess, o.Site, o.User,
-			o.K, row.Inner,
-		})
-	}
-
-	csvWriter.Flush()
-
-	// check for errors in flush
-	err = csvWriter.Error()
-	if err != nil {
-		return "", err
-	}
-
-	outputPath := fmt.Sprintf("%s/preprocessed-%s", filepath.Dir(filename), filepath.Base(filename))
-
-	// Get the temp file name before closing it
-	tempFilePath := tmpFile.Name()
-
-	// close the temp file, so writes get flushed
-	tmpFile.Close()
-
-	// move the output file to the new path with the new name
-	err = os.Rename(tempFilePath, outputPath)
-	if err != nil {
-		return "", err
-	}
-
-	log.Printf("[serverlogs.parsed] Moved '%v' to '%v'\n", tempFilePath, outputPath)
-
+	log.Printf("[csv] Moved '%v' to '%v'\n", tempFilePath, outputPath)
 	return outputPath, nil
 }
 
@@ -261,7 +220,6 @@ func makeCsvReader(r io.Reader) *csv.Reader {
 	reader.LazyQuotes = true
 	return reader
 }
-
 
 func makeCsvWriter(w io.Writer) *csv.Writer {
 	writer := csv.NewWriter(w)
