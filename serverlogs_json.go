@@ -9,6 +9,7 @@ import (
 	"log"
 )
 
+// The outer Json wrapper
 type ServerlogOuterJson struct {
 	// dont bother with the timestamp, keep to original format
 	Ts, Sev, Req, Sess, Site, User, K string
@@ -17,6 +18,7 @@ type ServerlogOuterJson struct {
 	Tid                               string
 }
 
+// The inner json wrapper
 type ServerlogOutputRow struct {
 	Filename, Hostname string
 

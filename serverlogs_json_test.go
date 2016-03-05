@@ -3,7 +3,6 @@ package insight_server
 import (
 	"testing"
 	"os"
-	"fmt"
 )
 
 const SAMPLELOGS_FILE = "testdata/serverlogs.csv"
@@ -48,7 +47,6 @@ func TestServerlogsImport(t *testing.T) {
 	assertString(t, firstRow.Outer.Site, "{B0EEC83D-2AC7-4CA7-839D-C3B5F04D85E5}", "1st row site mismatch")
 	assertString(t, firstRow.Outer.User, "-", "1st row user mismatch")
 	assertString(t, firstRow.Outer.K, "open-log", "1st row k mismatch")
-
-	fmt.Println(firstRow.Inner)
+	assertString(t, firstRow.Inner, `{"path":"E:\\Tableau\\Tableau Server\\data\\tabsvc\\logs\\vizqlserver\\tabprotosrv_2.txt"}`, "1st row k mismatch")
 
 }
