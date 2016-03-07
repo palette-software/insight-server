@@ -83,7 +83,7 @@ type fileMaxIdBackend struct {
 
 // gets the file name of a tables maxid file
 func (m *fileMaxIdBackend)getFileName(username, tableName string) string {
-	return path.Join(m.basePath, username, SanitizeName(tableName))
+	return path.Join(m.basePath, SanitizeName(username), SanitizeName(tableName))
 }
 
 func (m *fileMaxIdBackend)SaveMaxId(username, tableName, maxid string) error {

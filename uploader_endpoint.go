@@ -53,7 +53,7 @@ type uploadRequest struct {
 }
 
 type UploadCallbackCtx struct {
-	SourceFile, OutputDir, OutputFile string
+	SourceFile, OutputDir, OutputFile, Basedir string
 }
 
 type UploadCallbackFn func(ctx *UploadCallbackCtx) (error)
@@ -66,6 +66,10 @@ type UploadCallback struct {
 // A generic interface implementing the saving of a file
 type Uploader interface {
 	SaveFile(req *uploadRequest) (*UploadedFile, error)
+
+	// returns the temporary directory path to use for storing files
+	TempDirectory() string
+
 	// Registers a callback that gets called with the uploaded filename if
 	// both packageRegexp matches the package and filenameRegexp matches the
 	// filename
@@ -94,6 +98,10 @@ func MakeBasicUploader(basePath string) Uploader {
 	}
 }
 
+func (u *basicUploader) TempDirectory() string {
+	return path.Join(u.baseDir, "_temp")
+}
+
 
 // Gets the file path inside the upload directory
 func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte) string {
@@ -113,7 +121,7 @@ func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte
 
 	return filepath.ToSlash(path.Join(
 		u.baseDir,
-		req.username,
+		SanitizeName(req.username),
 		"uploads",
 		req.pkg,
 		req.sourceHost,
@@ -136,7 +144,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 	readerWithMd5 := io.TeeReader(req.reader, hash)
 
 	// create a temp file to move the bytes to (we do not yet know the hash of the file)
-	tmpFile, err := ioutil.TempFile("", "temporary-file-contents-")
+	tmpFile, err := ioutil.TempFile(u.TempDirectory(), "temporary-file-contents-")
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +251,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	// parse the multipart form
 	err := req.ParseMultipartForm(multipartMaxSize)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "Cannot parse multipart form")
+		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot parse multipart form: %v", err))
 		return
 	}
 
@@ -323,6 +331,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 			SourceFile: uploadedFile.UploadedPath,
 			OutputDir: filepath.Dir(uploadedFile.TargetPath),
 			OutputFile: uploadedFile.TargetPath,
+			Basedir: uploader.TempDirectory(),
 		})
 	if err != nil {
 		writeResponse(w, http.StatusInternalServerError, "Error in upload callbacks")
