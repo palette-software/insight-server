@@ -65,7 +65,7 @@ var ServerlogsMetaString string = makeMetaString(preparsedServerlogsColumns)
 func MetadataUploadHandler(c *UploadCallbackCtx) error {
 
 	// open the output
-	outf, err := ioutil.TempFile("", "metadata-rewrite")
+	outf, err := ioutil.TempFile(c.Basedir, "metadata-rewrite")
 	if err != nil {
 		return err
 	}

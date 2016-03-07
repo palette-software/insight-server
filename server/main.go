@@ -137,7 +137,7 @@ func main() {
 
 	//bindAddress := getBindAddress()
 	bindAddressWithPort := fmt.Sprintf("%s:%v", bindAddress, bindPort)
-	fmt.Printf("Webservice starting on %v\n", bindAddressWithPort)
+	log.Printf("[http] Webservice starting on %v\n", bindAddressWithPort)
 
 	if useTls {
 		err := http.ListenAndServeTLS(bindAddressWithPort, tlsCert, tlsKey, nil)
