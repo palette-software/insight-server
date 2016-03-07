@@ -47,6 +47,28 @@ Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server
   -upload_path="C:\\Users\\Miles\\AppData\\Local\\Temp\\uploads": The root directory for the uploads to go into.
 ```
 
+## Sample configuration file
+
+A sample configuration file from one of the test machines:
+
+```
+upload_path=/mnt/dbdata/insight-server/uploads
+maxid_path=/mnt/dbdata/insight-server/maxids
+licenses_path=/mnt/dbdata/insight-server/licenses
+port=9443
+tls=true
+#cert=/mnt/dbdata/insight-server/ssl-certs/server.crt
+cert=/mnt/dbdata/insight-server/ssl-certs/star_palette-software_net.crt
+key=/mnt/dbdata/insight-server/ssl-certs/server.key
+```
+
+## IpTables
+
+To allow the service to listen to port 443 without sudo privileges an IpTables forwarding needs to be set up.
+
+```bash
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 9443
+```
 
 ## User authentication
 
