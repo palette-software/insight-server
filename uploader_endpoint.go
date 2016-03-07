@@ -121,7 +121,7 @@ func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte
 
 	return filepath.ToSlash(path.Join(
 		u.baseDir,
-		req.username,
+		SanitizeName(req.username),
 		"uploads",
 		req.pkg,
 		req.sourceHost,
@@ -251,7 +251,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	// parse the multipart form
 	err := req.ParseMultipartForm(multipartMaxSize)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "Cannot parse multipart form")
+		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot parse multipart form: %v", err))
 		return
 	}
 
