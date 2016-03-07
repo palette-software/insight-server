@@ -29,6 +29,10 @@ func getCurrentPath() string {
 func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[http] (handler:%s) {%v} %v%v?%v", name, r.Method, r.URL.Host, r.URL.Path, r.URL.RawQuery)
+		// also write all header we care about for proxies here
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Pragma", "no-cache")
+		w.Header().Add("Expires", "0")
 		innerHandler(w, r)
 	}
 }
@@ -136,7 +140,7 @@ func main() {
 	fmt.Printf("Webservice starting on %v\n", bindAddressWithPort)
 
 	if useTls {
-		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
+		err := http.ListenAndServeTLS(bindAddressWithPort, tlsCert, tlsKey, nil)
 		log.Fatal(err)
 	} else {
 
