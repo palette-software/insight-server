@@ -38,6 +38,9 @@ func main() {
 	var uploadBasePath, maxIdDirectory, licensesDirectory, bindAddress string
 	var bindPort int
 
+	// Path setup
+	// ==========
+
 	flag.StringVar(&uploadBasePath, "upload_path",
 		filepath.Join(os.Getenv("TEMP"), "uploads"),
 		"The root directory for the uploads to go into.",
@@ -57,11 +60,24 @@ func main() {
 	flag.IntVar(&bindPort, "port", 9000, "The port the server is binding itself to")
 	flag.StringVar(&bindAddress, "bind_address", "", "The address to bind to. Leave empty for default .")
 
+	// SSL / HTTPS
+	// ===========
+
+	var useTls bool
+	var tlsCert, tlsKey string
+
+	flag.BoolVar(&useTls, "tls", false, "Use TLS for serving through HTTPS.")
+	flag.StringVar(&tlsCert, "cert", "cert.pem", "The TLS certificate file to use when tls is set.")
+	flag.StringVar(&tlsKey, "key", "key.pem", "The TLS certificate key file to use when tls is set.")
+
+
+
+	// CONFIG FILE
+	// ===========
+
 	flag.String("config", "", "Configuration file to use.")
 
 	flag.Parse()
-
-	http.HandleFunc("/", withRequestLog("ping", insight_server.PingHandler))
 
 	// create the uploader
 	uploader := insight_server.MakeBasicUploader(filepath.ToSlash(uploadBasePath))
@@ -107,6 +123,9 @@ func main() {
 		),
 	)
 
+	// HANDLERS
+	// ========
+	http.HandleFunc("/", withRequestLog("ping", insight_server.PingHandler))
 	// declare both endpoints for now. /upload-with-meta is deprecated
 	http.HandleFunc("/upload-with-meta", authenticatedUploadHandler)
 	http.HandleFunc("/upload", authenticatedUploadHandler)
@@ -115,5 +134,14 @@ func main() {
 	//bindAddress := getBindAddress()
 	bindAddressWithPort := fmt.Sprintf("%s:%v", bindAddress, bindPort)
 	fmt.Printf("Webservice starting on %v\n", bindAddressWithPort)
-	http.ListenAndServe(bindAddressWithPort, nil)
+
+	if useTls {
+		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
+		log.Fatal(err)
+	} else {
+
+		err := http.ListenAndServe(bindAddressWithPort, nil)
+		log.Fatal(err)
+	}
+
 }

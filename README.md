@@ -31,6 +31,9 @@ The environment variables and their corresponding configuration file values and 
 | string | -config dev.config                         | CONFIG=dev.config                         | config=dev.config                         |
 | int    | -bind_port 8080                            | BIND_PORT=8080                            | bind_port=8080                            |
 | string | -bind_address 127.0.0.1                    | BIND_ADDRESS=127.0.0.1                    | bind_address=127.0.0.1                    |
+| bool   | -tls                                       | TLS=true                                  | tls=true                                  |
+| string | -cert certs/cert.pem                       | CERT=certs/cert.pem                       | cert=certs/cert.pem                       |
+| string | -key certs/key.pem                         | KEY=certs/key.pem                         | cert=certs/key.pem                        |
 
 To get a list of command line options, use the ```--help``` switch. On my machine (windows) this results in:
 
