@@ -200,7 +200,7 @@ func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallback
 		log.Printf("[uploader.callbacks] Invoking callback: %s with '%v'", name, ctx)
 		err := handler(ctx)
 		if err != nil {
-			log.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s", name, pkg, filename)
+			log.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s -- %v", name, pkg, filename, err)
 			return err
 		}
 		return nil

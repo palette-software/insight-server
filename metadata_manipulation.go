@@ -33,6 +33,7 @@ var preparsedServerlogsColumns []metaColumn = []metaColumn{
 	metaColumn{serverlogsTable, "ts", "text" },
 	metaColumn{serverlogsTable, "pid", "integer" },
 	metaColumn{serverlogsTable, "tid", "integer" },
+	metaColumn{serverlogsTable, "sev", "text" },
 	metaColumn{serverlogsTable, "req", "text" },
 	metaColumn{serverlogsTable, "sess", "text" },
 	metaColumn{serverlogsTable, "site", "text" },
