@@ -101,7 +101,7 @@ func main() {
 		Pkg: regexp.MustCompile(""),
 		Filename: regexp.MustCompile("^serverlogs-"),
 		Handler: func(c *insight_server.UploadCallbackCtx) error {
-			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile}
+			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile, c.Basedir}
 			return nil
 		},
 	})
