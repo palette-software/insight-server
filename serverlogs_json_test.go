@@ -46,7 +46,7 @@ func TestServerlogsImport(t *testing.T) {
 
 	assertInt(t, firstRow.Outer.Pid, 5556, "1st row Pid mismatch")
 	assertString(t, firstRow.Outer.Ts, "2015-12-29T16:34:30.585", "1st row Date mismatch")
-	assertString(t, firstRow.Outer.Tid, "15b8", "1st row Tid mismatch")
+	assertString(t, firstRow.Outer.Tid, "5560", "1st row Tid mismatch")
 	assertString(t, firstRow.Outer.Sev, "info", "1st row sev mismatch")
 	assertString(t, firstRow.Outer.Sess, "-", "1st row sess mismatch")
 	assertString(t, firstRow.Outer.Req, "-", "1st row req mismatch")

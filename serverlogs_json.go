@@ -4,6 +4,7 @@ import (
 	"io"
 	"encoding/csv"
 	"fmt"
+    "strconv"
 	"encoding/json"
 	"strings"
 	"log"
@@ -189,8 +190,8 @@ func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 		// try to parse the low row
 		jsonDecoder := json.NewDecoder(strings.NewReader(logRow))
 		outerJson := ServerlogOuterJson{}
-
-		if err = jsonDecoder.Decode(&outerJson); err != nil {
+        err = jsonDecoder.Decode(&outerJson)
+        if err != nil {
 			log.Println("[serverlogs.json] Parse error: ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
@@ -200,6 +201,9 @@ func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 			// skip this row from processing
 			continue
 		}
+
+        outerJson.Tid, err = hexToDecimal(outerJson.Tid)
+
 
 		// since the inner JSON can be anything, we unmarshal it into
 		// a string, so the json marshaler can do his thing and we
@@ -228,6 +232,12 @@ func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 
 
 ///////////////////////////////////
+
+func hexToDecimal(tidHexa string) (string, error) {
+    decimal, err := strconv.ParseInt(tidHexa, 16, 32)
+    decimalString := strconv.FormatInt(decimal, 10)
+    return decimalString, err
+}
 
 func makeCsvReader(r io.Reader) *csv.Reader {
 	reader := csv.NewReader(r)
