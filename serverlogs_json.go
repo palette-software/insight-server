@@ -35,7 +35,7 @@ type ErrorRow struct {
 }
 
 type ServerlogToParse struct {
-	SourceFile, OutputFile string
+	SourceFile, OutputFile, TmpDir string
 }
 
 // Creates a new parser that accepts filenames on the channel returned
@@ -77,6 +77,8 @@ func parseServerlogFile(serverlog ServerlogToParse) (error) {
 
 	log.Printf("[serverlogs] Parsed %d lines with %d error lines from '%s'", len(serverlogs), len(errorRows), filename)
 
+	tmpDir := serverlog.TmpDir
+
 	if len(serverlogs) > 0 {
 		// make csv-compatible output
 		serverlogRowsAsStr := make([][]string, len(serverlogs))
@@ -88,7 +90,7 @@ func parseServerlogFile(serverlog ServerlogToParse) (error) {
 				o.K, row.Inner,
 			}
 		}
-		outputFile, err := writeAsCsv(outputPath, "preparsed", serverlogsCsvHeader, serverlogRowsAsStr)
+		outputFile, err := writeAsCsv(tmpDir, outputPath, "preparsed", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
 			return err
 		}
@@ -102,7 +104,7 @@ func parseServerlogFile(serverlog ServerlogToParse) (error) {
 			errorRowsAsStr[i] = []string{row.Error, row.Json }
 		}
 		// write it as csv
-		errorsFile, err := writeAsCsv(outputPath, "errors", []string{"error", "line"}, errorRowsAsStr)
+		errorsFile, err := writeAsCsv(tmpDir, outputPath, "errors", []string{"error", "line"}, errorRowsAsStr)
 		if err != nil {
 			return err
 		}
@@ -122,8 +124,8 @@ var serverlogsCsvHeader []string = []string{
 	"k", "v",
 }
 
-func writeAsCsv(filename, prefix string, headers []string, rows [][]string) (string, error) {
-	tmpFile, err := ioutil.TempFile("", fmt.Sprintf("serverlogs-%s-output", prefix))
+func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
+	tmpFile, err := ioutil.TempFile(tmpDir, fmt.Sprintf("serverlogs-%s-output", prefix))
 	if err != nil {
 		return "", err
 	}
