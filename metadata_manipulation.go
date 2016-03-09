@@ -30,7 +30,7 @@ var serverlogsErrorTable metaTable = metaTable{
 var preparsedServerlogsColumns []metaColumn = []metaColumn{
 	metaColumn{serverlogsTable, "filename", "text" },
 	metaColumn{serverlogsTable, "host_name", "text" },
-	metaColumn{serverlogsTable, "ts", "text" },
+	metaColumn{serverlogsTable, "ts", "timestamp without time zone" },
 	metaColumn{serverlogsTable, "pid", "integer" },
 	metaColumn{serverlogsTable, "tid", "integer" },
 	metaColumn{serverlogsTable, "sev", "text" },
