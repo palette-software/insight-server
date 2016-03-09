@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"fmt"
 	"net/url"
+	"os"
 )
 
 
@@ -36,6 +37,13 @@ func writeResponse(w http.ResponseWriter, status int, err string) {
 }
 
 
+// Returns whether the given file or directory exists or not
+func fileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil { return true, nil }
+	if os.IsNotExist(err) { return false, nil }
+	return true, err
+}
 
 
 // HTTP package helpers

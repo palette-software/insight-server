@@ -90,16 +90,49 @@ type basicUploader struct {
 }
 
 // Creates a basic uploader
-func MakeBasicUploader(basePath string) Uploader {
+func MakeBasicUploader(basePath string) (Uploader, error) {
 	log.Printf("[uploader] Using path '%v' for upload root", basePath)
-	return &basicUploader{
+
+	// create the uploader
+	uploader := &basicUploader{
 		baseDir: basePath,
 		callbacks: []*UploadCallback{},
 	}
+	// create the temp directory
+	uploader.createTempDirectory()
+
+	return uploader, nil
 }
 
+// Returns the temp directory to use for storing transient files.
+// This should be on the same device as the final destination
 func (u *basicUploader) TempDirectory() string {
 	return path.Join(u.baseDir, "_temp")
+}
+
+// Creates the temporary directory (this should prevent
+// errors arising from non-existing temp path)
+func (u *basicUploader) createTempDirectory() error {
+	tmpDir := u.TempDirectory()
+
+	tmpDirExists, err := fileExists(tmpDir)
+
+	// if there was an error, forward it
+	if err != nil {
+		return err
+	}
+
+	if !tmpDirExists {
+		// create the temporary path
+		log.Printf("[uploader] Creating temp directory: %s", tmpDir)
+		if err := os.MkdirAll(tmpDir, OUTPUT_DEFAULT_DIRMODE); err != nil {
+			return err
+		}
+	}
+	// just signal that we are using the existing path
+	log.Printf("[uploader] Using path '%s' for temporary files", tmpDir)
+
+	return nil
 }
 
 
