@@ -40,10 +40,13 @@ To get a list of command line options, use the ```--help``` switch. On my machin
 ```
 Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server\server.exe:
   -bind_address="": The address to bind to. Leave empty for default .
+  -cert="cert.pem": The TLS certificate file to use when tls is set.
   -config="": Configuration file to use.
+  -key="key.pem": The TLS certificate key file to use when tls is set.
   -licenses_path="C:\\Users\\Miles\\go\\src\\github.com\\palette-software\\insight-server\\server\\licenses": The directory the licenses are loaded from on start.
   -maxid_path="C:\\Users\\Miles\\AppData\\Local\\Temp\\uploads\\maxid": The root directory for the maxid files to go into.
   -port=9000: The port the server is binding itself to
+  -tls=false: Use TLS for serving through HTTPS.
   -upload_path="C:\\Users\\Miles\\AppData\\Local\\Temp\\uploads": The root directory for the uploads to go into.
 ```
 
