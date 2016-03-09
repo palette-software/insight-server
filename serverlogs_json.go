@@ -91,7 +91,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 				o.K, row.Inner,
 			}
 		}
-		outputFile, err := writeAsCsv(tmpDir, outputPath, "preparsed", serverlogsCsvHeader, serverlogRowsAsStr)
+		outputFile, err := writeAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
 			return err
 		}
@@ -105,7 +105,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 			errorRowsAsStr[i] = []string{row.Error, row.Json}
 		}
 		// write it as csv
-		errorsFile, err := writeAsCsv(tmpDir, outputPath, "errors", []string{"error", "line"}, errorRowsAsStr)
+		errorsFile, err := writeAsCsv(tmpDir, outputPath, "errors_", []string{"error", "line"}, errorRowsAsStr)
 		if err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 		return "", err
 	}
 
-	outputPath := fmt.Sprintf("%s/%s_%s", filepath.Dir(filename), prefix, filepath.Base(filename))
+	outputPath := fmt.Sprintf("%s/%s%s", filepath.Dir(filename), prefix, filepath.Base(filename))
 
 	// Get the temp file name before closing it
 	tempFilePath := tmpFile.Name()
