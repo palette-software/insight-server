@@ -140,6 +140,7 @@ func main() {
 	log.Printf("[http] Webservice starting on %v\n", bindAddressWithPort)
 
 	if useTls {
+		log.Printf("[http] Using TLS cert: '%s' and key: '%s'", tlsCert, tlsKey)
 		err := http.ListenAndServeTLS(bindAddressWithPort, tlsCert, tlsKey, nil)
 		log.Fatal(err)
 	} else {
