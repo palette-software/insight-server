@@ -1,8 +1,8 @@
 package insight_server
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 const SAMPLELOGS_FILE = "testdata/serverlogs.csv"

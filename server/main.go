@@ -1,17 +1,16 @@
 package main
 
 import (
-	"github.com/palette-software/insight-server"
 	"github.com/namsral/flag"
+	"github.com/palette-software/insight-server"
 
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"log"
 	"regexp"
 )
-
 
 // Returns the current working directory
 func getCurrentPath() string {
@@ -23,7 +22,6 @@ func getCurrentPath() string {
 	return dir
 
 }
-
 
 // Adds basic request logging to the wrapped handler
 func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc {
@@ -74,8 +72,6 @@ func main() {
 	flag.StringVar(&tlsCert, "cert", "cert.pem", "The TLS certificate file to use when tls is set.")
 	flag.StringVar(&tlsKey, "key", "key.pem", "The TLS certificate key file to use when tls is set.")
 
-
-
 	// CONFIG FILE
 	// ===========
 
@@ -96,13 +92,12 @@ func main() {
 	// create the authenticator
 	authenticator := insight_server.NewLicenseAuthenticator(licensesDirectory)
 
-
 	// create the server logs parser
 	serverlogsParser := insight_server.MakeServerlogParser(16)
 
 	uploader.AddCallback(&insight_server.UploadCallback{
-		Name: "Serverlogs parsing",
-		Pkg: regexp.MustCompile(""),
+		Name:     "Serverlogs parsing",
+		Pkg:      regexp.MustCompile(""),
 		Filename: regexp.MustCompile("^serverlogs-"),
 		Handler: func(c *insight_server.UploadCallbackCtx) error {
 			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile, c.Basedir}
@@ -111,10 +106,10 @@ func main() {
 	})
 
 	uploader.AddCallback(&insight_server.UploadCallback{
-		Name: "Serverlogs metadata addition",
-		Pkg: regexp.MustCompile(""),
+		Name:     "Serverlogs metadata addition",
+		Pkg:      regexp.MustCompile(""),
 		Filename: regexp.MustCompile("^metadata-"),
-		Handler: insight_server.MetadataUploadHandler,
+		Handler:  insight_server.MetadataUploadHandler,
 	})
 	// create the upload endpoint
 	authenticatedUploadHandler := withRequestLog("upload",

@@ -1,14 +1,14 @@
 package insight_server
 
 import (
-	"strings"
-	"fmt"
-	"io/ioutil"
 	"bufio"
-	"regexp"
-	"os"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"os"
+	"regexp"
+	"strings"
 )
 
 type metaTable struct {
@@ -28,21 +28,21 @@ var serverlogsErrorTable metaTable = metaTable{
 	"public", "error_serverlogs",
 }
 var preparsedServerlogsColumns []metaColumn = []metaColumn{
-	metaColumn{serverlogsTable, "filename", "text" },
-	metaColumn{serverlogsTable, "host_name", "text" },
-	metaColumn{serverlogsTable, "ts", "timestamp without time zone" },
-	metaColumn{serverlogsTable, "pid", "integer" },
-	metaColumn{serverlogsTable, "tid", "integer" },
-	metaColumn{serverlogsTable, "sev", "text" },
-	metaColumn{serverlogsTable, "req", "text" },
-	metaColumn{serverlogsTable, "sess", "text" },
-	metaColumn{serverlogsTable, "site", "text" },
-	metaColumn{serverlogsTable, "user", "text" },
-	metaColumn{serverlogsTable, "k", "text" },
-	metaColumn{serverlogsTable, "v", "text" },
+	metaColumn{serverlogsTable, "filename", "text"},
+	metaColumn{serverlogsTable, "host_name", "text"},
+	metaColumn{serverlogsTable, "ts", "timestamp without time zone"},
+	metaColumn{serverlogsTable, "pid", "integer"},
+	metaColumn{serverlogsTable, "tid", "integer"},
+	metaColumn{serverlogsTable, "sev", "text"},
+	metaColumn{serverlogsTable, "req", "text"},
+	metaColumn{serverlogsTable, "sess", "text"},
+	metaColumn{serverlogsTable, "site", "text"},
+	metaColumn{serverlogsTable, "user", "text"},
+	metaColumn{serverlogsTable, "k", "text"},
+	metaColumn{serverlogsTable, "v", "text"},
 
-	metaColumn{serverlogsErrorTable, "error", "text" },
-	metaColumn{serverlogsErrorTable, "line", "text" },
+	metaColumn{serverlogsErrorTable, "error", "text"},
+	metaColumn{serverlogsErrorTable, "line", "text"},
 }
 
 func makeMetaString(cols []metaColumn) string {
@@ -53,13 +53,12 @@ func makeMetaString(cols []metaColumn) string {
 			col.table.name,
 			col.column,
 			col.formatType,
-			i + 1)
+			i+1)
 	}
 	return strings.Join(o, "\r\n")
 }
 
 var ServerlogsMetaString string = makeMetaString(preparsedServerlogsColumns)
-
 
 // Handler updating metadata
 func MetadataUploadHandler(c *UploadCallbackCtx) error {
@@ -127,11 +126,10 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 		return err
 	}
 
-
 	// defer moving to the default move handler
 	return MoveHandler(&UploadCallbackCtx{
 		SourceFile: outf.Name(),
-		OutputDir: c.OutputDir,
+		OutputDir:  c.OutputDir,
 		OutputFile: c.OutputFile,
 	})
 }

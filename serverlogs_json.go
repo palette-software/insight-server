@@ -1,16 +1,16 @@
 package insight_server
 
 import (
-	"io"
 	"encoding/csv"
-	"fmt"
-    "strconv"
 	"encoding/json"
-	"strings"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
-	"io/ioutil"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // The outer Json wrapper
@@ -26,8 +26,8 @@ type ServerlogOuterJson struct {
 type ServerlogOutputRow struct {
 	Filename, Hostname string
 
-	Outer              ServerlogOuterJson
-	Inner              string
+	Outer ServerlogOuterJson
+	Inner string
 }
 
 type ErrorRow struct {
@@ -40,7 +40,7 @@ type ServerlogToParse struct {
 }
 
 // Creates a new parser that accepts filenames on the channel returned
-func MakeServerlogParser(bufferSize int) (chan ServerlogToParse) {
+func MakeServerlogParser(bufferSize int) chan ServerlogToParse {
 	input := make(chan ServerlogToParse, bufferSize)
 	go func() {
 		for {
@@ -58,7 +58,7 @@ func MakeServerlogParser(bufferSize int) (chan ServerlogToParse) {
 
 //////////////////////////////////
 
-func parseServerlogFile(serverlog ServerlogToParse) (error) {
+func parseServerlogFile(serverlog ServerlogToParse) error {
 
 	filename := serverlog.SourceFile
 	outputPath := serverlog.OutputFile
@@ -102,7 +102,7 @@ func parseServerlogFile(serverlog ServerlogToParse) (error) {
 		// make csv-compatible output
 		errorRowsAsStr := make([][]string, len(errorRows))
 		for i, row := range errorRows {
-			errorRowsAsStr[i] = []string{row.Error, row.Json }
+			errorRowsAsStr[i] = []string{row.Error, row.Json}
 		}
 		// write it as csv
 		errorsFile, err := writeAsCsv(tmpDir, outputPath, "errors", []string{"error", "line"}, errorRowsAsStr)
@@ -111,7 +111,6 @@ func parseServerlogFile(serverlog ServerlogToParse) (error) {
 		}
 		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
 	}
-
 
 	// after we are done, remove the original serverlogs file
 	f.Close()
@@ -190,20 +189,19 @@ func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 		// try to parse the low row
 		jsonDecoder := json.NewDecoder(strings.NewReader(logRow))
 		outerJson := ServerlogOuterJson{}
-        err = jsonDecoder.Decode(&outerJson)
-        if err != nil {
+		err = jsonDecoder.Decode(&outerJson)
+		if err != nil {
 			log.Println("[serverlogs.json] Parse error: ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
-				Json: logRow,
+				Json:  logRow,
 				Error: fmt.Sprintf("%v", err),
 			})
 			// skip this row from processing
 			continue
 		}
 
-        outerJson.Tid, err = hexToDecimal(outerJson.Tid)
-
+		outerJson.Tid, err = hexToDecimal(outerJson.Tid)
 
 		// since the inner JSON can be anything, we unmarshal it into
 		// a string, so the json marshaler can do his thing and we
@@ -213,7 +211,7 @@ func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 			log.Println("[serverlogs.json] Inner JSON remarshaling error: ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
-				Json: logRow,
+				Json:  logRow,
 				Error: fmt.Sprintf("%v", err),
 			})
 			// skip this row from processing
@@ -221,22 +219,21 @@ func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 		}
 
 		rows = append(rows, ServerlogOutputRow{
-			Filename:  record[0],
+			Filename: record[0],
 			Hostname: record[1],
-			Outer: outerJson,
-			Inner: string(innerStr),
+			Outer:    outerJson,
+			Inner:    string(innerStr),
 		})
 	}
 
 }
 
-
 ///////////////////////////////////
 
 func hexToDecimal(tidHexa string) (string, error) {
-    decimal, err := strconv.ParseInt(tidHexa, 16, 32)
-    decimalString := strconv.FormatInt(decimal, 10)
-    return decimalString, err
+	decimal, err := strconv.ParseInt(tidHexa, 16, 32)
+	decimalString := strconv.FormatInt(decimal, 10)
+	return decimalString, err
 }
 
 func makeCsvReader(r io.Reader) *csv.Reader {

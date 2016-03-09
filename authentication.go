@@ -2,16 +2,16 @@ package insight_server
 
 import (
 	"fmt"
-	"path/filepath"
 	"log"
 	"os"
+	"path/filepath"
 
-	"net/http"
 	"bytes"
+	"net/http"
 )
 
 const (
-// The glob to use for getting the license files (relative to the path of the working directory)
+	// The glob to use for getting the license files (relative to the path of the working directory)
 	LicenseGlob = "*.license"
 )
 
@@ -31,8 +31,6 @@ type User interface {
 type Authenticator interface {
 	authenticate(username string, token []byte) (User, error)
 }
-
-
 
 // Generates a http.HandlerFunc that calls innerHandler with with the additional parameter of
 // the authenticated user.
@@ -106,18 +104,17 @@ func loadAllLicenses(licensesRoot string) Licenses {
 	return licenses
 }
 
-
 // LICENSE AUTHENTICATOR
 // =====================
 
 // add User methods to License
 
 func (l *License) GetUsername() string {
-	return l.LicenseId;
+	return l.LicenseId
 }
 
 func (l *License) GetToken() []byte {
-	return l.Token;
+	return l.Token
 }
 
 type LicenseAuthenticator struct {
@@ -130,7 +127,6 @@ func NewLicenseAuthenticator(licensesRoot string) Authenticator {
 		licenses: loadAllLicenses(licensesRoot),
 	}
 }
-
 
 // Implements the authentication based on the licenses loaded from licensesRoot
 func (a *LicenseAuthenticator) authenticate(username string, password []byte) (User, error) {
