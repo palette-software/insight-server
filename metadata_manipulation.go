@@ -21,7 +21,7 @@ type metaColumn struct {
 }
 
 var serverlogsTable metaTable = metaTable{
-	"public", "preparsed_serverlogs",
+	"public", "serverlogs",
 }
 
 var serverlogsErrorTable metaTable = metaTable{
