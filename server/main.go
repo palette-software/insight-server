@@ -84,7 +84,11 @@ func main() {
 	flag.Parse()
 
 	// create the uploader
-	uploader := insight_server.MakeBasicUploader(filepath.ToSlash(uploadBasePath))
+	uploader, err := insight_server.MakeBasicUploader(filepath.ToSlash(uploadBasePath))
+	if err != nil {
+		// log the error and exit
+		log.Fatalf("Error during creating the uploader: %v", err)
+	}
 
 	// create the maxid backend
 	maxIdBackend := insight_server.MakeFileMaxIdBackend(maxIdDirectory)
