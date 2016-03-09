@@ -3,8 +3,8 @@ package insight_server
 import (
 	"testing"
 
-	"strings"
 	"bytes"
+	"strings"
 )
 
 const (

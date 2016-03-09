@@ -1,14 +1,14 @@
 package insight_server
 
 import (
-	"io/ioutil"
-	"path"
-	"net/http"
 	"fmt"
-	"regexp"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 )
 
 // HTTP HANDLERS
@@ -43,7 +43,6 @@ func MakeMaxIdHandler(backend MaxIdBackend) HandlerFuncWithTenant {
 // =======
 
 var tableNameRegex *regexp.Regexp = regexp.MustCompile("^([^-]+)")
-
 
 func getTableNameFromFilename(fileName string) (string, error) {
 	tn := tableNameRegex.FindString(fileName)
@@ -82,14 +81,13 @@ type fileMaxIdBackend struct {
 }
 
 // gets the file name of a tables maxid file
-func (m *fileMaxIdBackend)getFileName(username, tableName string) string {
+func (m *fileMaxIdBackend) getFileName(username, tableName string) string {
 	return path.Join(m.basePath, SanitizeName(username), SanitizeName(tableName))
 }
 
-func (m *fileMaxIdBackend)SaveMaxId(username, tableName, maxid string) error {
+func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
 	fileName := m.getFileName(username, tableName)
-	log.Printf("[maxid] writing maxid '%s' for table '%v' into file '%v' ", maxid, tableName,fileName )
-
+	log.Printf("[maxid] writing maxid '%s' for table '%v' into file '%v' ", maxid, tableName, fileName)
 
 	// create the output file path
 	if err := os.MkdirAll(filepath.Dir(fileName), OUTPUT_DEFAULT_DIRMODE); err != nil {
@@ -99,13 +97,13 @@ func (m *fileMaxIdBackend)SaveMaxId(username, tableName, maxid string) error {
 	return ioutil.WriteFile(fileName, []byte(maxid), maxid_backend_default_filemode)
 }
 
-func (m *fileMaxIdBackend)GetMaxId(username, tableName string) (string, error) {
+func (m *fileMaxIdBackend) GetMaxId(username, tableName string) (string, error) {
 	fileName := m.getFileName(username, tableName)
-	log.Printf("[maxid] getting maxid for table '%v' from file '%v' ", tableName,fileName )
+	log.Printf("[maxid] getting maxid for table '%v' from file '%v' ", tableName, fileName)
 	contents, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return "", err
 	}
-	log.Printf("[maxid] maxid for table '%v' is '%v' ", tableName, contents )
+	log.Printf("[maxid] maxid for table '%v' is '%v' ", tableName, contents)
 	return string(contents), nil
 }
