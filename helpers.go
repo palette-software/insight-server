@@ -1,15 +1,14 @@
 package insight_server
 
 import (
-	"log"
-	"regexp"
-	"net/http"
-	"mime/multipart"
 	"fmt"
+	"log"
+	"mime/multipart"
+	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 )
-
 
 // HELPERS
 // =======
@@ -36,19 +35,20 @@ func writeResponse(w http.ResponseWriter, status int, err string) {
 	return
 }
 
-
 // Returns whether the given file or directory exists or not
 func fileExists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	if err == nil { return true, nil }
-	if os.IsNotExist(err) { return false, nil }
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
 	return true, err
 }
 
-
 // HTTP package helpers
 // ===================
-
 
 // Helper to get a part from a multipart message
 func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.File, fileName string, err error) {
@@ -92,4 +92,3 @@ func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 
 	return paramVals[0], nil
 }
-

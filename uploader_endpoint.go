@@ -1,52 +1,52 @@
 package insight_server
 
 import (
-	"net/http"
-	"fmt"
-	"time"
-	"encoding/base64"
 	"bytes"
+	"encoding/base64"
+	"fmt"
 	"log"
+	"net/http"
+	"time"
 
-	"path/filepath"
+	"crypto/md5"
+	"io"
+	"io/ioutil"
 	"os"
 	"path"
-	"io"
-	"crypto/md5"
-	"io/ioutil"
+	"path/filepath"
 	"regexp"
 )
 
 const (
-// The maximum size of the message we are willing to parse
-// when dealing with multipart messages
+	// The maximum size of the message we are willing to parse
+	// when dealing with multipart messages
 	multipartMaxSize = 128 * 1024 * 1024
 
-// The directory persions to use when creating a new directory
+	// The directory persions to use when creating a new directory
 	OUTPUT_DEFAULT_DIRMODE = 0755
 )
 
 // A single file that was sent to us by the client
 type UploadedFile struct {
 	// The file name this client has sent us
-	Filename     string
+	Filename string
 
 	// The path where the server has stored this file
 	UploadedPath string
 
 	// The path where the output should go
-	TargetPath   string
+	TargetPath string
 
 	// The md5 of the file
-	Md5          []byte
+	Md5 []byte
 }
 
 // Parameters for an upload request
 type uploadRequest struct {
-	sourceHost  string
-	username    string
-	pkg         string
-	filename    string
+	sourceHost string
+	username   string
+	pkg        string
+	filename   string
 
 	requestTime time.Time
 	reader      io.Reader
@@ -56,7 +56,7 @@ type UploadCallbackCtx struct {
 	SourceFile, OutputDir, OutputFile, Basedir string
 }
 
-type UploadCallbackFn func(ctx *UploadCallbackCtx) (error)
+type UploadCallbackFn func(ctx *UploadCallbackCtx) error
 type UploadCallback struct {
 	Name          string
 	Pkg, Filename *regexp.Regexp
@@ -78,13 +78,12 @@ type Uploader interface {
 	ApplyCallbacks(pkg, filename string, ctx *UploadCallbackCtx) error
 }
 
-
 // IMPLEMENTATIONS
 // ===============
 
 type basicUploader struct {
 	// The directory where the files are uploaded
-	baseDir   string
+	baseDir string
 
 	callbacks []*UploadCallback
 }
@@ -95,11 +94,13 @@ func MakeBasicUploader(basePath string) (Uploader, error) {
 
 	// create the uploader
 	uploader := &basicUploader{
-		baseDir: basePath,
+		baseDir:   basePath,
 		callbacks: []*UploadCallback{},
 	}
 	// create the temp directory
-	uploader.createTempDirectory()
+	if err := uploader.createTempDirectory(); err != nil {
+		return nil, err
+	}
 
 	return uploader, nil
 }
@@ -135,7 +136,6 @@ func (u *basicUploader) createTempDirectory() error {
 	return nil
 }
 
-
 // Gets the file path inside the upload directory
 func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte) string {
 	// the file name gets the timestamp appended (only time)
@@ -164,7 +164,6 @@ func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte
 		fullFileName,
 	))
 }
-
 
 // Central function tries to create a new uploaded file.
 // The purpose of this method is to provide a unified upload capability.
@@ -234,7 +233,7 @@ func (u *basicUploader) AddCallback(c *UploadCallback) {
 }
 
 // Applies callbacks after a file is uploaded succesfully
-func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallbackCtx) (error) {
+func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallbackCtx) error {
 
 	// function that wraps invoking the handler
 	invokeHandler := func(name string, handler UploadCallbackFn) error {
@@ -271,9 +270,6 @@ func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallback
 
 	return nil
 }
-
-
-
 
 // UPLOAD HANDLING
 // ===============
@@ -313,13 +309,12 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	requestTime := time.Now()
 
 	uploadedFile, err := uploader.SaveFile(&uploadRequest{
-		sourceHost: sourceHost,
-		username: tenant.GetUsername(),
-		pkg: pkg,
-		filename: fileName,
+		sourceHost:  sourceHost,
+		username:    tenant.GetUsername(),
+		pkg:         pkg,
+		filename:    fileName,
 		requestTime: requestTime,
-		reader: mainFile,
-
+		reader:      mainFile,
 	})
 
 	if err != nil {
@@ -362,9 +357,9 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	err = uploader.ApplyCallbacks(pkg, fileName,
 		&UploadCallbackCtx{
 			SourceFile: uploadedFile.UploadedPath,
-			OutputDir: filepath.Dir(uploadedFile.TargetPath),
+			OutputDir:  filepath.Dir(uploadedFile.TargetPath),
 			OutputFile: uploadedFile.TargetPath,
-			Basedir: uploader.TempDirectory(),
+			Basedir:    uploader.TempDirectory(),
 		})
 	if err != nil {
 		writeResponse(w, http.StatusInternalServerError, "Error in upload callbacks")
