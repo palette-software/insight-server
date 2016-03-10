@@ -117,6 +117,36 @@ See the openAPI documentation inside the docs/generated folder
 A basic documentation using OpenAPI is available in the docs folder, or
 a HTML-ized version is available in the docs/generated folder.
 
+## Assets
+
+The server uses [go-bindata](https://github.com/jteeuwen/go-bindata) to package its assets into
+a go source file so that the server itself has no dependencies on runtime data.
+
+To install it:
+
+```
+go get -u github.com/jteeuwen/go-bindata/...
+```
+
+(dont forget the three dots from the end).
+
+Later running
+
+```
+go generate -x github.com/palette-software/insight-server
+```
+
+should update the asset package used by the server for future builds. (The ```-x``` switch simply displays the commands
+ran by ```go generate```).
+
+Important note: please check in the generated sources into the git tree, because:
+
+
+> There is one thing you need to be aware of when using go generate. The tool isn’t
+> integrated with go get, as one might expect. Because of that, your project will only
+> be “go gettable” if you check in all sources created by go generate.
+
+
 ## Tests
 
 ```bash

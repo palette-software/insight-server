@@ -35,6 +35,10 @@ func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc
 	}
 }
 
+func staticHandler(name, assetPath string) http.HandlerFunc {
+	return withRequestLog(name, insight_server.AssetPageHandler(assetPath))
+}
+
 func main() {
 
 	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
@@ -153,20 +157,26 @@ func main() {
 
 	// HANDLERS
 	// ========
+
+	// CSV upload
 	// declare both endpoints for now. /upload-with-meta is deprecated
 	http.HandleFunc("/upload-with-meta", authenticatedUploadHandler)
 	http.HandleFunc("/upload", authenticatedUploadHandler)
 	http.HandleFunc("/maxid", maxIdHandler)
 
-	http.HandleFunc("/updates/new-version", insight_server.VersionUploadPagetHandler)
+	// auto-updates
+	//http.HandleFunc("/updates/new-version", withRequestLog("new-version", insight_server.AssetPageHandler("assets/upload-new-version.html")))
+	http.HandleFunc("/updates/new-version", staticHandler("new-version", "assets/upload-new-version.html"))
 	http.HandleFunc("/updates/add-version", autoUpdatesAddHandler)
 	//http.HandleFunc("/updates/latest-version", autoUpdatesAddHandler)
 
-	// The updates should be publicly accessable
+	// auto-update distribution: The updates should be publicly accessable
 	log.Printf("[http] Serving static content for updates from: %s", updatesDirectory)
 	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(updatesDirectory))))
 
-	//bindAddress := getBindAddress()
+	// STARTING THE SERVER
+	// ===================
+
 	bindAddressWithPort := fmt.Sprintf("%s:%v", bindAddress, bindPort)
 	log.Printf("[http] Webservice starting on %v\n", bindAddressWithPort)
 
@@ -175,7 +185,6 @@ func main() {
 		err := http.ListenAndServeTLS(bindAddressWithPort, tlsCert, tlsKey, nil)
 		log.Fatal(err)
 	} else {
-
 		err := http.ListenAndServe(bindAddressWithPort, nil)
 		log.Fatal(err)
 	}
