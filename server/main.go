@@ -168,7 +168,7 @@ func main() {
 	//http.HandleFunc("/updates/new-version", withRequestLog("new-version", insight_server.AssetPageHandler("assets/upload-new-version.html")))
 	http.HandleFunc("/updates/new-version", staticHandler("new-version", "assets/upload-new-version.html"))
 	http.HandleFunc("/updates/add-version", autoUpdatesAddHandler)
-	//http.HandleFunc("/updates/latest-version", autoUpdatesAddHandler)
+	http.HandleFunc("/updates/latest-version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater)))
 
 	// auto-update distribution: The updates should be publicly accessable
 	log.Printf("[http] Serving static content for updates from: %s", updatesDirectory)

@@ -1,20 +1,18 @@
 package insight_server
 
-//go:generate go-bindata -pkg $GOPACKAGE -o assets.go assets/
-
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"hash"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 )
 
@@ -150,24 +148,29 @@ func (v VersionList) Swap(i, j int) {
 // Autoupdater implementation
 // --------------------------
 
-type ProductVersions map[string]map[string]*UpdateVersion
-
 type baseAutoUpdater struct {
 	// The base path where updates are stored
 	basePath string
 
-	productVersions map[string]map[string]*UpdateVersion
+	latestVersions map[string]*UpdateVersion
 }
 
 // Creates a new autoupdater implementation
 func NewBaseAutoUpdater(basePath string) (AutoUpdater, error) {
+	// create the versions directory
 	if err := createDirectoryIfNotExists(basePath); err != nil {
 		return nil, err
 	}
 
+	// update the latest version list
+	latestVersions, err := loadLatestVersions(basePath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &baseAutoUpdater{
-		basePath:        basePath,
-		productVersions: map[string]map[string]*UpdateVersion{},
+		basePath:       basePath,
+		latestVersions: latestVersions,
 	}, nil
 }
 
@@ -176,7 +179,7 @@ const CONTENTS_FILE_NAME = "contents.bin"
 
 // Gets the path where an update binary is stored
 func (a *baseAutoUpdater) updatePath(product, versionStr string) string {
-	return path.Join(a.basePath, SanitizeName(product), versionStr, CONTENTS_FILE_NAME)
+	return path.Join(a.basePath, SanitizeName(product), versionStr, fmt.Sprintf("%s-%s", product, versionStr))
 }
 
 // Adds a new version to the list of available versions
@@ -192,6 +195,9 @@ func (a *baseAutoUpdater) AddNewVersion(product string, version *Version, src io
 	if versionExists {
 		return nil, fmt.Errorf("Version '%s' of product '%s' already exists", version, product)
 	}
+
+	// save the update binary
+	// ----------------------
 
 	// Create the directory of the update
 	if err := createDirectoryIfNotExists(filepath.Dir(storagePath)); err != nil {
@@ -215,11 +221,33 @@ func (a *baseAutoUpdater) AddNewVersion(product string, version *Version, src io
 
 	log.Printf("[autoupdate] Copied new version '%s' of product '%s' to '%s'", version, product, storagePath)
 
-	return &UpdateVersion{
+	// save the metadata
+	// ------------------
+	metaData := &UpdateVersion{
 		Version: *version,
 		Product: product,
 		Md5:     fmt.Sprintf("%32x", md5Hasher.Md5.Sum(nil)),
-	}, nil
+		Url:     fmt.Sprintf("/updates/products/%s/%s/%s-%s", product, version, product, version),
+	}
+
+	metaFileName := fmt.Sprintf("%s.meta.json", storagePath)
+	metaFile, err := os.Create(metaFileName)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create metadata file '%s': %s", metaFileName, err)
+	}
+	defer metaFile.Close()
+
+	// encode the metadata as json
+	if err := json.NewEncoder(metaFile).Encode(metaData); err != nil {
+		return nil, fmt.Errorf("Error while saving metadata: %v", err)
+	}
+
+	// Update the products latest version with the new metadata
+	if err := a.updateExistingVersions(); err != nil {
+		return nil, fmt.Errorf("Error while updating version list: %v", err)
+	}
+
+	return metaData, nil
 }
 
 // Returns a reader for the update file for the given version
@@ -229,26 +257,98 @@ func (a *baseAutoUpdater) FileForVersion() (io.Reader, error) {
 
 // Returns the latest version of a product
 func (a *baseAutoUpdater) LatestVersion(product string) (*UpdateVersion, error) {
-	return nil, nil
+	latestsVersion, hasProduct := a.latestVersions[product]
+	if !hasProduct {
+		return nil, fmt.Errorf("Cannot find product '%s'", product)
+	}
+	return latestsVersion, nil
+}
+
+// updates the versions list from the file system
+func (a *baseAutoUpdater) updateExistingVersions() error {
+	// Update the products latest version with the new metadata
+	latestVersions, err := loadLatestVersions(a.basePath)
+	if err != nil {
+		return fmt.Errorf("Error while updating version list: %v", err)
+	}
+
+	a.latestVersions = latestVersions
+	return nil
+}
+
+func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
+	// load all products
+	products, err := ioutil.ReadDir(basePath)
+	if err != nil {
+		return nil, fmt.Errorf("Error while loading product names: %v", err)
+	}
+
+	productVersions := make(map[string]*UpdateVersion)
+
+	// go through each product
+	for _, productDir := range products {
+		product := productDir.Name()
+
+		versionDirs, err := ioutil.ReadDir(path.Join(basePath, product))
+		if err != nil {
+			return nil, fmt.Errorf("Error while loading product versions for '%s': %v", product, err)
+		}
+
+		// find the latest version
+		versionNames := make([]string, len(versionDirs))
+		for i, version := range versionDirs {
+			// add each version
+			versionNames[i] = version.Name()
+		}
+		sort.StringSlice(versionNames).Sort()
+
+		// find the latest version
+		newest := versionNames[len(versionNames)-1]
+		metaFilePath := path.Join(basePath, product, newest, fmt.Sprintf("%s-%s.meta.json", product, newest))
+		metafile, err := os.Open(metaFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("Error while opening metadata file '%s': %v", metaFilePath, err)
+		}
+		defer metafile.Close()
+
+		// deserialize the meta and update the latest version
+		u := &UpdateVersion{}
+		if err := json.NewDecoder(metafile).Decode(u); err != nil {
+			return nil, fmt.Errorf("Error while deserializing metadata '%s': %v", metaFilePath, err)
+		}
+
+		log.Printf("[autoupdate] Found product: '%s' with versions: %v using: %s", product, versionNames, u.String())
+		productVersions[product] = u
+
+	}
+
+	return productVersions, nil
+
 }
 
 // HTTP Handler
 // ------------
 
-type Md5Hasher struct {
-	Md5    hash.Hash
-	Reader io.Reader
-}
+func AutoupdateLatestVersionHandler(a AutoUpdater) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		productName, err := getUrlParam(r.URL, "product")
+		if err != nil {
+			writeResponse(w, http.StatusBadRequest, "Missing 'product' parameter")
+			return
+		}
 
-func makeMd5Hasher(r io.Reader) *Md5Hasher {
+		latestVersion, err := a.LatestVersion(productName)
+		if err != nil {
+			writeResponse(w, http.StatusNotFound, fmt.Sprintf("Cannot find product '%s': %v", productName, err))
+			return
+		}
 
-	hash := md5.New()
+		if err := json.NewEncoder(w).Encode(latestVersion); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	// create a TeeReader that automatically forwards bytes read from the file to
-	// the md5 hasher's reader
-	readerWithMd5 := io.TeeReader(r, hash)
-
-	return &Md5Hasher{hash, readerWithMd5}
+	}
 }
 
 func NewAutoupdateHttpHandler(u AutoUpdater) http.HandlerFunc {
@@ -298,19 +398,5 @@ func NewAutoupdateHttpHandler(u AutoUpdater) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(wb.Bytes())
-	}
-}
-
-// Returns a new handler that simply responds with an asset from the precompiled assets
-func AssetPageHandler(assetName string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		page, err := Asset(assetName)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		w.Write(page)
 	}
 }

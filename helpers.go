@@ -1,7 +1,12 @@
 package insight_server
 
+//go:generate go-bindata -pkg $GOPACKAGE -o assets.go assets/
+
 import (
+	"crypto/md5"
 	"fmt"
+	"hash"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -96,6 +101,19 @@ func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.Fi
 	return
 }
 
+// Helper to get a part from a multipart message
+func getMultipartParam(form *multipart.Form, fieldName string) (value string, err error) {
+
+	// get the file from the form
+	fn := form.Value[fieldName]
+	if len(fn) != 1 {
+		err = fmt.Errorf("The request must have exactly 1 '%v' field (has %v).", fieldName, len(fn))
+		return "", err
+	}
+
+	return fn[0], nil
+}
+
 // Returns an url param, or an error if no such param is available
 func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 
@@ -114,15 +132,35 @@ func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 	return paramVals[0], nil
 }
 
-// Helper to get a part from a multipart message
-func getMultipartParam(form *multipart.Form, fieldName string) (value string, err error) {
+// Returns a new handler that simply responds with an asset from the precompiled assets
+func AssetPageHandler(assetName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		page, err := Asset(assetName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	// get the file from the form
-	fn := form.Value[fieldName]
-	if len(fn) != 1 {
-		err = fmt.Errorf("The request must have exactly 1 '%v' field (has %v).", fieldName, len(fn))
-		return "", err
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(page)
 	}
+}
 
-	return fn[0], nil
+// MD5 hashing TeeReader helper
+// ----------------------------
+
+type Md5Hasher struct {
+	Md5    hash.Hash
+	Reader io.Reader
+}
+
+func makeMd5Hasher(r io.Reader) *Md5Hasher {
+
+	hash := md5.New()
+
+	// create a TeeReader that automatically forwards bytes read from the file to
+	// the md5 hasher's reader
+	readerWithMd5 := io.TeeReader(r, hash)
+
+	return &Md5Hasher{hash, readerWithMd5}
 }
