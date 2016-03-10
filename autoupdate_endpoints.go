@@ -109,42 +109,6 @@ func parseAllInts(strs []string) ([]int, error) {
 	return o, nil
 }
 
-// version list sorting
-// --------------------
-
-func (v VersionList) Len() int {
-	return len([]*Version(v))
-}
-
-// Less reports whether the element with
-// index i should sort before the element with index j.
-func (v VersionList) Less(i, j int) bool {
-	l := []*Version(v)
-	a := l[i]
-	b := l[j]
-	if a.Major < b.Major {
-		return true
-	}
-
-	if a.Major == b.Major {
-		if a.Minor == b.Minor {
-			return a.Patch < b.Patch
-		}
-		return a.Minor < b.Minor
-	}
-	return a.Major < b.Major
-}
-
-// Swap swaps the elements with indexes i and j.
-func (v VersionList) Swap(i, j int) {
-	l := []*Version(v)
-	a := l[i]
-	b := l[j]
-
-	l[j] = a
-	l[i] = b
-}
-
 // Autoupdater implementation
 // --------------------------
 

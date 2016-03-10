@@ -28,6 +28,7 @@ The environment variables and their corresponding configuration file values and 
 | string | -upload_path=/opt/insight-agent/uploads    | UPLOAD_PATH=/opt/insight-agent/uploads    | upload_path=/opt/insight-agent/uploads    |
 | string | -maxid_path=/opt/insight-agent/maxids      | MAXID_PATH=/opt/insight-agent/maxids      | maxid_path=/opt/insight-agent/maxids      |
 | string | -licenses_path=/opt/insight-agent/licenses | LICENSES_PATH=/opt/insight-agent/licenses | licenses_path=/opt/insight-agent/licenses |
+| string | -updates_path=/opt/insight-agent/updates   | UPDATES_PATH=/opt/insight-agent/updates   | updates_path=/opt/insight-agent/updates
 | string | -config dev.config                         | CONFIG=dev.config                         | config=dev.config                         |
 | int    | -bind_port 8080                            | BIND_PORT=8080                            | bind_port=8080                            |
 | string | -bind_address 127.0.0.1                    | BIND_ADDRESS=127.0.0.1                    | bind_address=127.0.0.1                    |
@@ -38,6 +39,7 @@ The environment variables and their corresponding configuration file values and 
 To get a list of command line options, use the ```--help``` switch. On my machine (windows) this results in:
 
 ```
+./server --help
 Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server\server.exe:
   -bind_address="": The address to bind to. Leave empty for default .
   -cert="cert.pem": The TLS certificate file to use when tls is set.
@@ -47,6 +49,7 @@ Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server
   -maxid_path="C:\\Users\\Miles\\AppData\\Local\\Temp\\uploads\\maxid": The root directory for the maxid files to go into.
   -port=9000: The port the server is binding itself to
   -tls=false: Use TLS for serving through HTTPS.
+  -updates_path="C:\\Users\\Miles\\go\\src\\github.com\\palette-software\\insight-server\\server\\updates": The directory where the update files for the agent are stored.
   -upload_path="C:\\Users\\Miles\\AppData\\Local\\Temp\\uploads": The root directory for the uploads to go into.
 ```
 
