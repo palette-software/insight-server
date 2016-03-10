@@ -112,6 +112,60 @@ PONG
 
 See the openAPI documentation inside the docs/generated folder
 
+
+## Autoupdate service endpoints
+
+The serevice provides support for sending updated installers to the agents. All updates are based on two
+parts: the __PRODUCT__ (like ```agent```) and the __VERSION__ (like ```v1.3.2```).
+
+### Adding a new version of a product
+
+Navigate your browser to:
+
+```
+http://SERVER/updates/new-version
+```
+
+This should present an HTML form where you can select the product name and the new version and upload a new
+file for this version.
+
+### Getting the latest verion of a product
+
+Send a GET request to:
+
+```
+GET http://SERVER/updates/latest-version?product=PRODUCT_NAME
+ => 200: {"Major":1,"Minor":9,"Patch":3,"Product":"agent","Md5":"6a6d0cc56d7186ba54fccca2ae7fcda8","Url":"/updates/products/agent/v1.9.3/agent-v1.9.3"}
+```
+
+The JSON response contains the
+* Major version
+* Minor version
+* Patch version
+
+* The Md5 of the file
+* The download path on the server (currently its only a path as the server address may be different for the agent and the server)
+
+
+If the given product has no versions (most likely because of an invalid product name) then the server returns a 404 response:
+
+```
+GET http://localhost:9000/updates/latest-version?product=agenr
+ => 404: Cannot find product 'agenr': Cannot find product 'agenr'
+```
+
+
+### Getting the update files
+
+After the agent has the latest version information from the ```/uploads/latest-version?product=...``` endpoint, it can download
+the file by issuing a request to the file path in the response:
+
+```
+GET http://localhost:9000/updates/products/agent/v1.9.3/agent-v1.9.3
+ => 200 CONTENTS_OF_THE_FILE
+```
+
+
 ## API Documentation
 
 A basic documentation using OpenAPI is available in the docs folder, or
