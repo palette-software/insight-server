@@ -85,9 +85,6 @@ type AutoUpdater interface {
 
 	// Adds a new version to the stored versions
 	AddNewVersion(product string, version *Version, src io.Reader) (*UpdateVersion, error)
-
-	// Returns a reader for the update file for the given version
-	FileForVersion() (io.Reader, error)
 }
 
 // Implementation
@@ -212,11 +209,6 @@ func (a *baseAutoUpdater) AddNewVersion(product string, version *Version, src io
 	}
 
 	return metaData, nil
-}
-
-// Returns a reader for the update file for the given version
-func (a *baseAutoUpdater) FileForVersion() (io.Reader, error) {
-	return nil, nil
 }
 
 // Returns the latest version of a product
