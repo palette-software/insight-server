@@ -37,7 +37,7 @@ func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc
 
 func main() {
 
-	var uploadBasePath, maxIdDirectory, licensesDirectory, bindAddress string
+	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
 	var bindPort int
 
 	// Path setup
@@ -57,6 +57,11 @@ func main() {
 	flag.StringVar(&licensesDirectory, "licenses_path",
 		filepath.Join(getCurrentPath(), "licenses"),
 		"The directory the licenses are loaded from on start.",
+	)
+
+	flag.StringVar(&updatesDirectory, "updates_path",
+		filepath.Join(getCurrentPath(), "updates"),
+		"The directory where the update files for the agent are stored.",
 	)
 
 	flag.IntVar(&bindPort, "port", 9000, "The port the server is binding itself to")
@@ -79,6 +84,9 @@ func main() {
 
 	flag.Parse()
 
+	// BACKENDS
+	// --------
+
 	// create the uploader
 	uploader, err := insight_server.MakeBasicUploader(filepath.ToSlash(uploadBasePath))
 	if err != nil {
@@ -94,6 +102,15 @@ func main() {
 
 	// create the server logs parser
 	serverlogsParser := insight_server.MakeServerlogParser(16)
+
+	// create the autoupdater backend
+	autoUpdater, err := insight_server.NewBaseAutoUpdater(updatesDirectory)
+	if err != nil {
+		log.Fatalf("Error during creation of Autoupdater: %v", err)
+	}
+
+	// UPLOADER CALLBACKS
+	// ------------------
 
 	uploader.AddCallback(&insight_server.UploadCallback{
 		Name:     "Serverlogs parsing",
@@ -111,6 +128,10 @@ func main() {
 		Filename: regexp.MustCompile("^metadata-"),
 		Handler:  insight_server.MetadataUploadHandler,
 	})
+
+	// ENDPOINTS
+	// ---------
+
 	// create the upload endpoint
 	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
@@ -126,13 +147,24 @@ func main() {
 		),
 	)
 
+	autoUpdatesAddHandler := withRequestLog("autoupdate-add",
+		insight_server.NewAutoupdateHttpHandler(autoUpdater),
+	)
+
 	// HANDLERS
 	// ========
-	http.HandleFunc("/", withRequestLog("ping", insight_server.PingHandler))
 	// declare both endpoints for now. /upload-with-meta is deprecated
 	http.HandleFunc("/upload-with-meta", authenticatedUploadHandler)
 	http.HandleFunc("/upload", authenticatedUploadHandler)
 	http.HandleFunc("/maxid", maxIdHandler)
+
+	http.HandleFunc("/updates/new-version", insight_server.VersionUploadPagetHandler)
+	http.HandleFunc("/updates/add-version", autoUpdatesAddHandler)
+	//http.HandleFunc("/updates/latest-version", autoUpdatesAddHandler)
+
+	// The updates should be publicly accessable
+	log.Printf("[http] Serving static content for updates from: %s", updatesDirectory)
+	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(updatesDirectory))))
 
 	//bindAddress := getBindAddress()
 	bindAddressWithPort := fmt.Sprintf("%s:%v", bindAddress, bindPort)

@@ -47,6 +47,27 @@ func fileExists(path string) (bool, error) {
 	return true, err
 }
 
+// / Helper that creates a directory if it does not exist
+func createDirectoryIfNotExists(path string) error {
+	exists, err := fileExists(path)
+	// forward errors
+	if err != nil {
+		return err
+	}
+	// if it already exists, dont create it
+	if exists {
+		return nil
+	}
+
+	// create the directory
+	log.Printf("[storage] Creating directory: '%s'", path)
+	if err := os.MkdirAll(path, OUTPUT_DEFAULT_DIRMODE); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // HTTP package helpers
 // ===================
 
@@ -91,4 +112,17 @@ func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 	}
 
 	return paramVals[0], nil
+}
+
+// Helper to get a part from a multipart message
+func getMultipartParam(form *multipart.Form, fieldName string) (value string, err error) {
+
+	// get the file from the form
+	fn := form.Value[fieldName]
+	if len(fn) != 1 {
+		err = fmt.Errorf("The request must have exactly 1 '%v' field (has %v).", fieldName, len(fn))
+		return "", err
+	}
+
+	return fn[0], nil
 }
