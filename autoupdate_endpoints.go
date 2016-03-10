@@ -16,8 +16,8 @@ import (
 	"strconv"
 )
 
-// ENPOINTS
-// ========
+// ENDPOINTS
+// =========
 //
 // GET: /updates/agent/latest-version => 200 OK
 // {version: "v1.3.2", major: 1, minor: 3, patch: 2, url: "https://.../updates/agent/versions/v1.3.2", md5: "....."}
