@@ -1,9 +1,6 @@
 package insight_server
 
-import (
-	"sort"
-	"testing"
-)
+import "testing"
 
 func TestVersionParsing(t *testing.T) {
 
