@@ -240,6 +240,25 @@ func (a *baseAutoUpdater) updateExistingVersions() error {
 	return nil
 }
 
+// Loads the metadata for the given file
+func loadMetadata(basePath, product, version string) (*UpdateVersion, error) {
+	// find the latest version
+	metaFilePath := path.Join(basePath, product, version, fmt.Sprintf("%s-%s.meta.json", product, version))
+	metafile, err := os.Open(metaFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("Error while opening metadata file '%s': %v", metaFilePath, err)
+	}
+	defer metafile.Close()
+
+	// deserialize the meta and update the latest version
+	u := &UpdateVersion{}
+	if err := json.NewDecoder(metafile).Decode(u); err != nil {
+		return nil, fmt.Errorf("Error while deserializing metadata '%s': %v", metaFilePath, err)
+	}
+	return u, nil
+}
+
+// Returns a map of PRODUCT_NAME -> LATEST_VERSION for all products (subdirectories) in basePath
 func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 	// load all products
 	products, err := ioutil.ReadDir(basePath)
@@ -268,21 +287,15 @@ func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 
 		// find the latest version
 		newest := versionNames[len(versionNames)-1]
-		metaFilePath := path.Join(basePath, product, newest, fmt.Sprintf("%s-%s.meta.json", product, newest))
-		metafile, err := os.Open(metaFilePath)
+
+		// try to load its metadata
+		updateVersion, err := loadMetadata(basePath, product, newest)
 		if err != nil {
-			return nil, fmt.Errorf("Error while opening metadata file '%s': %v", metaFilePath, err)
-		}
-		defer metafile.Close()
-
-		// deserialize the meta and update the latest version
-		u := &UpdateVersion{}
-		if err := json.NewDecoder(metafile).Decode(u); err != nil {
-			return nil, fmt.Errorf("Error while deserializing metadata '%s': %v", metaFilePath, err)
+			return nil, err
 		}
 
-		log.Printf("[autoupdate] Found product: '%s' with versions: %v using: %s", product, versionNames, u.String())
-		productVersions[product] = u
+		log.Printf("[autoupdate] Found product: '%s' with versions: %v using: '%s'", product, versionNames, updateVersion)
+		productVersions[product] = updateVersion
 
 	}
 

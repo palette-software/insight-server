@@ -115,10 +115,11 @@ PONG
 
 See the openAPI documentation inside the docs/generated folder
 
+--
 
 ## Autoupdate service endpoints
 
-The serevice provides support for sending updated installers to the agents. All updates are based on two
+The service provides support for sending updated installers to the agents. All updates are based on two
 parts: the __PRODUCT__ (like ```agent```) and the __VERSION__ (like ```v1.3.2```).
 
 ### Adding a new version of a product
@@ -145,7 +146,6 @@ The JSON response contains the
 * Major version
 * Minor version
 * Patch version
-
 * The Md5 of the file
 * The download path on the server (currently its only a path as the server address may be different for the agent and the server)
 
@@ -168,6 +168,7 @@ GET http://localhost:9000/updates/products/agent/v1.9.3/agent-v1.9.3
  => 200 CONTENTS_OF_THE_FILE
 ```
 
+--
 
 ## API Documentation
 
