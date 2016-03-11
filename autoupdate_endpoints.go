@@ -252,6 +252,11 @@ func loadMetadata(basePath, product, version string) (*UpdateVersion, error) {
 
 // Tries to load all valid versions from a product directory
 func loadVersionsFromProductDir(productDirPath string) ([]string, error) {
+	// check if this is actually a product
+	if !isDirectoryNoFail(productDirPath) {
+		return nil, fmt.Errorf("Not a directory: '%s'", productDirPath)
+	}
+
 	// try to read all subdirectories
 	versionDirs, err := ioutil.ReadDir(productDirPath)
 	if err != nil {
@@ -297,13 +302,8 @@ func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 	for _, productDir := range products {
 		product := productDir.Name()
 
+		// load the versions inside this product directory
 		productDirPath := path.Join(basePath, product)
-		// check if this is actually a product
-		if !isDirectoryNoFail(productDirPath) {
-			log.Printf("[autoupdates] Skipping non-product path '%s'", productDirPath)
-			continue
-		}
-
 		versionNames, err := loadVersionsFromProductDir(productDirPath)
 		if err != nil {
 			log.Printf("[autoupdate] Cannot parse directory '%s' for versions: %v", productDirPath, err)
