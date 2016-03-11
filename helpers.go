@@ -1,7 +1,12 @@
 package insight_server
 
+//go:generate go-bindata -pkg $GOPACKAGE -o assets.go assets/
+
 import (
+	"crypto/md5"
 	"fmt"
+	"hash"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -47,6 +52,42 @@ func fileExists(path string) (bool, error) {
 	return true, err
 }
 
+// Returns true if path is a directory. If it does not exist err is returned
+func isDirectory(path string) (bool, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	return fileInfo.IsDir(), nil
+}
+
+// Returns true if path is a directory. If it does not exist err is returned
+func isDirectoryNoFail(path string) bool {
+	isDir, err := isDirectory(path)
+	return (err == nil && isDir)
+}
+
+// / Helper that creates a directory if it does not exist
+func createDirectoryIfNotExists(path string) error {
+	exists, err := fileExists(path)
+	// forward errors
+	if err != nil {
+		return err
+	}
+	// if it already exists, dont create it
+	if exists {
+		return nil
+	}
+
+	// create the directory
+	log.Printf("[storage] Creating directory: '%s'", path)
+	if err := os.MkdirAll(path, OUTPUT_DEFAULT_DIRMODE); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // HTTP package helpers
 // ===================
 
@@ -75,6 +116,19 @@ func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.Fi
 	return
 }
 
+// Helper to get a part from a multipart message
+func getMultipartParam(form *multipart.Form, fieldName string) (value string, err error) {
+
+	// get the file from the form
+	fn := form.Value[fieldName]
+	if len(fn) != 1 {
+		err = fmt.Errorf("The request must have exactly 1 '%v' field (has %v).", fieldName, len(fn))
+		return "", err
+	}
+
+	return fn[0], nil
+}
+
 // Returns an url param, or an error if no such param is available
 func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 
@@ -91,4 +145,37 @@ func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 	}
 
 	return paramVals[0], nil
+}
+
+// Returns a new handler that simply responds with an asset from the precompiled assets
+func AssetPageHandler(assetName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		page, err := Asset(assetName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(page)
+	}
+}
+
+// MD5 hashing TeeReader helper
+// ----------------------------
+
+type Md5Hasher struct {
+	Md5    hash.Hash
+	Reader io.Reader
+}
+
+func makeMd5Hasher(r io.Reader) *Md5Hasher {
+
+	hash := md5.New()
+
+	// create a TeeReader that automatically forwards bytes read from the file to
+	// the md5 hasher's reader
+	readerWithMd5 := io.TeeReader(r, hash)
+
+	return &Md5Hasher{hash, readerWithMd5}
 }

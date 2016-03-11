@@ -6,6 +6,12 @@ dev-db.sqlite3
 server/*.exe
 ./*.exe
 
+server/updates
+server/licenses
+server/uploads
+server/server.exe
+server/server
+
 
 .idea
 *.iml
