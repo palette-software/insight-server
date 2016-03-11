@@ -250,6 +250,39 @@ func loadMetadata(basePath, product, version string) (*UpdateVersion, error) {
 	return u, nil
 }
 
+// Tries to load all valid versions from a product directory
+func loadVersionsFromProductDir(productDirPath string) ([]string, error) {
+	// try to read all subdirectories
+	versionDirs, err := ioutil.ReadDir(productDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("Error while loading product versions from '%s': %v", productDirPath, err)
+	}
+
+	// go through each subdirectory and check if their names can be parsed as a version
+	versionNames := make([]string, len(versionDirs))
+	for i, version := range versionDirs {
+		// check if this is an acual version
+		versionPath := path.Join(productDirPath, version.Name())
+		if !isDirectoryNoFail(versionPath) {
+			continue
+		}
+
+		// check for version format by trying to parse it
+		_, err := StringToVersion(version.Name())
+		if err != nil {
+			log.Printf("[autoupdate] Skipping non-product version '%s': %v", versionPath, err)
+			continue
+		}
+
+		// add each version
+		versionNames[i] = version.Name()
+	}
+	// sort the versions by name (this way we dont have to iplement sort.Interface on the Version lists
+	sort.StringSlice(versionNames).Sort()
+
+	return versionNames, nil
+}
+
 // Returns a map of PRODUCT_NAME -> LATEST_VERSION for all products (subdirectories) in basePath
 func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 	// load all products
@@ -264,30 +297,43 @@ func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 	for _, productDir := range products {
 		product := productDir.Name()
 
-		versionDirs, err := ioutil.ReadDir(path.Join(basePath, product))
+		productDirPath := path.Join(basePath, product)
+		// check if this is actually a product
+		if !isDirectoryNoFail(productDirPath) {
+			log.Printf("[autoupdates] Skipping non-product path '%s'", productDirPath)
+			continue
+		}
+
+		versionNames, err := loadVersionsFromProductDir(productDirPath)
 		if err != nil {
-			return nil, fmt.Errorf("Error while loading product versions for '%s': %v", product, err)
+			log.Printf("[autoupdate] Cannot parse directory '%s' for versions: %v", productDirPath, err)
 		}
 
-		// find the latest version
-		versionNames := make([]string, len(versionDirs))
-		for i, version := range versionDirs {
-			// add each version
-			versionNames[i] = version.Name()
+		// check all versions in descending order
+		validVersionIdx := len(versionNames) - 1
+
+		for {
+			// do we have more versions to check?
+			if validVersionIdx < 0 {
+				break
+			}
+
+			// find the latest version
+			newest := versionNames[validVersionIdx]
+
+			// try to load its metadata and skip this product if we cannot
+			updateVersion, err := loadMetadata(basePath, product, newest)
+			if err == nil {
+				log.Printf("[autoupdate] Found product: '%s' with versions: %v using: '%s'", product, versionNames, updateVersion)
+				productVersions[product] = updateVersion
+				break
+			} else {
+				// if we havent found our proper version, skip this one
+				log.Printf("[autoupdate] Cannot load metadata for '%s-%s' - skipping: %v", product, newest, err)
+				validVersionIdx--
+			}
+
 		}
-		sort.StringSlice(versionNames).Sort()
-
-		// find the latest version
-		newest := versionNames[len(versionNames)-1]
-
-		// try to load its metadata
-		updateVersion, err := loadMetadata(basePath, product, newest)
-		if err != nil {
-			return nil, err
-		}
-
-		log.Printf("[autoupdate] Found product: '%s' with versions: %v using: '%s'", product, versionNames, updateVersion)
-		productVersions[product] = updateVersion
 
 	}
 

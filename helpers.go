@@ -52,6 +52,21 @@ func fileExists(path string) (bool, error) {
 	return true, err
 }
 
+// Returns true if path is a directory. If it does not exist err is returned
+func isDirectory(path string) (bool, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	return fileInfo.IsDir(), nil
+}
+
+// Returns true if path is a directory. If it does not exist err is returned
+func isDirectoryNoFail(path string) bool {
+	isDir, err := isDirectory(path)
+	return (err == nil && isDir)
+}
+
 // / Helper that creates a directory if it does not exist
 func createDirectoryIfNotExists(path string) error {
 	exists, err := fileExists(path)
