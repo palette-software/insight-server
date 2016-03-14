@@ -29,7 +29,7 @@
 
 
 Name: palette-insight-server
-Version: 1.3.2
+Version: %version
 Epoch: 1
 Release: 1
 Summary: Palette Insight Server
@@ -89,6 +89,7 @@ Palette Insight Server
 # Reject config files already listed or parent directories, then prefix files
 # with "/", then make sure paths with spaces are quoted. I hate rpm so much.
 /etc/palette-insight-server/server.config
+/etc/supervisord.d/palette-insight-agent.ini
 /usr/local/bin/palette-insight-server
 
 %changelog
