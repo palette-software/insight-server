@@ -161,6 +161,15 @@ func AssetPageHandler(assetName string) http.HandlerFunc {
 	}
 }
 
+// Gets the version of the server from the VERSION file in the assets directory
+func GetVersion() string {
+	version, err := Asset("assets/VERSION")
+	if err != nil {
+		return "v1.0.0"
+	}
+	return string(version)
+}
+
 // MD5 hashing TeeReader helper
 // ----------------------------
 
