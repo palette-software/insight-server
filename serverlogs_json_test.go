@@ -33,7 +33,7 @@ func TestServerlogsImport(t *testing.T) {
 	}
 	defer f.Close()
 
-	serverlogs, errorRows, err := parseServerlogs(f)
+	serverlogs, errorRows, err := parseServerlogs(f, "Etc/UTC")
 
 	if err != nil {
 		panic(err)
