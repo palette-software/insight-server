@@ -299,7 +299,8 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 		return
 	}
 
-	// get the package from the URL
+	// Get the timezone from the url parameters. We dont really care about it
+	// except for serverlogs, so we dont try to parse it here.
 	timezoneName, err := getUrlParam(req.URL, "tz")
 	if err != nil {
 		writeResponse(w, http.StatusBadRequest, "No 'tz' parameter provided")
