@@ -1,6 +1,7 @@
 package insight_server
 
 import (
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -63,15 +64,22 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 	filename := serverlog.SourceFile
 	outputPath := serverlog.OutputFile
 
-	// open the log file
-	f, err := os.Open(filename)
+	// open the log file as a file stream
+	rawReader, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	defer f.Close()
+	defer rawReader.Close()
 
-	serverlogs, errorRows, err := parseServerlogs(f)
+	// Create a gzip reader on top
+	gzipReader, err := gzip.NewReader(rawReader)
+	if err != nil {
+		return err
+	}
+	defer gzipReader.Close()
 
+	// parse the serverlogs from the unzipped stream
+	serverlogs, errorRows, err := parseServerlogs(gzipReader)
 	if err != nil {
 		return err
 	}
@@ -80,6 +88,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 
 	tmpDir := serverlog.TmpDir
 
+	// Write normal output
 	if len(serverlogs) > 0 {
 		// make csv-compatible output
 		serverlogRowsAsStr := make([][]string, len(serverlogs))
@@ -98,6 +107,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 		log.Printf("[serverlogs] written pre-parsed serverlogs to: '%s'", outputFile)
 	}
 
+	// Write error output
 	if len(errorRows) > 0 {
 		// make csv-compatible output
 		errorRowsAsStr := make([][]string, len(errorRows))
@@ -112,8 +122,12 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
 	}
 
-	// after we are done, remove the original serverlogs file
-	f.Close()
+	// After we are done, remove the original serverlogs file and the gzip
+	// reader on top.
+	gzipReader.Close()
+	rawReader.Close()
+
+	// Remove the now fully parsed serverlogs file
 	log.Printf("[serverlogs] removing temporary '%s'", filename)
 	return os.Remove(filename)
 }
@@ -125,13 +139,19 @@ var serverlogsCsvHeader []string = []string{
 }
 
 func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
+	// The temporary output file which we'll move to its destination
 	tmpFile, err := ioutil.TempFile(tmpDir, fmt.Sprintf("serverlogs-%s-output", prefix))
 	if err != nil {
 		return "", err
 	}
 	defer tmpFile.Close()
 
-	csvWriter := makeCsvWriter(tmpFile)
+	// The gzipped writer on top
+	gzipWriter := gzip.NewWriter(tmpFile)
+	defer gzipWriter.Close()
+
+	// Output the csv
+	csvWriter := makeCsvWriter(gzipWriter)
 	csvWriter.Write(headers)
 	csvWriter.WriteAll(rows)
 
@@ -146,7 +166,8 @@ func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 	// Get the temp file name before closing it
 	tempFilePath := tmpFile.Name()
 
-	// close the temp file, so writes get flushed
+	// Close the gzip stream then close the temp file, so writes get flushed.
+	gzipWriter.Close()
 	tmpFile.Close()
 
 	// move the output file to the new path with the new name

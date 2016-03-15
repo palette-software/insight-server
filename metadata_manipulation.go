@@ -2,6 +2,7 @@ package insight_server
 
 import (
 	"bufio"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -60,6 +61,12 @@ func makeMetaString(cols []metaColumn) string {
 
 var ServerlogsMetaString string = makeMetaString(preparsedServerlogsColumns)
 
+// The regexp we use to filter out the serverlogs rows
+var serverlogsRegexp *regexp.Regexp = regexp.MustCompile("serverlogs")
+
+// The EOL characters used in the output csv file
+var eolChars []byte = []byte{'\r', '\n'}
+
 // Handler updating metadata
 func MetadataUploadHandler(c *UploadCallbackCtx) error {
 
@@ -70,6 +77,10 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 	}
 	defer outf.Close()
 
+	// put a gzipped writer on top
+	gzipWriter := gzip.NewWriter(outf)
+	defer gzipWriter.Close()
+
 	// open the input
 	inf, err := os.Open(c.SourceFile)
 	if err != nil {
@@ -77,12 +88,19 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 	}
 	defer inf.Close()
 
-	inReader := bufio.NewReader(inf)
-	outWriter := bufio.NewWriter(outf)
+	// open a gzipped reader
+	gzipReader, err := gzip.NewReader(inf)
+	if err != nil {
+		return err
+	}
+	defer gzipReader.Close()
 
-	serverlogsRegexp := regexp.MustCompile("serverlogs")
-	eol := []byte{'\r', '\n'}
+	// Create a pair of buffered readers on top of the
+	// gzip stream.
+	inReader := bufio.NewReader(gzipReader)
+	outWriter := bufio.NewWriter(gzipWriter)
 
+	// Filter out
 	for {
 		line, _, err := inReader.ReadLine()
 		// if eof, we are done
@@ -97,22 +115,26 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 		// skip any lines from the serverlogs table
 		if !serverlogsRegexp.Match(line) {
 			outWriter.Write(line)
-			outWriter.Write(eol)
+			outWriter.Write(eolChars)
 		}
 	}
 
 	log.Printf("[metadata] adding metadata to: '%s'", c.OutputFile)
 
+	// Append the prepared serverlogs data
 	_, err = outWriter.WriteString(ServerlogsMetaString)
 	if err != nil {
 		return err
 	}
 
+	// Flush the outputs buffer
 	err = outWriter.Flush()
 	if err != nil {
 		return err
 	}
 
+	// close the output gzip writer
+	gzipWriter.Close()
 	err = outf.Close()
 	if err != nil {
 		return err
@@ -120,6 +142,7 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 
 	// close and delete the input file
 	log.Printf("[metadata] removing temporary '%s'", inf.Name())
+	gzipReader.Close()
 	inf.Close()
 	err = os.Remove(inf.Name())
 	if err != nil {
