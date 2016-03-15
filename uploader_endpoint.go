@@ -47,13 +47,14 @@ type uploadRequest struct {
 	username   string
 	pkg        string
 	filename   string
+	timezone   string
 
 	requestTime time.Time
 	reader      io.Reader
 }
 
 type UploadCallbackCtx struct {
-	SourceFile, OutputDir, OutputFile, Basedir string
+	SourceFile, OutputDir, OutputFile, Basedir, Timezone string
 }
 
 type UploadCallbackFn func(ctx *UploadCallbackCtx) error
@@ -287,14 +288,21 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	// get the package from the URL
 	pkg, err := getUrlParam(req.URL, "pkg")
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "No _pkg parameter provided")
+		writeResponse(w, http.StatusBadRequest, "No 'pkg' parameter provided")
 		return
 	}
 
 	// get the source host from the URL
 	sourceHost, err := getUrlParam(req.URL, "host")
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "No _host parameter provided")
+		writeResponse(w, http.StatusBadRequest, "No 'host' parameter provided")
+		return
+	}
+
+	// get the package from the URL
+	timezoneName, err := getUrlParam(req.URL, "tz")
+	if err != nil {
+		writeResponse(w, http.StatusBadRequest, "No 'tz' parameter provided")
 		return
 	}
 
@@ -315,6 +323,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 		filename:    fileName,
 		requestTime: requestTime,
 		reader:      mainFile,
+		timezone:    timezoneName,
 	})
 
 	if err != nil {
@@ -360,6 +369,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 			OutputDir:  filepath.Dir(uploadedFile.TargetPath),
 			OutputFile: uploadedFile.TargetPath,
 			Basedir:    uploader.TempDirectory(),
+			Timezone:   timezoneName,
 		})
 	if err != nil {
 		writeResponse(w, http.StatusInternalServerError, "Error in upload callbacks")
