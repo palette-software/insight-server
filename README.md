@@ -204,6 +204,74 @@ Important note: please check in the generated sources into the git tree, because
 > integrated with go get, as one might expect. Because of that, your project will only
 > be “go gettable” if you check in all sources created by go generate.
 
+# RPMs
+
+## Installing from rpms
+
+The service requires two rpm-s to install:
+
+```
+palette-insight-certs-1.0.0-1.noarch.rpm
+```
+
+which contains the HTTPS certificates to use (it does not change often,
+and requires more delicate handling then the server package), and
+
+```
+palette-insight-server-v1.8.2-1.x86_64.rpm
+```
+
+which has the server, Nginx and Supervisord as dependencies and some
+configuration files to run it the following way:
+
+* Nginx serves port 443 with the certificates from ```palette-insight-certs```
+* It forwards the https requests to port 9443 where the service is
+  listening.
+* The service itself is ran through supervisord which should restart it
+  on failiures and should handle the logrotation.
+
+So to install the service from these two RPMs (add EPEL before as a repo):
+
+```bash
+sudo yum install -y ./palette-insight-server-v1.8.2-1.x86_64.rpm ./palette-insight-certs-1.0.0-1.noarch.rpm
+```
+
+and to remove:
+
+```bash
+sudo yum remove -y palette-insight-server palette-insight-certs nginx supervisor
+```
+
+## Building the RPMs
+
+(A working CentOS/RedHat installation is recommended, but not required).
+
+Building the rpms of course needs the ```rpm``` & ```rpm-build``` tools
+on the build system.
+
+To build the certificates package, you need to download the certificates
+you wish to include and extract them to the
+
+```
+rpm-build/etc/palette-insight-certs
+```
+
+folder as ```cert.crt``` and ```cert.key```
+
+
+After the server has been built with ```go build``` you can build the
+rpms with:
+
+```bash
+cd rpm-build
+# Build the certificates package
+./build-cert-rpm.sh
+# Build the server package
+./build-rpm.sh
+```
+
+(if the cert package is already built, you can skip this step)
+
 
 ## Tests
 

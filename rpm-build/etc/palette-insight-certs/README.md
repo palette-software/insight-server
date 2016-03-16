@@ -2,10 +2,14 @@
 
 If you have the palette insight certificates, then save them here as
 
-```cert.crt```
+```
+cert.crt
+```
 
 and
 
-```cert.key```
+```
+cert.key
+```
 
 Then you can build the certificates RPM using ```build-cert-rpm.sh```
