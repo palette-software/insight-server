@@ -1,6 +1,3 @@
-%define serviceuser insight
-%define servicehome /etc/palette-insight-server
-
 
 # Disable the stupid stuff rpm distros include in the build process by default:
 #   Disable any prep shell actions. replace them with simply 'true'
@@ -28,11 +25,12 @@
 %define _binary_payload w9.bzdio 
 
 
-Name: palette-insight-server
-Version: %version
+Name: palette-insight-certs
+Version: 1.0.0
 Epoch: 1
 Release: 1
-Summary: Palette Insight Server
+BuildArch: noarch
+Summary: Palette Insight SSL Certificates
 AutoReqProv: no
 # Seems specifying BuildRoot is required on older rpmbuild (like on CentOS 5)
 # fpm passes '--define buildroot ...' on the commandline, so just reuse that.
@@ -47,26 +45,8 @@ Vendor: palette-software.net
 URL: https://palette-software.net/insight
 Packager: Julian <julian@palette-software.com>
 
-Requires: supervisor,nginx,palette-insight-certs
-# Add the user for the service
-# ============================
-
-Requires(pre): /usr/sbin/useradd, /usr/bin/getent
-Requires(postun): /usr/sbin/userdel
-
-%pre
-# Add the user and set its homee
-/usr/bin/getent passwd %{serviceuser} || /usr/sbin/useradd -r -d %{servicehome} -s /sbin/nologin %{serviceuser}
-/usr/bin/getent group %{serviceuser} || /usr/sbin/groupadd -r -g %{serviceuser}
-
-%postun
-# Remove the user
-/usr/sbin/userdel %{serviceuser}
-
-
-
 %description
-Palette Insight Server
+Palette Insight SSL Certificates for HTTPS connections.
 
 %prep
 # noop
@@ -88,10 +68,8 @@ Palette Insight Server
 
 # Reject config files already listed or parent directories, then prefix files
 # with "/", then make sure paths with spaces are quoted. I hate rpm so much.
-/etc/palette-insight-server/server.config
-/etc/nginx/conf.d/palette-insight-server.conf
-/etc/supervisord.d/palette-insight-agent.ini
-/usr/local/bin/palette-insight-server
+/etc/palette-insight-certs/cert.crt
+/etc/palette-insight-certs/cert.key
 
 %changelog
 

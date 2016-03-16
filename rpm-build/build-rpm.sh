@@ -21,7 +21,7 @@ VERSION=$(cat ../assets/VERSION)
 rpmbuild -bb\
   --buildroot $PWD\
   --define "version ${VERSION}"\
-  --define "_rpmdir $PWD"\
+  --define "_rpmdir $PWD/_build"\
   palette-insight-server.spec
 
 # Clean up the binary directory

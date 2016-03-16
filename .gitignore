@@ -12,7 +12,7 @@ server/uploads
 server/server.exe
 server/server
 
-rpm-build/x86_64/*.rpm
+rpm-build/_build/**/*.rpm
 
 
 .idea
