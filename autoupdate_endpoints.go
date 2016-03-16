@@ -61,7 +61,9 @@ func StringToVersion(verStr string) (*Version, error) {
 	if versionCompiler.MatchString(verStr) {
 		matches := versionCompiler.FindStringSubmatch(verStr)
 
-		versionParts, err := parseAllInts(matches[1:])
+		// parse only the relevant part (so the last version string is ignored and does
+		// not return any errors)
+		versionParts, err := parseAllInts(matches[1:4])
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing version string '%s': %v", verStr, err)
 		}
