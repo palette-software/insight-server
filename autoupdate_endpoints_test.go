@@ -27,3 +27,15 @@ func TestWindowsServiceVersionParsing(t *testing.T) {
 	assertString(t, ver.String(), "v1.8.177", "Version stringification mismatch")
 
 }
+
+func TestVersionComparison(t *testing.T) {
+	v1, _ := StringToVersion("v1.3.2")
+	v2, _ := StringToVersion("v1.3.3")
+	v3, _ := StringToVersion("v1.4.3")
+	v4, _ := StringToVersion("v2.0.0")
+
+	assert(t, IsNewerVersion(v2, v1), "v2 > v1")
+	assert(t, !IsNewerVersion(v1, v2), "! v2 < v1")
+	assert(t, IsNewerVersion(v3, v1), "v3 > v1")
+	assert(t, IsNewerVersion(v4, v3), "v4 > v3")
+}

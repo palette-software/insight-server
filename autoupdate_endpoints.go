@@ -76,6 +76,20 @@ func StringToVersion(verStr string) (*Version, error) {
 	return nil, fmt.Errorf("Cannot parse version string: %s", verStr)
 }
 
+// Returns true if version a is newer then version b
+func IsNewerVersion(a, b *Version) bool {
+	if a.Major == b.Major {
+		if a.Minor == b.Minor {
+			if a.Patch == b.Patch {
+				return false
+			}
+			return a.Patch > b.Patch
+		}
+		return a.Minor > b.Minor
+	}
+	return a.Major > b.Major
+}
+
 // Define a versionlist type for sorting by version
 type VersionList []*Version
 
