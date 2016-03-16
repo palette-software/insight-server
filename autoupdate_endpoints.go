@@ -54,7 +54,7 @@ type UpdateVersion struct {
 }
 
 // The regexp we'll use for parsing version strings
-var versionCompiler *regexp.Regexp = regexp.MustCompile("^v([0-9]+).([0-9]+).([0-9a-zA-Z]+)$")
+var versionCompiler *regexp.Regexp = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9a-zA-Z]+).*$`)
 
 // Parses a string to a Version struct or returns an error if it cannot
 func StringToVersion(verStr string) (*Version, error) {
