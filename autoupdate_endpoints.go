@@ -54,14 +54,16 @@ type UpdateVersion struct {
 }
 
 // The regexp we'll use for parsing version strings
-var versionCompiler *regexp.Regexp = regexp.MustCompile("^v([0-9]+).([0-9]+).([0-9a-zA-Z]+)$")
+var versionCompiler *regexp.Regexp = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9a-zA-Z]+).*$`)
 
 // Parses a string to a Version struct or returns an error if it cannot
 func StringToVersion(verStr string) (*Version, error) {
 	if versionCompiler.MatchString(verStr) {
 		matches := versionCompiler.FindStringSubmatch(verStr)
 
-		versionParts, err := parseAllInts(matches[1:])
+		// parse only the relevant part (so the last version string is ignored and does
+		// not return any errors)
+		versionParts, err := parseAllInts(matches[1:4])
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing version string '%s': %v", verStr, err)
 		}
@@ -74,6 +76,20 @@ func StringToVersion(verStr string) (*Version, error) {
 
 	}
 	return nil, fmt.Errorf("Cannot parse version string: %s", verStr)
+}
+
+// Returns true if version a is newer then version b
+func IsNewerVersion(a, b *Version) bool {
+	if a.Major == b.Major {
+		if a.Minor == b.Minor {
+			if a.Patch == b.Patch {
+				return false
+			}
+			return a.Patch > b.Patch
+		}
+		return a.Minor > b.Minor
+	}
+	return a.Major > b.Major
 }
 
 // Define a versionlist type for sorting by version
