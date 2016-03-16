@@ -48,8 +48,9 @@ URL: https://palette-software.net/insight
 Packager: Julian <julian@palette-software.com>
 
 Requires: supervisor,nginx,palette-insight-certs
-# Add the user for the service
-# ============================
+
+# Add the user for the service & setup SELinux
+# ============================================
 
 Requires(pre): /usr/sbin/useradd, /usr/bin/getent
 Requires(postun): /usr/sbin/userdel
@@ -59,11 +60,22 @@ Requires(postun): /usr/sbin/userdel
 /usr/bin/getent passwd %{serviceuser} || /usr/sbin/useradd -r -d %{servicehome} -s /sbin/nologin %{serviceuser}
 /usr/bin/getent group %{serviceuser} || /usr/sbin/groupadd -r -g %{serviceuser}
 
+# Override the SELinux flag that disallows httpd to connect to the go process
+# https://stackoverflow.com/questions/23948527/13-permission-denied-while-connecting-to-upstreamnginx
+setsebool httpd_can_network_connect on -P
+
+# Create the logfile directory for supervisord
+mkdir -p /var/log/palette-insight-server/
+
 %postun
 # Remove the user
 /usr/sbin/userdel %{serviceuser}
 
+# TODO: we should switch back the httpd_can_network_connect flag for SELinux, IF we know that its safe to do so
 
+
+# Generic RPM parts
+# =================
 
 %description
 Palette Insight Server
@@ -90,7 +102,7 @@ Palette Insight Server
 # with "/", then make sure paths with spaces are quoted. I hate rpm so much.
 /etc/palette-insight-server/server.config
 /etc/nginx/conf.d/palette-insight-server.conf
-/etc/supervisord.d/palette-insight-agent.ini
+/etc/supervisord.d/palette-insight-server.ini
 /usr/local/bin/palette-insight-server
 
 %changelog
