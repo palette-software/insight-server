@@ -387,6 +387,7 @@ func NewAutoupdateHttpHandler(u AutoUpdater) http.HandlerFunc {
 		err := r.ParseMultipartForm(multipartMaxSize)
 		if err != nil {
 			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while parsing multipart form: %v", err))
+			return
 		}
 
 		// parse the product name and version information
