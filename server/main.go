@@ -41,6 +41,8 @@ func staticHandler(name, assetPath string) http.HandlerFunc {
 
 func main() {
 
+	log.Printf("[boot] Starting palette insight-server %s", insight_server.GetVersion())
+
 	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
 	var bindPort int
 
