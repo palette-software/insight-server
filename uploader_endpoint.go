@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"crypto/md5"
+	"compress/gzip"
 	"io"
 	"io/ioutil"
 	"os"
@@ -170,31 +170,35 @@ func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte
 // The purpose of this method is to provide a unified upload capability.
 func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 
-	hash := md5.New()
-
-	// create a TeeReader that automatically forwards bytes read from the file to
-	// the md5 hasher's reader
-	readerWithMd5 := io.TeeReader(req.reader, hash)
+	// create the hasher that will hash the contents during the write
+	md5Hasher := makeMd5Hasher(req.reader)
+	// The prefix for the temporary file name. Useful
+	// if we want to re-processed unprocessed files that
+	// are stuck in the temporary directory because of an error.
+	tmpFilePrefix := fmt.Sprintf("uploaded---%s---", req.filename)
 
 	// create a temp file to move the bytes to (we do not yet know the hash of the file)
-	tmpFile, err := ioutil.TempFile(u.TempDirectory(), "temporary-file-contents-")
+	tmpFile, err := ioutil.TempFile(u.TempDirectory(), tmpFilePrefix)
 	if err != nil {
 		return nil, err
 	}
 	defer tmpFile.Close()
 
+	// Create a gzip writer to write a compressed output
+	gzipWriter := gzip.NewWriter(tmpFile)
+	defer gzipWriter.Close()
+
 	// write the data to the temp file (and hash in the meantime)
-	bytesWritten, err := io.Copy(tmpFile, readerWithMd5)
+	bytesWritten, err := io.Copy(gzipWriter, md5Hasher.Reader)
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("[upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
 
-	// get the hash from the teewriter
-	fileHash := hash.Sum(nil)
+	fileHash := md5Hasher.GetHash()
 
-	// generate the output file name
-	outputPath := u.getUploadPathForFile(req, fileHash)
+	// generate the output file name, and mark that its a gzipped one
+	outputPath := fmt.Sprintf("%s.gz", u.getUploadPathForFile(req, fileHash))
 
 	// create the output file path
 	if err := os.MkdirAll(filepath.Dir(outputPath), OUTPUT_DEFAULT_DIRMODE); err != nil {
@@ -205,6 +209,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 	tempFilePath := tmpFile.Name()
 
 	// close the temp file, so writes get flushed
+	gzipWriter.Close()
 	tmpFile.Close()
 
 	return &UploadedFile{
@@ -388,3 +393,6 @@ func MakeUploadHandler(uploader Uploader, maxidBackend MaxIdBackend) HandlerFunc
 		uploadHandlerInner(w, r, tenant, uploader, maxidBackend)
 	}
 }
+
+// DEFAULT UPLOAD HANDLERS
+// =======================

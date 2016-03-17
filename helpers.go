@@ -15,8 +15,8 @@ import (
 	"regexp"
 )
 
-// HELPERS
-// =======
+// GENERIC HELPERS
+// ===============
 
 // simple helper that logs an error then panics
 func checkErr(err error, msg string) {
@@ -40,6 +40,9 @@ func writeResponse(w http.ResponseWriter, status int, err string) {
 	return
 }
 
+// FS HELPERS
+// ==========
+
 // Returns whether the given file or directory exists or not
 func fileExists(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -61,7 +64,7 @@ func isDirectory(path string) (bool, error) {
 	return fileInfo.IsDir(), nil
 }
 
-// Returns true if path is a directory. If it does not exist err is returned
+// Returns true if path is a directory. Otherwise (even if there was an error) returns false.
 func isDirectoryNoFail(path string) bool {
 	isDir, err := isDirectory(path)
 	return (err == nil && isDir)
@@ -88,8 +91,8 @@ func createDirectoryIfNotExists(path string) error {
 	return nil
 }
 
-// HTTP package helpers
-// ===================
+// HTTP PACKAGE HELPERS
+// ====================
 
 // Helper to get a part from a multipart message
 func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.File, fileName string, err error) {
@@ -187,4 +190,14 @@ func makeMd5Hasher(r io.Reader) *Md5Hasher {
 	readerWithMd5 := io.TeeReader(r, hash)
 
 	return &Md5Hasher{hash, readerWithMd5}
+}
+
+// Returns the hash of the tree
+func (m *Md5Hasher) GetHash() []byte {
+	return m.Md5.Sum(nil)
+}
+
+// Returns the (lowercased) hex string of the Md5
+func (m *Md5Hasher) GetHashString() string {
+	return fmt.Sprintf("%32x", m.GetHash())
 }
