@@ -11,6 +11,8 @@ after_success:
 - mkdir -p usr/local/bin
 # Copy the binary
 - cp -v $GOPATH/bin/server usr/local/bin/palette-insight-server
+- cp -v ../server/sample.config etc/palette-insight-server/server.config
+- echo "BUILDING VERSION:$(cat ../assets/VERSION)"
 # build the rpm
 - rpmbuild -bb --buildroot $(pwd) --define "version $(cat ../assets/VERSION)" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
 - cd ..
