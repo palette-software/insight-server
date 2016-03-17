@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // The outer Json wrapper
 type ServerlogOuterJson struct {
-	// dont bother with the timestamp, keep to original format
 	Ts, Sev, Req, Sess, Site, User, K string
 	V                                 interface{}
 	Pid                               int
@@ -36,7 +36,7 @@ type ErrorRow struct {
 }
 
 type ServerlogToParse struct {
-	SourceFile, OutputFile, TmpDir string
+	SourceFile, OutputFile, TmpDir, Timezone string
 }
 
 // Creates a new parser that accepts filenames on the channel returned
@@ -70,7 +70,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 	}
 	defer f.Close()
 
-	serverlogs, errorRows, err := parseServerlogs(f)
+	serverlogs, errorRows, err := parseServerlogs(f, serverlog.Timezone)
 
 	if err != nil {
 		return err
@@ -159,9 +159,17 @@ func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 	return outputPath, nil
 }
 
+const jsonDateFormat = "2006-01-02T15:04:05.999"
+
 // Parses a serverlogs file by parsing the outer json level and re-marshaling
 // the inner json back into a string so talend can do its own parsing later.
-func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
+func parseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
+
+	// try to parse the timezone name
+	sourceTimezone, err := time.LoadLocation(timezoneName)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	csvReader := makeCsvReader(r)
 
@@ -193,15 +201,33 @@ func parseServerlogs(r io.Reader) (rows []ServerlogOutputRow, errorRows []ErrorR
 		if err != nil {
 			log.Println("[serverlogs.json] Parse error: ", err)
 			// put this row into the problematic ones
-			errorRows = append(errorRows, ErrorRow{
-				Json:  logRow,
-				Error: fmt.Sprintf("%v", err),
-			})
+			errorRows = append(errorRows, ErrorRow{Json: logRow, Error: fmt.Sprintf("%v", err)})
 			// skip this row from processing
 			continue
 		}
 
+		// convert the tid
 		outerJson.Tid, err = hexToDecimal(outerJson.Tid)
+		if err != nil {
+			log.Println("[serverlogs.json] Tid Parse error: ", err)
+			// put this row into the problematic ones
+			errorRows = append(errorRows, ErrorRow{Json: logRow, Error: fmt.Sprintf("%v", err)})
+			// skip this row from processing
+			continue
+		}
+
+		// Parse the timestamp with the proper time zone
+		transcodedTs, err := time.ParseInLocation(jsonDateFormat, outerJson.Ts, sourceTimezone)
+		if err != nil {
+			log.Println("[serverlogs.json] Timestamp parse error: ", err)
+			// put this row into the problematic ones
+			errorRows = append(errorRows, ErrorRow{Json: logRow, Error: fmt.Sprintf("%v", err)})
+			// skip this row from processing
+			continue
+		}
+
+		// Convert the timestamp to utc
+		outerJson.Ts = transcodedTs.UTC().Format(jsonDateFormat)
 
 		// since the inner JSON can be anything, we unmarshal it into
 		// a string, so the json marshaler can do his thing and we
