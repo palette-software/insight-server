@@ -12,7 +12,7 @@ after_success:
 # Copy the binary
 - cp -v $GOPATH/bin/server usr/local/bin/palette-insight-server
 # build the rpm
-- VERSION=$(cat ../assets/VERSION) rpmbuild -bb --buildroot $(pwd) --define "version ${VERSION}" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
+- rpmbuild -bb --buildroot $(pwd) --define "version $(cat ../assets/VERSION)" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
 - cd ..
 - zip insight-server.zip $GOPATH/bin/* rpm-build/_build/*
 

@@ -36,7 +36,7 @@ Summary: Palette Insight Server
 AutoReqProv: no
 # Seems specifying BuildRoot is required on older rpmbuild (like on CentOS 5)
 # fpm passes '--define buildroot ...' on the commandline, so just reuse that.
-BuildRoot: %buildroot
+#BuildRoot: %buildroot
 # Add prefix, must not end with /
 
 Prefix: /
