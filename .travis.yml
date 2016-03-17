@@ -5,12 +5,15 @@ go:
 env:
 - PORT=9000 INSIGHT_UPLOAD_HOME=/tmp/uploads
 after_success:
+# install the RPM package
+- sudo apt-get install -y rpm
 - cd rpm-build
 # Create directories
 - mkdir -p etc/palette-insight-server
 - mkdir -p usr/local/bin
 # Copy the binary
-- cp -v $GOPATH/bin/server usr/local/bind/palette-insight-server
+- cp -v $GOPATH/bin/server usr/local/bin/palette-insight-server
+# build the rpm
 - VERSION=$(cat ../assets/VERSION) rpmbuild -bb --buildroot $(pwd) --define "version ${VERSION}" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
 - cd ..
 - zip insight-server.zip $GOPATH/bin/* rpm-build/_build/*
