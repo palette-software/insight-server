@@ -41,6 +41,8 @@ func staticHandler(name, assetPath string) http.HandlerFunc {
 
 func main() {
 
+	log.Printf("[boot] Starting palette insight-server %s", insight_server.GetVersion())
+
 	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
 	var bindPort int
 
@@ -121,7 +123,7 @@ func main() {
 		Pkg:      regexp.MustCompile(""),
 		Filename: regexp.MustCompile("^serverlogs-"),
 		Handler: func(c *insight_server.UploadCallbackCtx) error {
-			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile, c.Basedir}
+			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile, c.Basedir, c.Timezone}
 			return nil
 		},
 	})

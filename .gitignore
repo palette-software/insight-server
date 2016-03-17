@@ -12,6 +12,8 @@ server/uploads
 server/server.exe
 server/server
 
+rpm-build/_build/**/*.rpm
+
 
 .idea
 *.iml
