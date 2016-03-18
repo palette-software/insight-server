@@ -248,6 +248,15 @@ https://xxx-insight.palette-software.net/updates/new-version
 should return the same html document and should have a valid
 certificate.
 
+# Upgrading the server
+
+Simply run.
+
+```
+sudo yum install palette-insight-server-NEW_VERSION.rpm
+```
+
+All configuration files should be left alone.
 
 
 # Removing the server
@@ -256,3 +265,14 @@ certificate.
 sudo yum remove -y palette-insight-server palette-insight-certs nginx supervisor
 ```
 
+
+# File locations
+
+- server executable: ```/usr/local/bin/palette-insight-server```
+- server config: ```/etc/palette-insight-server/server.config```
+- server log files: ```/var/log/palette-insight-server```
+
+- supervisor config: ```/etc/supervisord.d/palette-insight-server.ini```
+- nginx site: ```/etc/nginx/conf.d/palette-insight-server.conf```
+
+- certificates: ```/etc/palette-insight-certs```
