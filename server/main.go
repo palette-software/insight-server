@@ -41,6 +41,9 @@ func staticHandler(name, assetPath string) http.HandlerFunc {
 
 func main() {
 
+	// setup the log timezone to be UTC (and keep any old flags)
+	log.SetFlags(log.Flags() | log.LUTC)
+
 	log.Printf("[boot] Starting palette insight-server %s", insight_server.GetVersion())
 
 	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
