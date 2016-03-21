@@ -115,6 +115,9 @@ func main() {
 		log.Fatalf("Error during creation of Autoupdater: %v", err)
 	}
 
+	// for now, put the commands file in the updates directory (should be skipped by the updater)
+	commandBackend := insight_server.NewFileCommandsEndpoint(updatesDirectory)
+
 	// UPLOADER CALLBACKS
 	// ------------------
 
@@ -157,6 +160,9 @@ func main() {
 		insight_server.NewAutoupdateHttpHandler(autoUpdater),
 	)
 
+	newCommandHandler := withRequestLog("commands-new", insight_server.NewAddCommandHandler(commandBackend))
+	getCommandHandler := withRequestLog("commands-get", insight_server.NewGetCommandHandler(commandBackend))
+
 	// HANDLERS
 	// ========
 
@@ -171,6 +177,10 @@ func main() {
 	http.HandleFunc("/updates/new-version", staticHandler("new-version", "assets/upload-new-version.html"))
 	http.HandleFunc("/updates/add-version", autoUpdatesAddHandler)
 	http.HandleFunc("/updates/latest-version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater)))
+
+	// Commands
+	http.HandleFunc("/commands/new", newCommandHandler)
+	http.HandleFunc("/commands/recent", getCommandHandler)
 
 	// auto-update distribution: The updates should be publicly accessable
 	log.Printf("[http] Serving static content for updates from: %s", updatesDirectory)
