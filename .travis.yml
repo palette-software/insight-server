@@ -10,9 +10,10 @@ addons:
 
 # Put a proper version string into the version file
 before_script:
-  - echo "==== Setting ${BUILD_TAG} as version ===="
   - export BUILD_TAG=$TRAVIS_BRANCH-$(date -u "+%Y-%m-%d-%H-%M-%S")-$TRAVIS_BUILD_NUMBER
+  - echo "==== Setting ${BUILD_TAG} as version ===="
   - echo ${BUILD_TAG} > assets/VERSION
+  - cat assets/VERSION
 
 
 
