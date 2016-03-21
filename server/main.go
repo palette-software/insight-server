@@ -184,6 +184,7 @@ func main() {
 	// Commands
 	http.HandleFunc("/commands/new", newCommandHandler)
 	http.HandleFunc("/commands/recent", getCommandHandler)
+	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
 
 	// auto-update distribution: The updates should be publicly accessable
 	log.Printf("[http] Serving static content for updates from: %s", updatesDirectory)
