@@ -41,6 +41,9 @@ func staticHandler(name, assetPath string) http.HandlerFunc {
 
 func main() {
 
+	// setup the log timezone to be UTC (and keep any old flags)
+	log.SetFlags(log.Flags() | log.LUTC)
+
 	log.Printf("[boot] Starting palette insight-server %s", insight_server.GetVersion())
 
 	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
@@ -181,6 +184,7 @@ func main() {
 	// Commands
 	http.HandleFunc("/commands/new", newCommandHandler)
 	http.HandleFunc("/commands/recent", getCommandHandler)
+	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
 
 	// auto-update distribution: The updates should be publicly accessable
 	log.Printf("[http] Serving static content for updates from: %s", updatesDirectory)

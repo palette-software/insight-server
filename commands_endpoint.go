@@ -37,11 +37,18 @@ type fileCommandsEndpoint struct {
 }
 
 func NewFileCommandsEndpoint(baseDir string) CommandsEndpoint {
-	log.Printf("[commands] Using '%s' as commands file basedir", baseDir)
-	return &fileCommandsEndpoint{
+	ep := &fileCommandsEndpoint{
 		baseDir:      baseDir,
 		lastCommands: map[string]AgentCommand{},
 	}
+
+	log.Printf("[commands] Using '%s' as commands file", ep.saveFileName())
+
+	if err := ep.loadLastCommands(); err != nil {
+		log.Printf("[commands] Error while loading back commands list '%s': %v", ep.saveFileName(), err)
+	}
+
+	return ep
 }
 
 // the name we override the tenants name with
@@ -97,7 +104,7 @@ func (f *fileCommandsEndpoint) saveLastCommands() error {
 	defer tmpFile.Close()
 
 	// try to save as json
-	if err := json.NewEncoder(tmpFile).Encode(f.lastCommands); err != nil {
+	if err := json.NewEncoder(tmpFile).Encode(&f.lastCommands); err != nil {
 		return fmt.Errorf("Error while serialzing commands list to JSON: %v", err)
 	}
 
@@ -124,7 +131,7 @@ func (f *fileCommandsEndpoint) loadLastCommands() error {
 	defer cmdFile.Close()
 
 	// decode the commands list
-	if err := json.NewDecoder(cmdFile).Decode(f.lastCommands); err != nil {
+	if err := json.NewDecoder(cmdFile).Decode(&f.lastCommands); err != nil {
 		// clean the commands list if load failed
 		f.lastCommands = map[string]AgentCommand{}
 		return fmt.Errorf("Error deserializing commands json: %v", err)
@@ -182,6 +189,8 @@ func NewGetCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 			writeResponse(w, http.StatusNoContent, "")
 			return
 		}
+
+		w.Header().Set("Content-Type", "application/json")
 
 		if err := json.NewEncoder(w).Encode(cmd); err != nil {
 			// log the error
