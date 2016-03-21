@@ -44,7 +44,13 @@ func NewFileCommandsEndpoint(baseDir string) CommandsEndpoint {
 	}
 }
 
+// the name we override the tenants name with
+const TenantNameOverride = "default"
+
 func (f *fileCommandsEndpoint) AddCommand(tenant, command string) *AgentCommand {
+	// TODO: I'm only here until the watchdog gets some actual brains
+	tenant = TenantNameOverride
+
 	// create the command
 	cmd := AgentCommand{
 		Ts:  time.Now().UTC().Format(time.RFC3339),
@@ -62,7 +68,10 @@ func (f *fileCommandsEndpoint) AddCommand(tenant, command string) *AgentCommand 
 }
 
 func (f *fileCommandsEndpoint) GetCommand(tenant string) *AgentCommand {
-	cmd, hasCmd := f.lastCommands[tenant]
+
+	// TODO: I'm only here until the watchdog gets some actual brains
+	cmd, hasCmd := f.lastCommands[TenantNameOverride]
+	//cmd, hasCmd := f.lastCommands[tenant]
 	// if no commands available, return an empty one
 	if !hasCmd {
 		return nil
