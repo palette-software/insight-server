@@ -21,6 +21,7 @@ before_script:
   - cat assets/VERSION
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server
+  - cat assets.go
 
 
 
@@ -37,7 +38,7 @@ before_deploy:
   # build the rpm
   - rpmbuild -bb --buildroot $(pwd) --define "version $VERSION" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
   - cd ..
-  - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/*
+  - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/server
 
 deploy:
   provider: releases
