@@ -8,6 +8,14 @@ addons:
     packages:
     - rpm
 
+# Put a proper version string into the version file
+before_script:
+  - echo "==== Setting ${BUILD_TAG} as version ===="
+  - export BUILD_TAG=$TRAVIS_BRANCH-$(date -u "+%Y-%m-%d-%H-%M-%S")-$TRAVIS_BUILD_NUMBER
+  - echo ${BUILD_TAG} > assets/VERSION
+
+
+
 before_deploy:
   - export VERSION=$(echo $TRAVIS_TAG | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
   - cd rpm-build

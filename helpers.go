@@ -164,7 +164,8 @@ func AssetPageHandler(assetName string) http.HandlerFunc {
 	}
 }
 
-// Gets the version of the server from the VERSION file in the assets directory
+// Gets the version string of the server from the VERSION file in the assets directory
+// (this should be filled by travis)
 func GetVersion() string {
 	version, err := Asset("assets/VERSION")
 	if err != nil {
