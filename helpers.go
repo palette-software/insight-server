@@ -4,6 +4,7 @@ package insight_server
 
 import (
 	"crypto/md5"
+	"encoding/csv"
 	"fmt"
 	"hash"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -238,4 +240,46 @@ func RandStringBytesMaskImprSrc(n int) []byte {
 	}
 
 	return b
+}
+
+// CSV Reading/writing for GP
+// ==========================
+
+func MakeCsvReader(r io.Reader) *csv.Reader {
+	reader := csv.NewReader(r)
+	reader.Comma = '\v'
+	reader.LazyQuotes = true
+	return reader
+}
+
+func MakeCsvWriter(w io.Writer) *csv.Writer {
+	writer := csv.NewWriter(w)
+	writer.Comma = '\v'
+	writer.UseCRLF = true
+	return writer
+}
+
+// Unescapes the greenplum-like escaping
+// original C# code:
+//
+// escpe the backslash first
+//.Replace("\\", "\\\\")
+//.Replace("\r", "\\015")
+//.Replace("\n", "\\012")
+//.Replace("\0", "")
+//.Replace("\v", "\\013");
+func UnescapeGreenPlumCSV(logRow string) string {
+	logRow = strings.Replace(logRow, "\\013", "\v", -1)
+	logRow = strings.Replace(logRow, "\\012", "\n", -1)
+	logRow = strings.Replace(logRow, "\\015", "\r", -1)
+	logRow = strings.Replace(logRow, "\\\\", "\\", -1)
+	return logRow
+}
+
+func EscapeGreenPlumCSV(logRow string) string {
+	logRow = strings.Replace(logRow, "\\", "\\\\", -1)
+	logRow = strings.Replace(logRow, "\r", "\\015", -1)
+	logRow = strings.Replace(logRow, "\n", "\\012", -1)
+	logRow = strings.Replace(logRow, "\v", "\\013", -1)
+	return logRow
 }
