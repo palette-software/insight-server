@@ -32,8 +32,9 @@ type ServerlogOutputRow struct {
 }
 
 type ErrorRow struct {
-	Json  string
-	Error string
+	Json               string
+	Filename, Hostname string
+	Error              string
 }
 
 type ServerlogToParse struct {
@@ -78,7 +79,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 	}
 	defer gzipReader.Close()
 
-	serverlogs, errorRows, err := parseServerlogs(gzipReader, serverlog.Timezone)
+	serverlogs, errorRows, err := ParseServerlogs(gzipReader, serverlog.Timezone)
 	if err != nil {
 		return err
 	}
@@ -88,37 +89,12 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 	tmpDir := serverlog.TmpDir
 
 	// Write normal output
-	if len(serverlogs) > 0 {
-		// make csv-compatible output
-		serverlogRowsAsStr := make([][]string, len(serverlogs))
-		for i, row := range serverlogs {
-			o := &row.Outer
-			serverlogRowsAsStr[i] = []string{
-				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
-				o.Sev, o.Req, o.Sess, o.Site, o.User,
-				o.K, row.Inner,
-			}
-		}
-		outputFile, err := writeAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
-		if err != nil {
-			return err
-		}
-		log.Printf("[serverlogs] written pre-parsed serverlogs to: '%s'", outputFile)
+	if err := WriteServerlogsCsv(tmpDir, outputPath, serverlogs); err != nil {
+		return fmt.Errorf("Error writing serverlogs CSV: %v", err)
 	}
-
 	// Write error output
-	if len(errorRows) > 0 {
-		// make csv-compatible output
-		errorRowsAsStr := make([][]string, len(errorRows))
-		for i, row := range errorRows {
-			errorRowsAsStr[i] = []string{row.Error, row.Json}
-		}
-		// write it as csv
-		errorsFile, err := writeAsCsv(tmpDir, outputPath, "errors_", []string{"error", "line"}, errorRowsAsStr)
-		if err != nil {
-			return err
-		}
-		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
+	if err := WriteServerlogErrorsCsv(tmpDir, outputPath, errorRows); err != nil {
+		return fmt.Errorf("Error writing errors CSV: %v", err)
 	}
 
 	// After we are done, remove the original serverlogs file and the gzip
@@ -137,7 +113,51 @@ var serverlogsCsvHeader []string = []string{
 	"k", "v",
 }
 
-func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
+// Writes out the serverlogs CSV file
+func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputRow) error {
+
+	// Write normal output
+	if len(serverlogs) > 0 {
+		// make csv-compatible output
+		serverlogRowsAsStr := make([][]string, len(serverlogs))
+		for i, row := range serverlogs {
+			o := &row.Outer
+			serverlogRowsAsStr[i] = []string{
+				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
+				o.Sev, o.Req, o.Sess, o.Site, o.User,
+				o.K,
+				// re-escape the output
+				EscapeGreenPlumCSV(row.Inner),
+			}
+		}
+		outputFile, err := WriteAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
+		if err != nil {
+			return err
+		}
+		log.Printf("[serverlogs] written pre-parsed serverlogs to: '%s'", outputFile)
+	}
+	return nil
+}
+
+func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) error {
+
+	if len(errorRows) > 0 {
+		// make csv-compatible output
+		errorRowsAsStr := make([][]string, len(errorRows))
+		for i, row := range errorRows {
+			errorRowsAsStr[i] = []string{row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json)}
+		}
+		// write it as csv
+		errorsFile, err := WriteAsCsv(tmpDir, outputPath, "errors_", []string{"error", "hostname", "filename", "line"}, errorRowsAsStr)
+		if err != nil {
+			return err
+		}
+		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
+	}
+	return nil
+}
+
+func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
 	// The temporary output file which we'll move to its destination
 	tmpFile, err := ioutil.TempFile(tmpDir, fmt.Sprintf("serverlogs-%s-output", prefix))
 	if err != nil {
@@ -198,6 +218,14 @@ func UnescapeGreenPlumCSV(logRow string) string {
 	return logRow
 }
 
+func EscapeGreenPlumCSV(logRow string) string {
+	logRow = strings.Replace(logRow, "\\", "\\\\", -1)
+	logRow = strings.Replace(logRow, "\r", "\\015", -1)
+	logRow = strings.Replace(logRow, "\n", "\\012", -1)
+	logRow = strings.Replace(logRow, "\v", "\\013", -1)
+	return logRow
+}
+
 // Tries to parse the outer JSON from a serverlog row
 func ParseOuterJson(logRow string, sourceTimezone *time.Location) (*ServerlogOuterJson, []byte, error) {
 
@@ -233,9 +261,25 @@ func ParseOuterJson(logRow string, sourceTimezone *time.Location) (*ServerlogOut
 	return &outerJson, innerStr, nil
 }
 
+// A function type that takes a a list of strings and returns the hostname, the filename and the log row (or an error)
+type RecordParserFunction func(record []string) (hostName, fileName, logRow string, err error)
+
+// The default function for getting the hostname, filename and logrow from regular serverlog files
+func NormalServerlogsParserFn(record []string) (hostName, fileName, logRow string, err error) {
+	if len(record) != 3 {
+		return "", "", "", fmt.Errorf("Not enough columns read: %d instead of 3 from: %v", len(record), record)
+	}
+	return record[1], record[0], record[2], nil
+}
+
+// Wrapper function for parsing a regular serverlog
+func ParseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
+	return ParseServerlogsWithFn(r, timezoneName, NormalServerlogsParserFn)
+}
+
 // Parses a serverlogs file by parsing the outer json level and re-marshaling
 // the inner json back into a string so talend can do its own parsing later.
-func parseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
+func ParseServerlogsWithFn(r io.Reader, timezoneName string, parserFn RecordParserFunction) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
 
 	// try to parse the timezone name
 	sourceTimezone, err := time.LoadLocation(timezoneName)
@@ -264,7 +308,22 @@ func parseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRo
 			continue
 		}
 
-		logRow := record[2]
+		// try to get the elements from the record
+		hostName, fileName, logRow, err := parserFn(record)
+		if err != nil {
+			log.Println("[serverlogs.json] Error while parsing serverlog row: %v ", err)
+			// put this row into the problematic ones
+			errorRows = append(errorRows, ErrorRow{
+				Json:     logRow,
+				Hostname: hostName,
+				Filename: fileName,
+				Error:    fmt.Sprintf("%v", err),
+			})
+			// skip this row from processing
+			continue
+		}
+
+		//logRow := record[2]
 
 		//// try to parse the low row
 		//outerJson := ServerlogOuterJson{}
@@ -320,16 +379,18 @@ func parseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRo
 			log.Println("[serverlogs.json] Error while parsing serverlog row: %v ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
-				Json:  logRow,
-				Error: fmt.Sprintf("%v", err),
+				Json:     logRow,
+				Hostname: hostName,
+				Filename: fileName,
+				Error:    fmt.Sprintf("%v", err),
 			})
 			// skip this row from processing
 			continue
 		}
 
 		rows = append(rows, ServerlogOutputRow{
-			Filename: record[0],
-			Hostname: record[1],
+			Filename: fileName, // record[0],
+			Hostname: hostName, // record[1],
 			Outer:    *outerJson,
 			Inner:    string(innerStr),
 		})
@@ -348,7 +409,6 @@ func hexToDecimal(tidHexa string) (string, error) {
 func MakeCsvReader(r io.Reader) *csv.Reader {
 	reader := csv.NewReader(r)
 	reader.Comma = '\v'
-	reader.FieldsPerRecord = 3
 	reader.LazyQuotes = true
 	return reader
 }

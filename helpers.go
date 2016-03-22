@@ -91,6 +91,10 @@ func createDirectoryIfNotExists(path string) error {
 	return nil
 }
 
+func CreateDirectoryIfNotExists(path string) error {
+	return createDirectoryIfNotExists(path)
+}
+
 // HTTP PACKAGE HELPERS
 // ====================
 
