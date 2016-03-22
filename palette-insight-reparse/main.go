@@ -49,69 +49,6 @@ func (g *GzippedFileReader) Close() {
 
 /////////////////////////////////
 
-/*
-type GzippedFileWriter struct {
-	File *os.File
-	Writer *gzip.Writer
-
-	// The temporary storage location for the temporary file
-	TempDirectory string
-	// Where we want to move this file when we are finished
-	OutputFile string
-}
-
-func NewGzippedFileWriter(tempDirectory, namePrefix, outFilename string) (*GzippedFileWriter, error) {
-
-	f, err := ioutil.TempFile(tempDirectory, namePrefix)
-	if err != nil {
-		return nil, err
-	}
-
-	gzr := gzip.NewWriter(f)
-	if err != nil {
-		f.Close()
-		return nil, err
-	}
-
-	return &GzippedFileWriter{File: f, Writer: gzr, TempDirectory: tempDirectory, OutputFile:outFilename}
-}
-
-// Moves the temporary file into place
-func (g* GzippedFileWriter) Finalize() error {
-
-	// make sure the file is closed at this point
-	g.File.Close()
-
-	// rename the file
-
-	if err := os.Rename(g.File.Name(), g.OutputFile); err != nil {
-		return fmt.Errorf("Error while moving '%s' to '%s': %v", g.File.Name(), g.OutputFile, err)
-	}
-}
-
-// Closes the gzipped writer and file, but does not move the temporary file into place
-func (g *GzippedFileWriter) Close() error {
-	// make sure we close the file even if we have flushing problems
-	defer g.File.Close()
-
-	// Close & flush the gzip writer
-	if err := g.Writer.Close(); err != nil {
-		return fmt.Errorf("Error while flushing gzip writer for '%s': %v", g.File.Name(), err)
-	}
-
-	//// make sure the file is closed at this point
-	//g.File.Close()
-	//
-	//// rename the file
-	//
-	//if err := os.Rename(g.File.Name(), g.OutputFile); err != nil {
-	//	return fmt.Errorf("Error while moving '%s' to '%s': %v", g.File.Name(), g.OutputFile, err)
-	//}
-
-	return nil
-}
-
-*/
 // A list of packages we are willing to re-check for serverlogs
 var packagesToCheck []string = []string{"public"}
 
@@ -128,9 +65,12 @@ func checkTenants(config *insight_server.InsightWebServiceConfig) ([]string, err
 
 func reloadServerlogs(outputPath, tempdir, filename string, sourceTimezoneName string) error {
 	gzr, err := NewGzippedFileReader(filename)
+	if err != nil {
+		return fmt.Errorf("Error while opening file '%s': %v", filename, err)
+	}
 	defer gzr.Close()
 
-	log.Printf("Parsing: %s", gzr.File.Name())
+	log.Printf("Parsing: %s", filename)
 
 	hostName := getHostName(filename)
 
@@ -144,7 +84,7 @@ func reloadServerlogs(outputPath, tempdir, filename string, sourceTimezoneName s
 	}
 	gzr.Close()
 
-	insight_server.WriteServerlogsCsv(tempdir, strings.Replace(filename, "errors_serverlogs", "serverlogs", -1), rows)
+	insight_server.WriteServerlogsCsv(tempdir, strings.Replace(filename, "errors_serverlogs", "fixed_serverlogs", -1), rows)
 
 	log.Printf("Parse output: %d rows, %d errorRows", len(rows), len(errorRows))
 
