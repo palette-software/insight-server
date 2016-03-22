@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 
+	"flag"
+
 	"github.com/palette-software/insight-server"
 )
 
@@ -164,15 +166,16 @@ func getHostName(filename string) string {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Printf("Usage: %s <OUTPUT DIRECTORY>", os.Args[0])
-		return
-	}
+	var backupPath string
+	flag.StringVar(&backupPath, "backup",
+		filepath.Join(os.Getenv("TEMP"), "uploads"),
+		"The root directory for the backups to go into.",
+	)
 
-	outputPath := os.Args[1]
 	config := insight_server.ParseOptions()
 
 	log.Printf("Config: %v", config)
+	log.Printf("BackupPath: %s", backupPath)
 
 	// create the authenticator
 
@@ -184,7 +187,7 @@ func main() {
 	}
 
 	for _, errFile := range errorFiles {
-		err := reloadServerlogs(outputPath, path.Join(config.UploadBasePath, "_temp"), errFile, "UTC")
+		err := reloadServerlogs(backupPath, path.Join(config.UploadBasePath, "_temp"), errFile, "UTC")
 		if err != nil {
 			panic(err)
 		}
