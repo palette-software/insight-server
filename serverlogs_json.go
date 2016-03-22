@@ -2,6 +2,7 @@ package insight_server
 
 import (
 	"compress/gzip"
+	"crypto/md5"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -104,7 +106,8 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 
 	// Remove the now fully parsed serverlogs file
 	log.Printf("[serverlogs] removing temporary '%s'", filename)
-	return os.Remove(filename)
+	return nil
+	//return os.Remove(filename)
 }
 
 var serverlogsCsvHeader []string = []string{
@@ -157,6 +160,27 @@ func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) er
 	return nil
 }
 
+// The regex we'll use to remove the md5 from the end of the file
+var md5RemoverRegexp = regexp.MustCompile("-[a-f0-9]{32}.csv.gz$")
+
+// Computes the md5 of a file by path
+func computeMd5ForFile(filePath string) ([]byte, error) {
+	var result []byte
+	file, err := os.Open(filePath)
+	if err != nil {
+		return result, err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return result, err
+	}
+
+	return hash.Sum(result), nil
+}
+
+// Tries to write a bunch of rows as a greenplum-like CSV file (this function does not escape strings)
 func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
 	// The temporary output file which we'll move to its destination
 	tmpFile, err := ioutil.TempFile(tmpDir, fmt.Sprintf("serverlogs-%s-output", prefix))
@@ -180,14 +204,32 @@ func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 		return "", err
 	}
 
-	outputPath := fmt.Sprintf("%s/%s%s", filepath.Dir(filename), prefix, filepath.Base(filename))
-
 	// Get the temp file name before closing it
 	tempFilePath := tmpFile.Name()
 
 	// Close the gzip stream then close the temp file, so writes get flushed.
 	gzipWriter.Close()
 	tmpFile.Close()
+
+	// re-calculate the hash of the file, so we dont have conflicts
+	outputMd5, err := computeMd5ForFile(tmpFile.Name())
+	if err != nil {
+		// save the file even if the md5 is crap
+		log.Printf("[serverlogs] error while computing md5 of csv '%s': %v", tmpFile.Name(), err)
+		// generate 32 bytes of bullshit as md5
+		outputMd5 = RandStringBytesMaskImprSrc(32)
+		log.Printf("[serverlogs] using '%s' instead of md5", string(outputMd5))
+	}
+
+	// generate the output path of the file
+	outputPath := fmt.Sprintf("%s/%s%s-%32x.csv.gz",
+		filepath.Dir(filename),
+		prefix,
+		// the filename without the md5 part
+		md5RemoverRegexp.ReplaceAllString(filepath.Base(filename), ""),
+		// the new md5
+		outputMd5,
+	)
 
 	// move the output file to the new path with the new name
 	err = os.Rename(tempFilePath, outputPath)

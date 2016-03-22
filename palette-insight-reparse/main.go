@@ -84,7 +84,7 @@ func reloadServerlogs(outputPath, tempdir, filename string, sourceTimezoneName s
 	}
 	gzr.Close()
 
-	insight_server.WriteServerlogsCsv(tempdir, strings.Replace(filename, "errors_serverlogs", "fixed_serverlogs", -1), rows)
+	insight_server.WriteServerlogsCsv(tempdir, strings.Replace(filename, "errors_serverlogs", "serverlogs", -1), rows)
 
 	log.Printf("Parse output: %d rows, %d errorRows", len(rows), len(errorRows))
 
