@@ -2,11 +2,22 @@ language: go
 go:
 - 1.6
 
+env:
+  global:
+      - DEPLOY_HOST=rpm.palette-software.net
+      - DEPLOY_PATH=/home/palette-rpm/rpm_repo
+      - DEPLOY_USER=palette-rpm
+
+      # travis encrypt DEPLOY_PASSWORD=...
+      - secure: "QRZhThXmVMOMfktlgfNaSAdxNX8FUMq3AMLTyWy3H3KoK8VkgBgsovtorR2tysm6IWH6AsJimwEoMiL+0h1FIKdEt9CkwSPbFke1h/sk3CkFVkNm3XQvEkPYnVX/7p2Tb0frZc1b0q3D6yXv5Fb8Osml56qeClMNQmJ2l7vbwiGCGahH9o/tLCUiatx5wzdxVHKxWlSG95YDw136KX7Z5Bm0R3JEIsJjeyhM8gOWTP0mhn02I8k+lP1akDeqtPXtUp1iLRN0Ibr2GusFYb+DWRf0tn6dLbezaOX9Tu+r8EY7l93kx9B7z8JbB2Fq2eAdLNjfzSY/612p0lhNCJPkdD8i+0hG+am0vSCWXdz7JuqdknmXXj1QjVJUjZDDeL5y67KxHoruu0mIrrPMCKOKijWIL49Ry3k6VP65+nUCJn+vsD7yQXgQajLng2jqywUjQMbJQnB/G1d3Gv4F6rbz9+OMHF+1STA5uO5U+Nddv+wdZlve39c0M++ppND5donqdNiNdHkl92xJUORNVnrC6SDHimm9yq5vJOqcvYuHGAgtxWEYZXoQExXnckm9a3+fe/rC69lkh//HxkyqI0XCjKydIVcu+wVGlKueKpT7srBqJrdeVtO6avGFjeF/3PAO2FLXeZGANtUwF4g/p8cTRRWLuebfDg82ps4vzLMUCqw="
+
 # install the RPM package
 addons:
   apt:
     packages:
-    - rpm
+      - rpm
+      # To deploy the rpms, we need to ssh into places, and we dont want to store keys for now
+      - sshpass
 
 before_install:
   # add the bindata generator
@@ -18,7 +29,7 @@ before_script:
   - export BUILD_TAG=$TRAVIS_BRANCH-$(date -u "+%Y-%m-%d-%H-%M-%S")-$TRAVIS_BUILD_NUMBER
   - echo "==== Setting ${BUILD_TAG} as version ===="
   - echo ${BUILD_TAG} > assets/VERSION
-  - cat assets/VERSION
+
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server
   - cat assets.go
@@ -28,17 +39,24 @@ before_script:
 before_deploy:
   - export VERSION=$(echo $TRAVIS_TAG | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
   - cd rpm-build
+
   # Create directories
   - mkdir -p etc/palette-insight-server
   - mkdir -p usr/local/bin
+
   # Copy the binary
   - cp -v $GOPATH/bin/server usr/local/bin/palette-insight-server
   - cp -v ../server/sample.config etc/palette-insight-server/server.config
   - echo "BUILDING VERSION:$VERSION"
+
   # build the rpm
   - rpmbuild -bb --buildroot $(pwd) --define "version $VERSION" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
   - cd ..
   - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/server
+
+  # Upload the RPM to the RPM repository
+  - export SSHPASS=$DEPLOY_PASS
+  - sshpass -e scp -R rpm-build/_build/* $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH
 
 deploy:
   provider: releases

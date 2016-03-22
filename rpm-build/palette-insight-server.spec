@@ -68,8 +68,7 @@ setsebool httpd_can_network_connect on -P
 mkdir -p /var/log/palette-insight-server/
 
 %postun
-# Remove the user
-# /usr/sbin/userdel %{serviceuser}
+# Dont remove the user
 
 # TODO: we should switch back the httpd_can_network_connect flag for SELinux, IF we know that its safe to do so
 
