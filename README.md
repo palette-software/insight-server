@@ -206,6 +206,64 @@ Important note: please check in the generated sources into the git tree, because
 
 # RPMs
 
+## Install steps using the palette RPM repo
+
+### Install
+
+
+
+```bash
+# Add the repo
+sudo yum-config-manager --add-repo=http://54.88.58.55/redhat/
+
+# Add the following line to the end of
+sudo vi /etc/yum.repos.d/54.88.58.55_redhat_.repo
+
+# Add this line (without the comment)
+# gpgcheck=0
+
+
+# Install the server + nginx + supervisord
+sudo yum install -y palette-insight-server
+
+# Start nginx on server start
+sudo /sbin/chkconfig nginx on
+
+# Start supervisord on server start
+sudo /sbin/chkconfig supervisord on
+```
+
+
+
+
+### Update
+
+
+```bash
+# Get the server status
+sudo supervisorctl status
+# => palette-insight-server           RUNNING   pid 11799, uptime 0:04:05
+
+# Stop the server
+sudo supervisorctl stop palette-insight-server
+
+
+
+
+# Update the server
+sudo yum update palette-insight-server
+
+
+# Restart supervisord
+sudo supervisorctl start palette-insight-server
+
+
+# Check if its running correctly (wait 10 seconds)
+sudo supervisorctl status
+# => palette-insight-server           RUNNING   pid 11799, uptime 0:04:05
+
+```
+
 ## Installing from rpms
 
 The service requires two rpm-s to install:
