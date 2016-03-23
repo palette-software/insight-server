@@ -115,6 +115,16 @@ var serverlogsCsvHeader []string = []string{
 	"k", "v",
 }
 
+// Escapes all strings in a slice for greenplum
+func escapeRowForGreenPlum(row []string) []string {
+	output := make([]string, len(row))
+	// Escape each column
+	for i, column := range row {
+		output[i] = EscapeGreenPlumCSV(column)
+	}
+	return output
+}
+
 // Writes out the serverlogs CSV file
 func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputRow) error {
 
@@ -124,13 +134,13 @@ func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputR
 		serverlogRowsAsStr := make([][]string, len(serverlogs))
 		for i, row := range serverlogs {
 			o := &row.Outer
-			serverlogRowsAsStr[i] = []string{
+			// re-escape the output
+			serverlogRowsAsStr[i] = escapeRowForGreenPlum([]string{
 				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
 				o.Sev, o.Req, o.Sess, o.Site, o.User,
 				o.K,
-				// re-escape the output
-				EscapeGreenPlumCSV(row.Inner),
-			}
+				row.Inner,
+			})
 		}
 		outputFile, err := WriteAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
@@ -147,7 +157,9 @@ func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) er
 		// make csv-compatible output
 		errorRowsAsStr := make([][]string, len(errorRows))
 		for i, row := range errorRows {
-			errorRowsAsStr[i] = []string{row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json)}
+			errorRowsAsStr[i] = escapeRowForGreenPlum([]string{
+				row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json),
+			})
 		}
 		// write it as csv
 		errorsFile, err := WriteAsCsv(tmpDir, outputPath, "errors_", []string{"error", "hostname", "filename", "line"}, errorRowsAsStr)
