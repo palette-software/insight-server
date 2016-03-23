@@ -30,6 +30,8 @@ type User interface {
 // An interface that authenticates
 type Authenticator interface {
 	authenticate(username string, token []byte) (User, error)
+	// returns a list of users available
+	GetAllUsers() []User
 }
 
 // Generates a http.HandlerFunc that calls innerHandler with with the additional parameter of
@@ -141,4 +143,15 @@ func (a *LicenseAuthenticator) authenticate(username string, password []byte) (U
 		return nil, fmt.Errorf("Cannot authenticate tenant '%v'", username)
 	}
 	return tenant, nil
+}
+
+// Returns a list of all users. Useful for figuring out the folders we care about
+func (a *LicenseAuthenticator) GetAllUsers() []User {
+	users := []User{}
+	// since []User and []*License are not compatible, we re-create it here
+	for _, license := range a.licenses {
+		users = append(users, User(license))
+	}
+
+	return users
 }

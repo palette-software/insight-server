@@ -135,7 +135,7 @@ type baseAutoUpdater struct {
 // Creates a new autoupdater implementation
 func NewBaseAutoUpdater(basePath string) (AutoUpdater, error) {
 	// create the versions directory
-	if err := createDirectoryIfNotExists(basePath); err != nil {
+	if err := CreateDirectoryIfNotExists(basePath); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +177,7 @@ func (a *baseAutoUpdater) AddNewVersion(product string, version *Version, src io
 	// ----------------------
 
 	// Create the directory of the update
-	if err := createDirectoryIfNotExists(filepath.Dir(storagePath)); err != nil {
+	if err := CreateDirectoryIfNotExists(filepath.Dir(storagePath)); err != nil {
 		return nil, fmt.Errorf("Error while creating update directory for '%s': %v", storagePath, err)
 	}
 

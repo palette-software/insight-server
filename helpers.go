@@ -4,15 +4,19 @@ package insight_server
 
 import (
 	"crypto/md5"
+	"encoding/csv"
 	"fmt"
 	"hash"
 	"io"
 	"log"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
+	"time"
 )
 
 // GENERIC HELPERS
@@ -71,7 +75,7 @@ func isDirectoryNoFail(path string) bool {
 }
 
 // / Helper that creates a directory if it does not exist
-func createDirectoryIfNotExists(path string) error {
+func CreateDirectoryIfNotExists(path string) error {
 	exists, err := fileExists(path)
 	// forward errors
 	if err != nil {
@@ -201,4 +205,78 @@ func (m *Md5Hasher) GetHash() []byte {
 // Returns the (lowercased) hex string of the Md5
 func (m *Md5Hasher) GetHashString() string {
 	return fmt.Sprintf("%32x", m.GetHash())
+}
+
+// Random string generation
+// ========================
+
+var randomStringSrc = rand.NewSource(time.Now().UnixNano())
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+
+// Generates a bunch of random bytes for a string. Is pretty fast...
+// https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
+func RandStringBytesMaskImprSrc(n int) []byte {
+	b := make([]byte, n)
+	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := n-1, randomStringSrc.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = randomStringSrc.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return b
+}
+
+// CSV Reading/writing for GP
+// ==========================
+
+func MakeCsvReader(r io.Reader) *csv.Reader {
+	reader := csv.NewReader(r)
+	reader.Comma = '\v'
+	reader.LazyQuotes = true
+	return reader
+}
+
+func MakeCsvWriter(w io.Writer) *csv.Writer {
+	writer := csv.NewWriter(w)
+	writer.Comma = '\v'
+	writer.UseCRLF = true
+	return writer
+}
+
+// Unescapes the greenplum-like escaping
+// original C# code:
+//
+// escpe the backslash first
+//.Replace("\\", "\\\\")
+//.Replace("\r", "\\015")
+//.Replace("\n", "\\012")
+//.Replace("\0", "")
+//.Replace("\v", "\\013");
+func UnescapeGreenPlumCSV(logRow string) string {
+	logRow = strings.Replace(logRow, "\\013", "\v", -1)
+	logRow = strings.Replace(logRow, "\\012", "\n", -1)
+	logRow = strings.Replace(logRow, "\\015", "\r", -1)
+	logRow = strings.Replace(logRow, "\\\\", "\\", -1)
+	return logRow
+}
+
+func EscapeGreenPlumCSV(logRow string) string {
+	logRow = strings.Replace(logRow, "\\", "\\\\", -1)
+	logRow = strings.Replace(logRow, "\r", "\\015", -1)
+	logRow = strings.Replace(logRow, "\n", "\\012", -1)
+	logRow = strings.Replace(logRow, "\v", "\\013", -1)
+	return logRow
 }
