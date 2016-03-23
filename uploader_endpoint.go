@@ -200,8 +200,8 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 	// generate the output file name, and mark that its a gzipped one
 	outputPath := fmt.Sprintf("%s.gz", u.getUploadPathForFile(req, fileHash))
 
-	// create the output file path
-	if err := os.MkdirAll(filepath.Dir(outputPath), OUTPUT_DEFAULT_DIRMODE); err != nil {
+	// create the directory of the uploaded file
+	if err := CreateDirectoryIfNotExists(filepath.Dir(outputPath)); err != nil {
 		return nil, err
 	}
 

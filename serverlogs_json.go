@@ -211,7 +211,7 @@ func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 	tmpFile.Close()
 
 	// re-calculate the hash of the file, so we dont have conflicts
-	outputMd5, err := computeMd5ForFile(tmpFile.Name())
+	outputMd5, err := computeMd5ForFile(tempFilePath)
 	if err != nil {
 		// save the file even if the md5 is crap
 		log.Printf("[serverlogs] error while computing md5 of csv '%s': %v", tmpFile.Name(), err)

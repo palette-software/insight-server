@@ -75,7 +75,7 @@ func isDirectoryNoFail(path string) bool {
 }
 
 // / Helper that creates a directory if it does not exist
-func createDirectoryIfNotExists(path string) error {
+func CreateDirectoryIfNotExists(path string) error {
 	exists, err := fileExists(path)
 	// forward errors
 	if err != nil {
@@ -93,10 +93,6 @@ func createDirectoryIfNotExists(path string) error {
 	}
 
 	return nil
-}
-
-func CreateDirectoryIfNotExists(path string) error {
-	return createDirectoryIfNotExists(path)
 }
 
 // HTTP PACKAGE HELPERS
