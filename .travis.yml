@@ -4,12 +4,12 @@ go:
 
 env:
   global:
-      - DEPLOY_HOST=rpm.palette-software.net
-      - DEPLOY_PATH=/home/palette-rpm/rpm_repo
+      - DEPLOY_HOST=54.88.58.55
+      - DEPLOY_PATH=/var/palette-rpm-repo
       - DEPLOY_USER=palette-rpm
 
       # travis encrypt DEPLOY_PASSWORD=...
-      - secure: "QRZhThXmVMOMfktlgfNaSAdxNX8FUMq3AMLTyWy3H3KoK8VkgBgsovtorR2tysm6IWH6AsJimwEoMiL+0h1FIKdEt9CkwSPbFke1h/sk3CkFVkNm3XQvEkPYnVX/7p2Tb0frZc1b0q3D6yXv5Fb8Osml56qeClMNQmJ2l7vbwiGCGahH9o/tLCUiatx5wzdxVHKxWlSG95YDw136KX7Z5Bm0R3JEIsJjeyhM8gOWTP0mhn02I8k+lP1akDeqtPXtUp1iLRN0Ibr2GusFYb+DWRf0tn6dLbezaOX9Tu+r8EY7l93kx9B7z8JbB2Fq2eAdLNjfzSY/612p0lhNCJPkdD8i+0hG+am0vSCWXdz7JuqdknmXXj1QjVJUjZDDeL5y67KxHoruu0mIrrPMCKOKijWIL49Ry3k6VP65+nUCJn+vsD7yQXgQajLng2jqywUjQMbJQnB/G1d3Gv4F6rbz9+OMHF+1STA5uO5U+Nddv+wdZlve39c0M++ppND5donqdNiNdHkl92xJUORNVnrC6SDHimm9yq5vJOqcvYuHGAgtxWEYZXoQExXnckm9a3+fe/rC69lkh//HxkyqI0XCjKydIVcu+wVGlKueKpT7srBqJrdeVtO6avGFjeF/3PAO2FLXeZGANtUwF4g/p8cTRRWLuebfDg82ps4vzLMUCqw="
+      - secure: "bpiG25h8I+BgpswIFjvADbHfrZygMFvsge/FhIw4eCbmFFCE1o/02gWJoDmG411IRehjbNjqpTIhulUWHrv43AKWxMUTSMNybfQlZ8v6vp9N8bTI4ShI/DMgK2oHZgKXicZo5eUpreC+y+NhmMgDfcF45bW924ru52WVYueWDpQrlXYmqbFM2Au7mHR0XR2qlf2stFeSs6pGVm/s4QXKXTw0qIV9xjgealCf5Gxt69I3IVdNw7Tqt6NCKbd+hmZI4SWDG5eFYMr6fzNymzjvqoArURlPvkZxNfTeeJn+DL94pjxCJMXV1PXqQWYwg6iPdZoJzoO+jjzUf1egoU3jZvUTVqmCGWGBvR9s9e1e8tVOt6HKZsoXesv8sS1Dbny3SJ1TSB66qFD8qR2qTqenRr3EllInq5KK4mp6yj+YtuXyNxGklDM7sQaIv95LTR9qy5I0sZTJFoJIiEMSZ2R1aO/IVRBCY/3nesKRAByGi1hjhreGArUvWtD+mw13oSs2kFK7P0mWmWv3/XVeWWqODCa4hgsfAmr4evDbGwyPH2XzkIxOXxzLmuNfHAEZvCQ23ciBMpaq9tdNh10ln2zKWR7wPai2KpqNYw/VdG52KjJwvm+aue7p3mdblJzXoPLnx1G0UWG9fh+pun8cvclUFrz1u84GOf4eHeKRpDCDP9I="
 
 # install the RPM package
 addons:
@@ -32,7 +32,6 @@ before_script:
 
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server
-  - cat assets.go
 
 
 
@@ -55,8 +54,12 @@ before_deploy:
   - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/server
 
   # Upload the RPM to the RPM repository
+  # by exportin it to SSHPASS, sshpass wont log the command line and the password
   - export SSHPASS=$DEPLOY_PASS
   - sshpass -e scp -R rpm-build/_build/* $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH
+
+  # Update the RPM repository
+  #- sshpass -e ssh $DEPLOY_USER@$DEPLOY_HOST createrepo $DEPLOY_PATH
 
 deploy:
   provider: releases
