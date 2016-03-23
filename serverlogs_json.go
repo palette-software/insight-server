@@ -2,7 +2,7 @@ package insight_server
 
 import (
 	"compress/gzip"
-	"encoding/csv"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -32,8 +33,9 @@ type ServerlogOutputRow struct {
 }
 
 type ErrorRow struct {
-	Json  string
-	Error string
+	Json               string
+	Filename, Hostname string
+	Error              string
 }
 
 type ServerlogToParse struct {
@@ -78,7 +80,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 	}
 	defer gzipReader.Close()
 
-	serverlogs, errorRows, err := parseServerlogs(gzipReader, serverlog.Timezone)
+	serverlogs, errorRows, err := ParseServerlogs(gzipReader, serverlog.Timezone)
 	if err != nil {
 		return err
 	}
@@ -86,6 +88,35 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 	log.Printf("[serverlogs] Parsed %d lines with %d error lines from '%s'", len(serverlogs), len(errorRows), filename)
 
 	tmpDir := serverlog.TmpDir
+
+	// Write normal output
+	if err := WriteServerlogsCsv(tmpDir, outputPath, serverlogs); err != nil {
+		return fmt.Errorf("Error writing serverlogs CSV: %v", err)
+	}
+	// Write error output
+	if err := WriteServerlogErrorsCsv(tmpDir, outputPath, errorRows); err != nil {
+		return fmt.Errorf("Error writing errors CSV: %v", err)
+	}
+
+	// After we are done, remove the original serverlogs file and the gzip
+	// reader on top.
+	gzipReader.Close()
+	rawReader.Close()
+
+	// Remove the now fully parsed serverlogs file
+	log.Printf("[serverlogs] removing temporary '%s'", filename)
+	return nil
+	//return os.Remove(filename)
+}
+
+var serverlogsCsvHeader []string = []string{
+	"filename", "host_name", "ts", "pid", "tid",
+	"sev", "req", "sess", "site", "user",
+	"k", "v",
+}
+
+// Writes out the serverlogs CSV file
+func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputRow) error {
 
 	// Write normal output
 	if len(serverlogs) > 0 {
@@ -96,48 +127,60 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 			serverlogRowsAsStr[i] = []string{
 				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
 				o.Sev, o.Req, o.Sess, o.Site, o.User,
-				o.K, row.Inner,
+				o.K,
+				// re-escape the output
+				EscapeGreenPlumCSV(row.Inner),
 			}
 		}
-		outputFile, err := writeAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
+		outputFile, err := WriteAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
 			return err
 		}
 		log.Printf("[serverlogs] written pre-parsed serverlogs to: '%s'", outputFile)
 	}
+	return nil
+}
 
-	// Write error output
+func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) error {
+
 	if len(errorRows) > 0 {
 		// make csv-compatible output
 		errorRowsAsStr := make([][]string, len(errorRows))
 		for i, row := range errorRows {
-			errorRowsAsStr[i] = []string{row.Error, row.Json}
+			errorRowsAsStr[i] = []string{row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json)}
 		}
 		// write it as csv
-		errorsFile, err := writeAsCsv(tmpDir, outputPath, "errors_", []string{"error", "line"}, errorRowsAsStr)
+		errorsFile, err := WriteAsCsv(tmpDir, outputPath, "errors_", []string{"error", "hostname", "filename", "line"}, errorRowsAsStr)
 		if err != nil {
 			return err
 		}
 		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
 	}
-
-	// After we are done, remove the original serverlogs file and the gzip
-	// reader on top.
-	gzipReader.Close()
-	rawReader.Close()
-
-	// Remove the now fully parsed serverlogs file
-	log.Printf("[serverlogs] removing temporary '%s'", filename)
-	return os.Remove(filename)
+	return nil
 }
 
-var serverlogsCsvHeader []string = []string{
-	"filename", "host_name", "ts", "pid", "tid",
-	"sev", "req", "sess", "site", "user",
-	"k", "v",
+// The regex we'll use to remove the md5 from the end of the file
+var md5RemoverRegexp = regexp.MustCompile("-[a-f0-9]{32}.csv.gz$")
+
+// Computes the md5 of a file by path
+func computeMd5ForFile(filePath string) ([]byte, error) {
+	var result []byte
+	file, err := os.Open(filePath)
+	if err != nil {
+		return result, err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return result, err
+	}
+
+	return hash.Sum(result), nil
 }
 
-func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
+// Tries to write a bunch of rows as a greenplum-like CSV file (this function does not escape strings)
+func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
 	// The temporary output file which we'll move to its destination
 	tmpFile, err := ioutil.TempFile(tmpDir, fmt.Sprintf("serverlogs-%s-output", prefix))
 	if err != nil {
@@ -150,7 +193,7 @@ func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 	defer gzipWriter.Close()
 
 	// Output the csv
-	csvWriter := makeCsvWriter(gzipWriter)
+	csvWriter := MakeCsvWriter(gzipWriter)
 	csvWriter.Write(headers)
 	csvWriter.WriteAll(rows)
 
@@ -160,14 +203,32 @@ func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 		return "", err
 	}
 
-	outputPath := fmt.Sprintf("%s/%s%s", filepath.Dir(filename), prefix, filepath.Base(filename))
-
 	// Get the temp file name before closing it
 	tempFilePath := tmpFile.Name()
 
 	// Close the gzip stream then close the temp file, so writes get flushed.
 	gzipWriter.Close()
 	tmpFile.Close()
+
+	// re-calculate the hash of the file, so we dont have conflicts
+	outputMd5, err := computeMd5ForFile(tempFilePath)
+	if err != nil {
+		// save the file even if the md5 is crap
+		log.Printf("[serverlogs] error while computing md5 of csv '%s': %v", tmpFile.Name(), err)
+		// generate 32 bytes of bullshit as md5
+		outputMd5 = RandStringBytesMaskImprSrc(32)
+		log.Printf("[serverlogs] using '%s' instead of md5", string(outputMd5))
+	}
+
+	// generate the output path of the file
+	outputPath := fmt.Sprintf("%s/%s%s-%32x.csv.gz",
+		filepath.Dir(filename),
+		prefix,
+		// the filename without the md5 part
+		md5RemoverRegexp.ReplaceAllString(filepath.Base(filename), ""),
+		// the new md5
+		outputMd5,
+	)
 
 	// move the output file to the new path with the new name
 	err = os.Rename(tempFilePath, outputPath)
@@ -181,9 +242,60 @@ func writeAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 
 const jsonDateFormat = "2006-01-02T15:04:05.999"
 
+// Tries to parse the outer JSON from a serverlog row
+func ParseOuterJson(logRow string, sourceTimezone *time.Location) (*ServerlogOuterJson, []byte, error) {
+
+	// try to parse the low row
+	outerJson := ServerlogOuterJson{}
+	err := json.NewDecoder(strings.NewReader(logRow)).Decode(&outerJson)
+	if err != nil {
+		return nil, nil, fmt.Errorf("JSON parse error: %v", err)
+	}
+
+	// convert the tid
+	if outerJson.Tid, err = hexToDecimal(outerJson.Tid); err != nil {
+		return nil, nil, fmt.Errorf("Tid Parse error: %v", err)
+	}
+
+	// Parse the timestamp with the proper time zone
+	transcodedTs, err := time.ParseInLocation(jsonDateFormat, outerJson.Ts, sourceTimezone)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Timestamp parse error: %v", err)
+	}
+
+	// Convert the timestamp to utc
+	outerJson.Ts = transcodedTs.UTC().Format(jsonDateFormat)
+
+	// since the inner JSON can be anything, we unmarshal it into
+	// a string, so the json marshaler can do his thing and we
+	// dont have to care about what data is inside
+	innerStr, err := json.Marshal(outerJson.V)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Inner JSON remarshaling error: %v", err)
+	}
+
+	return &outerJson, innerStr, nil
+}
+
+// A function type that takes a a list of strings and returns the hostname, the filename and the log row (or an error)
+type RecordParserFunction func(record []string) (hostName, fileName, logRow string, err error)
+
+// The default function for getting the hostname, filename and logrow from regular serverlog files
+func NormalServerlogsParserFn(record []string) (hostName, fileName, logRow string, err error) {
+	if len(record) != 3 {
+		return "", "", "", fmt.Errorf("Not enough columns read: %d instead of 3 from: %v", len(record), record)
+	}
+	return record[1], record[0], record[2], nil
+}
+
+// Wrapper function for parsing a regular serverlog
+func ParseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
+	return ParseServerlogsWithFn(r, timezoneName, NormalServerlogsParserFn)
+}
+
 // Parses a serverlogs file by parsing the outer json level and re-marshaling
 // the inner json back into a string so talend can do its own parsing later.
-func parseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
+func ParseServerlogsWithFn(r io.Reader, timezoneName string, parserFn RecordParserFunction) (rows []ServerlogOutputRow, errorRows []ErrorRow, err error) {
 
 	// try to parse the timezone name
 	sourceTimezone, err := time.LoadLocation(timezoneName)
@@ -191,7 +303,7 @@ func parseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRo
 		return nil, nil, err
 	}
 
-	csvReader := makeCsvReader(r)
+	csvReader := MakeCsvReader(r)
 
 	isHeader := true
 
@@ -212,62 +324,40 @@ func parseServerlogs(r io.Reader, timezoneName string) (rows []ServerlogOutputRo
 			continue
 		}
 
-		logRow := record[2]
-
-		// try to parse the low row
-		jsonDecoder := json.NewDecoder(strings.NewReader(logRow))
-		outerJson := ServerlogOuterJson{}
-		err = jsonDecoder.Decode(&outerJson)
+		// try to get the elements from the record
+		hostName, fileName, logRow, err := parserFn(record)
 		if err != nil {
-			log.Println("[serverlogs.json] Parse error: ", err)
-			// put this row into the problematic ones
-			errorRows = append(errorRows, ErrorRow{Json: logRow, Error: fmt.Sprintf("%v", err)})
-			// skip this row from processing
-			continue
-		}
-
-		// convert the tid
-		outerJson.Tid, err = hexToDecimal(outerJson.Tid)
-		if err != nil {
-			log.Println("[serverlogs.json] Tid Parse error: ", err)
-			// put this row into the problematic ones
-			errorRows = append(errorRows, ErrorRow{Json: logRow, Error: fmt.Sprintf("%v", err)})
-			// skip this row from processing
-			continue
-		}
-
-		// Parse the timestamp with the proper time zone
-		transcodedTs, err := time.ParseInLocation(jsonDateFormat, outerJson.Ts, sourceTimezone)
-		if err != nil {
-			log.Println("[serverlogs.json] Timestamp parse error: ", err)
-			// put this row into the problematic ones
-			errorRows = append(errorRows, ErrorRow{Json: logRow, Error: fmt.Sprintf("%v", err)})
-			// skip this row from processing
-			continue
-		}
-
-		// Convert the timestamp to utc
-		outerJson.Ts = transcodedTs.UTC().Format(jsonDateFormat)
-
-		// since the inner JSON can be anything, we unmarshal it into
-		// a string, so the json marshaler can do his thing and we
-		// dont have to care about what data is inside
-		innerStr, err := json.Marshal(outerJson.V)
-		if err != nil {
-			log.Println("[serverlogs.json] Inner JSON remarshaling error: ", err)
+			log.Println("[serverlogs.json] Error while parsing serverlog row: %v ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
-				Json:  logRow,
-				Error: fmt.Sprintf("%v", err),
+				Json:     logRow,
+				Hostname: hostName,
+				Filename: fileName,
+				Error:    fmt.Sprintf("%v", err),
+			})
+			// skip this row from processing
+			continue
+		}
+
+		outerJson, innerStr, err := ParseOuterJson(UnescapeGreenPlumCSV(logRow), sourceTimezone)
+		if err != nil {
+
+			log.Println("[serverlogs.json] Error while parsing serverlog row: %v ", err)
+			// put this row into the problematic ones
+			errorRows = append(errorRows, ErrorRow{
+				Json:     logRow,
+				Hostname: hostName,
+				Filename: fileName,
+				Error:    fmt.Sprintf("%v", err),
 			})
 			// skip this row from processing
 			continue
 		}
 
 		rows = append(rows, ServerlogOutputRow{
-			Filename: record[0],
-			Hostname: record[1],
-			Outer:    outerJson,
+			Filename: fileName, // record[0],
+			Hostname: hostName, // record[1],
+			Outer:    *outerJson,
 			Inner:    string(innerStr),
 		})
 	}
@@ -280,19 +370,4 @@ func hexToDecimal(tidHexa string) (string, error) {
 	decimal, err := strconv.ParseInt(tidHexa, 16, 32)
 	decimalString := strconv.FormatInt(decimal, 10)
 	return decimalString, err
-}
-
-func makeCsvReader(r io.Reader) *csv.Reader {
-	reader := csv.NewReader(r)
-	reader.Comma = '\v'
-	reader.FieldsPerRecord = 3
-	reader.LazyQuotes = true
-	return reader
-}
-
-func makeCsvWriter(w io.Writer) *csv.Writer {
-	writer := csv.NewWriter(w)
-	writer.Comma = '\v'
-	writer.UseCRLF = true
-	return writer
 }
