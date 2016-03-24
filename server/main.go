@@ -25,7 +25,7 @@ func getCurrentPath() string {
 // Adds basic request logging to the wrapped handler
 func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[http] (handler:%s) {%v} %v%v?%v", name, r.Method, r.URL.Host, r.URL.Path, r.URL.RawQuery)
+		log.Printf("[http] ====> %s -> {%v} %s (handler:%s)", r.RemoteAddr, r.Method, r.URL.RequestURI(), name)
 		// also write all header we care about for proxies here
 		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Add("Pragma", "no-cache")
