@@ -243,7 +243,7 @@ func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallback
 
 	// function that wraps invoking the handler
 	invokeHandler := func(name string, handler UploadCallbackFn) error {
-		log.Printf("[uploader.callbacks] Invoking callback: %s with '%v'", name, ctx)
+		log.Printf("[uploader.callbacks] Invoking callback: %s ", name)
 		err := handler(ctx)
 		if err != nil {
 			log.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s -- %v", name, pkg, filename, err)
@@ -268,7 +268,7 @@ func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallback
 
 	// fallback handler
 	if !handled {
-		err := invokeHandler("fallback", MoveHandler)
+		err := invokeHandler("move", MoveHandler)
 		if err != nil {
 			return err
 		}
