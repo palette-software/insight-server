@@ -57,7 +57,7 @@ Requires(postun): /usr/sbin/userdel
 
 %pre
 # Add the user and set its homee
-/usr/bin/getent passwd %{serviceuser} || /usr/sbin/useradd -r -d %{servicehome} -s /sbin/nologin %{serviceuser}
+/usr/bin/getent passwd %{serviceuser} || /usr/sbin/useradd -r -d %{servicehome} -s /bin/bash %{serviceuser}
 /usr/bin/getent group %{serviceuser} || /usr/sbin/groupadd -r -g %{serviceuser}
 
 # Override the SELinux flag that disallows httpd to connect to the go process
@@ -67,6 +67,17 @@ setsebool httpd_can_network_connect on -P
 # Create the logfile directory for supervisord
 mkdir -p /var/log/palette-insight-server/
 
+# Create the storage directory under '/data'
+mkdir -p /data/insight-server/licenses
+chown insight:insight -R /data/insight-server
+
+# Start nginx on server start
+/sbin/chkconfig nginx on
+
+# Start supervisord on server start
+/sbin/chkconfig supervisord on
+
+```
 %postun
 # Dont remove the user
 
