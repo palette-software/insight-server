@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -278,4 +279,22 @@ func EscapeGreenPlumCSV(logRow string) string {
 	logRow = strings.Replace(logRow, "\n", "\\012", -1)
 	logRow = strings.Replace(logRow, "\v", "\\013", -1)
 	return logRow
+}
+
+// Escapes all strings in a slice for greenplum
+func EscapeRowForGreenPlum(row []string) []string {
+	output := make([]string, len(row))
+	// Escape each column
+	for i, column := range row {
+		output[i] = EscapeGreenPlumCSV(column)
+	}
+	return output
+}
+
+///////////////////////////////////
+
+func hexToDecimal(tidHexa string) (string, error) {
+	decimal, err := strconv.ParseInt(tidHexa, 16, 32)
+	decimalString := strconv.FormatInt(decimal, 10)
+	return decimalString, err
 }

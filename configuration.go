@@ -1,10 +1,11 @@
 package insight_server
 
 import (
-	"flag"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/namsral/flag"
 )
 
 // The configuration of the web service

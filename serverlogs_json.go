@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -154,16 +153,6 @@ var serverlogsCsvHeader []string = []string{
 	"k", "v",
 }
 
-// Escapes all strings in a slice for greenplum
-func escapeRowForGreenPlum(row []string) []string {
-	output := make([]string, len(row))
-	// Escape each column
-	for i, column := range row {
-		output[i] = EscapeGreenPlumCSV(column)
-	}
-	return output
-}
-
 // Writes out the serverlogs CSV file
 func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputRow) error {
 
@@ -174,7 +163,7 @@ func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputR
 		for i, row := range serverlogs {
 			o := &row.Outer
 			// re-escape the output
-			serverlogRowsAsStr[i] = escapeRowForGreenPlum([]string{
+			serverlogRowsAsStr[i] = EscapeRowForGreenPlum([]string{
 				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
 				o.Sev, o.Req, o.Sess, o.Site, o.User,
 				o.K,
@@ -196,7 +185,7 @@ func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) er
 		// make csv-compatible output
 		errorRowsAsStr := make([][]string, len(errorRows))
 		for i, row := range errorRows {
-			errorRowsAsStr[i] = escapeRowForGreenPlum([]string{
+			errorRowsAsStr[i] = EscapeRowForGreenPlum([]string{
 				row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json),
 			})
 		}
@@ -413,12 +402,4 @@ func ParseServerlogsWithFn(r io.Reader, timezoneName string, parserFn RecordPars
 		})
 	}
 
-}
-
-///////////////////////////////////
-
-func hexToDecimal(tidHexa string) (string, error) {
-	decimal, err := strconv.ParseInt(tidHexa, 16, 32)
-	decimalString := strconv.FormatInt(decimal, 10)
-	return decimalString, err
 }
