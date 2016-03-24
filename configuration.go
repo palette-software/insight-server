@@ -9,8 +9,15 @@ import (
 
 // The configuration of the web service
 type InsightWebServiceConfig struct {
-	UploadBasePath, MaxIdDirectory, LicensesDirectory, UpdatesDirectory, BindAddress string
-	BindPort                                                                         int
+	UploadBasePath, MaxIdDirectory      string
+	LicensesDirectory, UpdatesDirectory string
+	BindAddress                         string
+	BindPort                            int
+	TlsKey, TlsCert                     string
+	UseTls                              bool
+
+	// The archive path for the serverlogs
+	ServerlogsArchivePath string
 }
 
 // Returns the current working directory
@@ -27,7 +34,7 @@ func ParseOptions() InsightWebServiceConfig {
 
 	log.Printf("[boot] Starting palette insight-server %s", GetVersion())
 
-	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
+	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress, archivePath string
 	var bindPort int
 
 	// Path setup
@@ -54,6 +61,7 @@ func ParseOptions() InsightWebServiceConfig {
 		"The directory where the update files for the agent are stored.",
 	)
 
+	flag.StringVar(&archivePath, "archive_path", "", "The directory where the uploaded serverlogs are archived.")
 	flag.IntVar(&bindPort, "port", 9000, "The port the server is binding itself to")
 	flag.StringVar(&bindAddress, "bind_address", "", "The address to bind to. Leave empty for default .")
 
@@ -74,6 +82,11 @@ func ParseOptions() InsightWebServiceConfig {
 
 	flag.Parse()
 
+	// Set the archive path if its unset
+	if archivePath == "" {
+		archivePath = filepath.Join(uploadBasePath, "..", "serverlogs-archives")
+	}
+
 	// after parse, return the results
 	return InsightWebServiceConfig{
 		UploadBasePath:    uploadBasePath,
@@ -83,5 +96,11 @@ func ParseOptions() InsightWebServiceConfig {
 
 		BindAddress: bindAddress,
 		BindPort:    bindPort,
+
+		UseTls:  useTls,
+		TlsCert: tlsCert,
+		TlsKey:  tlsKey,
+
+		ServerlogsArchivePath: archivePath,
 	}
 }

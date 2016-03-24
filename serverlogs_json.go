@@ -42,13 +42,14 @@ type ServerlogToParse struct {
 	SourceFile, OutputFile, TmpDir, Timezone string
 }
 
-// Creates a new parser that accepts filenames on the channel returned
-func MakeServerlogParser(bufferSize int) chan ServerlogToParse {
+// Creates a new parser that accepts filenames on the channel returned.
+// Any passed files are stored in the directory pointed to by archivePath.
+func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToParse {
 	input := make(chan ServerlogToParse, bufferSize)
 	go func() {
 		for {
 			serverlog := <-input
-			err := parseServerlogFile(serverlog)
+			err := parseServerlogFile(archivePath, serverlog)
 			if err != nil {
 				// log the error but keep on spinning
 				log.Printf("[serverlogs] ERROR: %s", err)
@@ -61,7 +62,10 @@ func MakeServerlogParser(bufferSize int) chan ServerlogToParse {
 
 //////////////////////////////////
 
-func parseServerlogFile(serverlog ServerlogToParse) error {
+// The date format we'll use for creating the subfolders in the archives for the serverlogs
+const archiveDirectoryDateFormatString = "2006-01-02"
+
+func parseServerlogFile(archivePath string, serverlog ServerlogToParse) error {
 
 	filename := serverlog.SourceFile
 	outputPath := serverlog.OutputFile
@@ -103,10 +107,20 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 	gzipReader.Close()
 	rawReader.Close()
 
+	// Move the original serverlogs to an archive folder
+	archiveOutputPath := filepath.Join(archivePath, time.Now().UTC().Format(archiveDirectoryDateFormatString), filepath.Base(outputPath))
+
+	// create the archive directory
+	archiveFolderPath := filepath.Dir(archiveOutputPath)
+	if err := CreateDirectoryIfNotExists(archiveFolderPath); err != nil {
+		return fmt.Errorf("Error creating archives directory '%s': %v", archiveFolderPath, err)
+	}
+
 	// Remove the now fully parsed serverlogs file
-	log.Printf("[serverlogs] removing temporary '%s'", filename)
-	return nil
-	//return os.Remove(filename)
+	log.Printf("[serverlogs] moving uploaded serverlogs to archives as '%s'", archiveOutputPath)
+
+	// try to move the file there
+	return os.Rename(filename, archiveOutputPath)
 }
 
 var serverlogsCsvHeader []string = []string{

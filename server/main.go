@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/namsral/flag"
 	"github.com/palette-software/insight-server"
 
 	"fmt"
@@ -46,80 +45,35 @@ func main() {
 
 	log.Printf("[boot] Starting palette insight-server %s", insight_server.GetVersion())
 
-	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress string
-	var bindPort int
-
-	// Path setup
-	// ==========
-
-	flag.StringVar(&uploadBasePath, "upload_path",
-		filepath.Join(os.Getenv("TEMP"), "uploads"),
-		"The root directory for the uploads to go into.",
-	)
-	// Since we have to provide defaults to flag before they are parsed
-	// we cannot have paths dependent on one another
-	flag.StringVar(&maxIdDirectory, "maxid_path",
-		filepath.Join(os.Getenv("TEMP"), "uploads", "maxid"),
-		"The root directory for the maxid files to go into.",
-	)
-
-	flag.StringVar(&licensesDirectory, "licenses_path",
-		filepath.Join(getCurrentPath(), "licenses"),
-		"The directory the licenses are loaded from on start.",
-	)
-
-	flag.StringVar(&updatesDirectory, "updates_path",
-		filepath.Join(getCurrentPath(), "updates"),
-		"The directory where the update files for the agent are stored.",
-	)
-
-	flag.IntVar(&bindPort, "port", 9000, "The port the server is binding itself to")
-	flag.StringVar(&bindAddress, "bind_address", "", "The address to bind to. Leave empty for default .")
-
-	// SSL / HTTPS
-	// ===========
-
-	var useTls bool
-	var tlsCert, tlsKey string
-
-	flag.BoolVar(&useTls, "tls", false, "Use TLS for serving through HTTPS.")
-	flag.StringVar(&tlsCert, "cert", "cert.pem", "The TLS certificate file to use when tls is set.")
-	flag.StringVar(&tlsKey, "key", "key.pem", "The TLS certificate key file to use when tls is set.")
-
-	// CONFIG FILE
-	// ===========
-
-	flag.String("config", "", "Configuration file to use.")
-
-	flag.Parse()
+	config := insight_server.ParseOptions()
 
 	// BACKENDS
 	// --------
 
 	// create the uploader
-	uploader, err := insight_server.MakeBasicUploader(filepath.ToSlash(uploadBasePath))
+	uploader, err := insight_server.MakeBasicUploader(filepath.ToSlash(config.UploadBasePath))
 	if err != nil {
 		// log the error and exit
 		log.Fatalf("Error during creating the uploader: %v", err)
 	}
 
 	// create the maxid backend
-	maxIdBackend := insight_server.MakeFileMaxIdBackend(maxIdDirectory)
+	maxIdBackend := insight_server.MakeFileMaxIdBackend(config.MaxIdDirectory)
 
 	// create the authenticator
-	authenticator := insight_server.NewLicenseAuthenticator(licensesDirectory)
+	authenticator := insight_server.NewLicenseAuthenticator(config.LicensesDirectory)
 
 	// create the server logs parser
-	serverlogsParser := insight_server.MakeServerlogParser(16)
+	serverlogsParser := insight_server.MakeServerlogParser(16, config.ServerlogsArchivePath)
 
 	// create the autoupdater backend
-	autoUpdater, err := insight_server.NewBaseAutoUpdater(updatesDirectory)
+	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
 	if err != nil {
 		log.Fatalf("Error during creation of Autoupdater: %v", err)
 	}
 
 	// for now, put the commands file in the updates directory (should be skipped by the updater)
-	commandBackend := insight_server.NewFileCommandsEndpoint(updatesDirectory)
+	commandBackend := insight_server.NewFileCommandsEndpoint(config.UpdatesDirectory)
 
 	// UPLOADER CALLBACKS
 	// ------------------
@@ -187,18 +141,18 @@ func main() {
 	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
 
 	// auto-update distribution: The updates should be publicly accessable
-	log.Printf("[http] Serving static content for updates from: %s", updatesDirectory)
-	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(updatesDirectory))))
+	log.Printf("[http] Serving static content for updates from: %s", config.UpdatesDirectory)
+	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(config.UpdatesDirectory))))
 
 	// STARTING THE SERVER
 	// ===================
 
-	bindAddressWithPort := fmt.Sprintf("%s:%v", bindAddress, bindPort)
+	bindAddressWithPort := fmt.Sprintf("%s:%v", config.BindAddress, config.BindPort)
 	log.Printf("[http] Webservice starting on %v\n", bindAddressWithPort)
 
-	if useTls {
-		log.Printf("[http] Using TLS cert: '%s' and key: '%s'", tlsCert, tlsKey)
-		err := http.ListenAndServeTLS(bindAddressWithPort, tlsCert, tlsKey, nil)
+	if config.UseTls {
+		log.Printf("[http] Using TLS cert: '%s' and key: '%s'", config.TlsCert, config.TlsKey)
+		err := http.ListenAndServeTLS(bindAddressWithPort, config.TlsCert, config.TlsKey, nil)
 		log.Fatal(err)
 	} else {
 		err := http.ListenAndServe(bindAddressWithPort, nil)
