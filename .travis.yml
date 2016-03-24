@@ -32,6 +32,8 @@ before_script:
 
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server
+  # re-compile the server
+  - (cd server && go install)
 
 
 
