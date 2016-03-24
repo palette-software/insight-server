@@ -67,7 +67,7 @@ setsebool httpd_can_network_connect on -P
 # Create the logfile directory for supervisord
 mkdir -p /var/log/palette-insight-server/
 
-# Create the storage directory under '/data'
+# Create the storage directory under /data
 mkdir -p /data/insight-server/licenses
 chown insight:insight -R /data/insight-server
 
@@ -77,7 +77,6 @@ chown insight:insight -R /data/insight-server
 # Start supervisord on server start
 /sbin/chkconfig supervisord on
 
-```
 %postun
 # Dont remove the user
 
