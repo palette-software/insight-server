@@ -108,7 +108,15 @@ func parseServerlogFile(archivePath string, serverlog ServerlogToParse) error {
 	rawReader.Close()
 
 	// Move the original serverlogs to an archive folder
-	archiveOutputPath := filepath.Join(archivePath, time.Now().UTC().Format(archiveDirectoryDateFormatString), filepath.Base(outputPath))
+	// The host of the original file is the directory name of the output path.
+	archiveHost := filepath.Base(filepath.Dir(outputPath))
+	// The archive path structure is: archives/<DATE>/<HOST>/filename
+	archiveOutputPath := filepath.Join(
+		archivePath,
+		time.Now().UTC().Format(archiveDirectoryDateFormatString),
+		archiveHost,
+		filepath.Base(outputPath),
+	)
 
 	// create the archive directory
 	archiveFolderPath := filepath.Dir(archiveOutputPath)
