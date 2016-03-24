@@ -32,8 +32,6 @@ func getCurrentPath() string {
 
 func ParseOptions() InsightWebServiceConfig {
 
-	log.Printf("[boot] Starting palette insight-server %s", GetVersion())
-
 	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress, archivePath string
 	var bindPort int
 

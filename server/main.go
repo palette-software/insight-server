@@ -42,7 +42,6 @@ func main() {
 
 	// setup the log timezone to be UTC (and keep any old flags)
 	log.SetFlags(log.Flags() | log.LUTC)
-
 	log.Printf("[boot] Starting palette insight-server %s", insight_server.GetVersion())
 
 	config := insight_server.ParseOptions()
