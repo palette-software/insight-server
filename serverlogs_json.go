@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -42,16 +41,24 @@ type ServerlogToParse struct {
 	SourceFile, OutputFile, TmpDir, Timezone string
 }
 
-// Creates a new parser that accepts filenames on the channel returned
-func MakeServerlogParser(bufferSize int) chan ServerlogToParse {
+// Creates a new parser that accepts filenames on the channel returned.
+// Any passed files are stored in the directory pointed to by archivePath.
+func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToParse {
 	input := make(chan ServerlogToParse, bufferSize)
 	go func() {
 		for {
+			// Read a file for parsing
 			serverlog := <-input
-			err := parseServerlogFile(serverlog)
-			if err != nil {
+
+			// Try to parse it
+			if err := parseServerlogFile(archivePath, serverlog); err != nil {
 				// log the error but keep on spinning
-				log.Printf("[serverlogs] ERROR: %s", err)
+				log.Printf("[serverlogs] Error during parsing of '%s': %v", serverlog.OutputFile, err)
+			}
+
+			// Move to the archives after parsing
+			if err := moveServerlogsToArchives(archivePath, serverlog.SourceFile, serverlog.OutputFile); err != nil {
+				log.Printf("[serverlogs] Error during moving '%s' to archives: %v", serverlog.SourceFile, err)
 			}
 
 		}
@@ -61,7 +68,40 @@ func MakeServerlogParser(bufferSize int) chan ServerlogToParse {
 
 //////////////////////////////////
 
-func parseServerlogFile(serverlog ServerlogToParse) error {
+// The date format we'll use for creating the subfolders in the archives for the serverlogs
+const archiveDirectoryDateFormatString = "2006-01-02"
+
+// Moves a serverlog (gzipped) file to the archived folder
+func moveServerlogsToArchives(archivePath, filename, outputPath string) error {
+
+	// Move the original serverlogs to an archive folder
+	// The host of the original file is the directory name of the output path.
+	archiveHost := filepath.Base(filepath.Dir(outputPath))
+	// The archive path structure is: archives/<DATE>/<HOST>/filename
+	archiveOutputPath := filepath.Join(
+		archivePath,
+		time.Now().UTC().Format(archiveDirectoryDateFormatString),
+		archiveHost,
+		filepath.Base(outputPath),
+	)
+
+	// create the archive directory
+	archiveFolderPath := filepath.Dir(archiveOutputPath)
+	if err := CreateDirectoryIfNotExists(archiveFolderPath); err != nil {
+		return fmt.Errorf("Error creating archives directory '%s': %v", archiveFolderPath, err)
+	}
+
+	if err := os.Rename(filename, archiveOutputPath); err != nil {
+		return fmt.Errorf("Error while moving '%s' to '%s': %v", filename, archiveOutputPath, err)
+
+	}
+
+	log.Printf("[serverlogs] Moved uploaded serverlogs to archives as '%s'", archiveOutputPath)
+	// try to move the file there
+	return nil
+}
+
+func parseServerlogFile(archivePath string, serverlog ServerlogToParse) (errorOut error) {
 
 	filename := serverlog.SourceFile
 	outputPath := serverlog.OutputFile
@@ -98,15 +138,7 @@ func parseServerlogFile(serverlog ServerlogToParse) error {
 		return fmt.Errorf("Error writing errors CSV: %v", err)
 	}
 
-	// After we are done, remove the original serverlogs file and the gzip
-	// reader on top.
-	gzipReader.Close()
-	rawReader.Close()
-
-	// Remove the now fully parsed serverlogs file
-	log.Printf("[serverlogs] removing temporary '%s'", filename)
 	return nil
-	//return os.Remove(filename)
 }
 
 var serverlogsCsvHeader []string = []string{
@@ -124,13 +156,13 @@ func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputR
 		serverlogRowsAsStr := make([][]string, len(serverlogs))
 		for i, row := range serverlogs {
 			o := &row.Outer
-			serverlogRowsAsStr[i] = []string{
+			// re-escape the output
+			serverlogRowsAsStr[i] = EscapeRowForGreenPlum([]string{
 				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
 				o.Sev, o.Req, o.Sess, o.Site, o.User,
 				o.K,
-				// re-escape the output
-				EscapeGreenPlumCSV(row.Inner),
-			}
+				row.Inner,
+			})
 		}
 		outputFile, err := WriteAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
@@ -147,7 +179,9 @@ func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) er
 		// make csv-compatible output
 		errorRowsAsStr := make([][]string, len(errorRows))
 		for i, row := range errorRows {
-			errorRowsAsStr[i] = []string{row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json)}
+			errorRowsAsStr[i] = EscapeRowForGreenPlum([]string{
+				row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json),
+			})
 		}
 		// write it as csv
 		errorsFile, err := WriteAsCsv(tmpDir, outputPath, "errors_", []string{"error", "hostname", "filename", "line"}, errorRowsAsStr)
@@ -362,12 +396,4 @@ func ParseServerlogsWithFn(r io.Reader, timezoneName string, parserFn RecordPars
 		})
 	}
 
-}
-
-///////////////////////////////////
-
-func hexToDecimal(tidHexa string) (string, error) {
-	decimal, err := strconv.ParseInt(tidHexa, 16, 32)
-	decimalString := strconv.FormatInt(decimal, 10)
-	return decimalString, err
 }
