@@ -122,8 +122,21 @@ func parseServerlogFile(archivePath string, serverlog ServerlogToParse) (errorOu
 		// reader on top.
 		gzipReader.Close()
 		rawReader.Close()
+
 		// re-assign the output
-		errorOut = moveServerlogsToArchives(archivePath, filename, outputPath)
+		err := moveServerlogsToArchives(archivePath, filename, outputPath)
+		// if we have errors in the moving, return those
+		if errorOut == nil && err != nil {
+			errorOut = err
+		}
+		// if we have errors in the move and we had errors in the parse
+		// return a combined error
+		if errorOut != nil && err != nil {
+			errorOut = fmt.Errorf("Error during moving to archives & error during parsing: Parse error: %v || Move error:%v", errorOut, err)
+		}
+
+		// otherwise leave the errorout to be
+
 	}()
 
 	serverlogs, errorRows, err := ParseServerlogs(gzipReader, serverlog.Timezone)
