@@ -47,11 +47,18 @@ func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToPar
 	input := make(chan ServerlogToParse, bufferSize)
 	go func() {
 		for {
+			// Read a file for parsing
 			serverlog := <-input
-			err := parseServerlogFile(archivePath, serverlog)
-			if err != nil {
+
+			// Try to parse it
+			if err := parseServerlogFile(archivePath, serverlog); err != nil {
 				// log the error but keep on spinning
-				log.Printf("[serverlogs] ERROR: %s", err)
+				log.Printf("[serverlogs] Error during parsing of '%s': %v", serverlog.OutputFile, err)
+			}
+
+			// Move to the archives after parsing
+			if err := moveServerlogsToArchives(archivePath, serverlog.SourceFile, serverlog.OutputFile); err != nil {
+				log.Printf("[serverlogs] Error during moving '%s' to archives: %v", serverlog.SourceFile, err)
 			}
 
 		}
@@ -112,30 +119,6 @@ func parseServerlogFile(archivePath string, serverlog ServerlogToParse) (errorOu
 		return err
 	}
 	defer gzipReader.Close()
-
-	// If we have to exit this function, we have to move the serverlog file.
-	// As defered function are executed in a LIFO order, we have to close
-	// the underlying readers before moving the file.
-	defer func() {
-		// Close both readers before moving the file to the archives:
-		gzipReader.Close()
-		rawReader.Close()
-
-		// re-assign the output
-		err := moveServerlogsToArchives(archivePath, filename, outputPath)
-		// if we have errors in the moving, return those
-		if errorOut == nil && err != nil {
-			errorOut = err
-		}
-		// if we have errors in the move and we had errors in the parse
-		// return a combined error
-		if errorOut != nil && err != nil {
-			errorOut = fmt.Errorf("Error during moving to archives & error during parsing: Parse error: %v || Move error:%v", errorOut, err)
-		}
-
-		// otherwise leave the errorout to be
-
-	}()
 
 	serverlogs, errorRows, err := ParseServerlogs(gzipReader, serverlog.Timezone)
 	if err != nil {
