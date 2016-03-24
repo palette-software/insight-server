@@ -210,21 +210,51 @@ Important note: please check in the generated sources into the git tree, because
 
 ### Install
 
-
+These steps assume that the data directory is ```/data``` (as recommended by the Palette Guidelines).
 
 ```bash
+sudo yum install -y  wget
+
+# Add the EPEL Repo (for Nginx and Supervisord)
+wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+sudo rpm -ivh epel-release-7-5.noarch.rpm
+
+
 # Add the repo
 sudo yum-config-manager --add-repo=http://54.88.58.55/redhat/
 
 # Add the following line to the end of
-sudo vi /etc/yum.repos.d/54.88.58.55_redhat_.repo
+sudo vi /etc/yum.repos.d/54.88.58.55_redhat_.repo_
 
 # Add this line (without the comment)
 # gpgcheck=0
 
 
-# Install the server + nginx + supervisord
+# Install the server + nginx + supervisord + certs
 sudo yum install -y palette-insight-server
+
+
+# Configure the setup
+# -------------------
+
+# Create the server directory and the license subdir, so we can put the license there
+sudo mkdir -p /data/insight-server/licenses
+
+
+
+
+# Update configuration with the correct paths
+vim /etc/palette-insight-server/server.config
+
+# Add the license
+sudo vim /data/insight-server/licenses/<LICENSE NEV>.license
+
+# Change the owner
+sudo chown -R insight:insight /data/insight-server
+
+# Start the supervisor & nginx
+sudo service supervisord start
+sudo service nginx start
 
 # Start nginx on server start
 sudo /sbin/chkconfig nginx on
@@ -232,8 +262,6 @@ sudo /sbin/chkconfig nginx on
 # Start supervisord on server start
 sudo /sbin/chkconfig supervisord on
 ```
-
-
 
 
 ### Update
