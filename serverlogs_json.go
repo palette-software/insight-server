@@ -65,7 +65,37 @@ func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToPar
 // The date format we'll use for creating the subfolders in the archives for the serverlogs
 const archiveDirectoryDateFormatString = "2006-01-02"
 
-func parseServerlogFile(archivePath string, serverlog ServerlogToParse) error {
+// Moves a serverlog (gzipped) file to the archived folder
+func moveServerlogsToArchives(archivePath, filename, outputPath string) error {
+
+	// Move the original serverlogs to an archive folder
+	// The host of the original file is the directory name of the output path.
+	archiveHost := filepath.Base(filepath.Dir(outputPath))
+	// The archive path structure is: archives/<DATE>/<HOST>/filename
+	archiveOutputPath := filepath.Join(
+		archivePath,
+		time.Now().UTC().Format(archiveDirectoryDateFormatString),
+		archiveHost,
+		filepath.Base(outputPath),
+	)
+
+	// create the archive directory
+	archiveFolderPath := filepath.Dir(archiveOutputPath)
+	if err := CreateDirectoryIfNotExists(archiveFolderPath); err != nil {
+		return fmt.Errorf("Error creating archives directory '%s': %v", archiveFolderPath, err)
+	}
+
+	if err := os.Rename(filename, archiveOutputPath); err != nil {
+		return fmt.Errorf("Error while moving '%s' to '%s': %v", filename, archiveOutputPath, err)
+
+	}
+
+	log.Printf("[serverlogs] Moved uploaded serverlogs to archives as '%s'", archiveOutputPath)
+	// try to move the file there
+	return nil
+}
+
+func parseServerlogFile(archivePath string, serverlog ServerlogToParse) (errorOut error) {
 
 	filename := serverlog.SourceFile
 	outputPath := serverlog.OutputFile
@@ -83,6 +113,19 @@ func parseServerlogFile(archivePath string, serverlog ServerlogToParse) error {
 		return err
 	}
 	defer gzipReader.Close()
+
+	// If we have to exit this function, we have to move the serverlog file.
+	// As defered function are executed in a LIFO order, we have to close
+	// the underlying readers before moving the file.
+	defer func() {
+		// Close both readers before moving the file to the archives:
+		// After we are done, remove the original serverlogs file and the gzip
+		// reader on top.
+		gzipReader.Close()
+		rawReader.Close()
+		// re-assign the output
+		errorOut = moveServerlogsToArchives(archivePath, filename, outputPath)
+	}()
 
 	serverlogs, errorRows, err := ParseServerlogs(gzipReader, serverlog.Timezone)
 	if err != nil {
@@ -102,33 +145,7 @@ func parseServerlogFile(archivePath string, serverlog ServerlogToParse) error {
 		return fmt.Errorf("Error writing errors CSV: %v", err)
 	}
 
-	// After we are done, remove the original serverlogs file and the gzip
-	// reader on top.
-	gzipReader.Close()
-	rawReader.Close()
-
-	// Move the original serverlogs to an archive folder
-	// The host of the original file is the directory name of the output path.
-	archiveHost := filepath.Base(filepath.Dir(outputPath))
-	// The archive path structure is: archives/<DATE>/<HOST>/filename
-	archiveOutputPath := filepath.Join(
-		archivePath,
-		time.Now().UTC().Format(archiveDirectoryDateFormatString),
-		archiveHost,
-		filepath.Base(outputPath),
-	)
-
-	// create the archive directory
-	archiveFolderPath := filepath.Dir(archiveOutputPath)
-	if err := CreateDirectoryIfNotExists(archiveFolderPath); err != nil {
-		return fmt.Errorf("Error creating archives directory '%s': %v", archiveFolderPath, err)
-	}
-
-	// Remove the now fully parsed serverlogs file
-	log.Printf("[serverlogs] moving uploaded serverlogs to archives as '%s'", archiveOutputPath)
-
-	// try to move the file there
-	return os.Rename(filename, archiveOutputPath)
+	return nil
 }
 
 var serverlogsCsvHeader []string = []string{
