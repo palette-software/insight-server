@@ -118,8 +118,6 @@ func parseServerlogFile(archivePath string, serverlog ServerlogToParse) (errorOu
 	// the underlying readers before moving the file.
 	defer func() {
 		// Close both readers before moving the file to the archives:
-		// After we are done, remove the original serverlogs file and the gzip
-		// reader on top.
 		gzipReader.Close()
 		rawReader.Close()
 
