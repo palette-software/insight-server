@@ -156,13 +156,12 @@ func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputR
 		serverlogRowsAsStr := make([][]string, len(serverlogs))
 		for i, row := range serverlogs {
 			o := &row.Outer
-			// re-escape the output
-			serverlogRowsAsStr[i] = EscapeRowForGreenPlum([]string{
+			serverlogRowsAsStr[i] = []string{
 				row.Filename, row.Hostname, o.Ts, fmt.Sprint(o.Pid), o.Tid,
 				o.Sev, o.Req, o.Sess, o.Site, o.User,
 				o.K,
 				row.Inner,
-			})
+			}
 		}
 		outputFile, err := WriteAsCsv(tmpDir, outputPath, "", serverlogsCsvHeader, serverlogRowsAsStr)
 		if err != nil {
@@ -173,15 +172,16 @@ func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputR
 	return nil
 }
 
+// Writes out the serverlog parse errors file
 func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) error {
 
 	if len(errorRows) > 0 {
 		// make csv-compatible output
 		errorRowsAsStr := make([][]string, len(errorRows))
 		for i, row := range errorRows {
-			errorRowsAsStr[i] = EscapeRowForGreenPlum([]string{
-				row.Error, row.Hostname, row.Filename, EscapeGreenPlumCSV(row.Json),
-			})
+			errorRowsAsStr[i] = []string{
+				row.Error, row.Hostname, row.Filename, row.Json,
+			}
 		}
 		// write it as csv
 		errorsFile, err := WriteAsCsv(tmpDir, outputPath, "errors_", []string{"error", "hostname", "filename", "line"}, errorRowsAsStr)
@@ -213,7 +213,7 @@ func computeMd5ForFile(filePath string) ([]byte, error) {
 	return hash.Sum(result), nil
 }
 
-// Tries to write a bunch of rows as a greenplum-like CSV file (this function does not escape strings)
+// Tries to write a bunch of rows as a greenplum-like CSV file (this function does escapes all strings)
 func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
 	// The temporary output file which we'll move to its destination
 	tmpFile, err := ioutil.TempFile(tmpDir, fmt.Sprintf("serverlogs-%s-output", prefix))
@@ -229,7 +229,22 @@ func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 	// Output the csv
 	csvWriter := MakeCsvWriter(gzipWriter)
 	csvWriter.Write(headers)
-	csvWriter.WriteAll(rows)
+
+	// escape all columns
+	rowsEscaped := make([][]string, len(rows))
+	for i, row := range rows {
+		columns, err := EscapeRowForGreenPlum(row)
+
+		// check for escape errors
+		if err != nil {
+			return "", fmt.Errorf("Error during GreenPlum CSV escape: %v", err)
+
+		}
+		rowsEscaped[i] = columns
+	}
+
+	// write out the escaped rows
+	csvWriter.WriteAll(rowsEscaped)
 
 	// check for errors in flush
 	err = csvWriter.Error()
@@ -283,7 +298,7 @@ func ParseOuterJson(logRow string, sourceTimezone *time.Location) (*ServerlogOut
 	outerJson := ServerlogOuterJson{}
 	err := json.NewDecoder(strings.NewReader(logRow)).Decode(&outerJson)
 	if err != nil {
-		return nil, nil, fmt.Errorf("JSON parse error: %v", err)
+		return nil, nil, fmt.Errorf("JSON parse error in '%s': %v", logRow, err)
 	}
 
 	// convert the tid
@@ -373,10 +388,26 @@ func ParseServerlogsWithFn(r io.Reader, timezoneName string, parserFn RecordPars
 			continue
 		}
 
-		outerJson, innerStr, err := ParseOuterJson(UnescapeGreenPlumCSV(logRow), sourceTimezone)
+		// try to un-escape the csv
+		unescapedRow, err := UnescapeGPCsvString(logRow)
+		if err != nil {
+			log.Println("[serverlogs.json] Error while unescaping serverlog row: %v ", err)
+			// put this row into the problematic ones
+			errorRows = append(errorRows, ErrorRow{
+				Json:     logRow,
+				Hostname: hostName,
+				Filename: fileName,
+				Error:    fmt.Sprintf("%v", err),
+			})
+			// skip this row from processing
+			continue
+		}
+
+		// parse the unescaped row
+		outerJson, innerStr, err := ParseOuterJson(unescapedRow, sourceTimezone)
 		if err != nil {
 
-			log.Println("[serverlogs.json] Error while parsing serverlog row: %v ", err)
+			log.Printf("[serverlogs.json] Error while parsing serverlog row: %v ", err)
 			// put this row into the problematic ones
 			errorRows = append(errorRows, ErrorRow{
 				Json:     logRow,

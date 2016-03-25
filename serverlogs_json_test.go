@@ -22,7 +22,7 @@ func assertInt(t *testing.T, a, b int, msg string) {
 
 func assertString(t *testing.T, a, b string, msg string) {
 	if a != b {
-		t.Fatalf("%s: %v vs %v", msg, a, b)
+		t.Fatalf("%s:\n\tExpected:'%s'\n\tActual:  '%s'", msg, a, b)
 	}
 }
 

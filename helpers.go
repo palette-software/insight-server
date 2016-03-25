@@ -3,6 +3,7 @@ package insight_server
 //go:generate go-bindata -pkg $GOPACKAGE -o assets.go assets/
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/csv"
 	"fmt"
@@ -257,39 +258,18 @@ func MakeCsvWriter(w io.Writer) *csv.Writer {
 	return writer
 }
 
-// Unescapes the greenplum-like escaping
-// original C# code:
-//
-// escpe the backslash first
-//.Replace("\\", "\\\\")
-//.Replace("\r", "\\015")
-//.Replace("\n", "\\012")
-//.Replace("\0", "")
-//.Replace("\v", "\\013");
-func UnescapeGreenPlumCSV(logRow string) string {
-	logRow = strings.Replace(logRow, "\\013", "\v", -1)
-	logRow = strings.Replace(logRow, "\\012", "\n", -1)
-	logRow = strings.Replace(logRow, "\\015", "\r", -1)
-	logRow = strings.Replace(logRow, "\\\\", "\\", -1)
-	return logRow
-}
-
-func EscapeGreenPlumCSV(logRow string) string {
-	logRow = strings.Replace(logRow, "\\", "\\\\", -1)
-	logRow = strings.Replace(logRow, "\r", "\\015", -1)
-	logRow = strings.Replace(logRow, "\n", "\\012", -1)
-	logRow = strings.Replace(logRow, "\v", "\\013", -1)
-	return logRow
-}
-
 // Escapes all strings in a slice for greenplum
-func EscapeRowForGreenPlum(row []string) []string {
+func EscapeRowForGreenPlum(row []string) ([]string, error) {
 	output := make([]string, len(row))
 	// Escape each column
 	for i, column := range row {
-		output[i] = EscapeGreenPlumCSV(column)
+		outputStr, err := EscapeGPCsvString(column)
+		if err != nil {
+			return nil, err
+		}
+		output[i] = outputStr
 	}
-	return output
+	return output, nil
 }
 
 ///////////////////////////////////
@@ -298,4 +278,145 @@ func hexToDecimal(tidHexa string) (string, error) {
 	decimal, err := strconv.ParseInt(tidHexa, 16, 32)
 	decimalString := strconv.FormatInt(decimal, 10)
 	return decimalString, err
+}
+
+const (
+	backslash   = '\\'
+	octalPrefix = '0'
+
+	escapeStateNormal = 0
+	// when we are in after a normal backslash
+	escapeStateBackslashed = 1
+)
+
+///////////////////////////////////
+
+// Unescapes a string escaped for greenplum CSV in a linear fashion
+// This version keeps a state, so unescapes should be safe even for octal codes.
+func UnescapeGPCsvString(field string) (string, error) {
+	r := strings.NewReader(field)
+	w := bytes.NewBuffer([]byte{})
+
+	b := make([]byte, 1)
+	octalBuffer := []byte{0, 0}
+	state := escapeStateNormal
+
+	for {
+		_, err := r.Read(b)
+
+		// if end of string, return the built string
+		if err == io.EOF {
+			return string(w.Bytes()), nil
+		}
+
+		// otherwise return the error
+		if err != nil {
+			return "", err
+		}
+
+		char := b[0]
+
+		switch state {
+
+		// if we arent escaped, write the character to the normal buffer
+		case escapeStateNormal:
+			if char == backslash {
+				state = escapeStateBackslashed
+			} else {
+				w.WriteByte(b[0])
+			}
+
+		case escapeStateBackslashed:
+			// move the state back after this read
+			state = escapeStateNormal
+			switch char {
+
+			// if its a backslash, write it out
+			case backslash:
+				w.WriteByte(backslash)
+
+			// TODO: are these cases necessary? They work OK, but are they already be handled by the CSV reader
+			case 'n':
+				w.WriteByte('\n')
+			case 'r':
+				w.WriteByte('\r')
+			case 't':
+				w.WriteByte('\t')
+			case 'v':
+				w.WriteByte('\v')
+			case 'b':
+				w.WriteByte('\b')
+			case 'f':
+				w.WriteByte('\f')
+
+			// if its the octal prefix, move to octal mode
+			case octalPrefix:
+
+				// try to read two bytes for octal
+				bytesRead, err := r.Read(octalBuffer)
+				if err != nil {
+					return "", fmt.Errorf("Error while reading octal escape sequence from '%s': %v", field, err)
+				}
+				if bytesRead != 2 {
+					return "", fmt.Errorf("Premature end of string '%s' during octal escape.", field)
+				}
+
+				// parse the octal code
+				charCode, err := strconv.ParseInt(string(octalBuffer), 8, 8)
+				if err != nil {
+					return "", fmt.Errorf("Error while parsing octal escape '%s': %v", octalBuffer, err)
+				}
+
+				w.WriteByte(byte(charCode))
+
+				state = escapeStateNormal
+
+			default:
+				return "", fmt.Errorf("Invalid backslashed character in '%s' @ %d: %d", field, r.Len(), char)
+			}
+
+		}
+
+	}
+
+	return "", fmt.Errorf("Unreachable code reached.")
+}
+
+// Escapes a string escaped for greenplum CSV in a linear fashion
+func EscapeGPCsvString(field string) (string, error) {
+	r := strings.NewReader(field)
+	w := bytes.NewBuffer([]byte{})
+	b := make([]byte, 1)
+
+	for {
+		_, err := r.Read(b)
+
+		// if end of string, return the built string
+		if err == io.EOF {
+			return string(w.Bytes()), nil
+		}
+
+		// otherwise return the error (this should never be called, but who knows...)
+		if err != nil {
+			return "", err
+		}
+
+		char := b[0]
+
+		switch char {
+		case '\r':
+			w.WriteString("\\015")
+		case '\n':
+			w.WriteString("\\012")
+		case '\\':
+			w.WriteString("\\\\")
+		case '\v':
+			w.WriteString("\\013")
+		default:
+			w.WriteByte(char)
+		}
+
+	}
+
+	return "", fmt.Errorf("Unreachable code reached.")
 }
