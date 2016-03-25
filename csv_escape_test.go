@@ -28,10 +28,6 @@ var expectedCsvUnescapeResults = map[string]string{
 func TestCsvUnEscape(t *testing.T) {
 	for src, expected := range expectedCsvUnescapeResults {
 		unescapedStr, err := UnescapeGPCsvString(src)
-		//oldUnescapedStr := UnescapeGreenPlumCSVOld(src)
-		//if unescapedStr != oldUnescapedStr {
-		//	log.Printf("\nDifference in unescape formats:\n\tOld:'%s'\n\tNew:'%s'", oldUnescapedStr, unescapedStr)
-		//}
 		if err != nil {
 			panic(err)
 		}
@@ -66,10 +62,6 @@ var expectedCsvEscapeResults = map[string]string{
 func TestCsvEscape(t *testing.T) {
 	for src, expected := range expectedCsvEscapeResults {
 		escapedStr, err := EscapeGPCsvString(src)
-		//oldEscapedStr := EscapeGreenPlumCSV(src)
-		//if escapedStr != oldEscapedStr {
-		//	log.Printf("\nDifference in escape formats:\n\tOld:'%s'\n\tNew:'%s'", oldEscapedStr, escapedStr)
-		//}
 		if err != nil {
 			panic(err)
 		}

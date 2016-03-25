@@ -257,31 +257,6 @@ func MakeCsvWriter(w io.Writer) *csv.Writer {
 	return writer
 }
 
-// Unescapes the greenplum-like escaping. These functions are unsafe
-// original C# code:
-//
-// escpe the backslash first
-//.Replace("\\", "\\\\")
-//.Replace("\r", "\\015")
-//.Replace("\n", "\\012")
-//.Replace("\0", "")
-//.Replace("\v", "\\013");
-func UnescapeGreenPlumCSVOld(logRow string) string {
-	logRow = strings.Replace(logRow, "\\013", "\v", -1)
-	logRow = strings.Replace(logRow, "\\012", "\n", -1)
-	logRow = strings.Replace(logRow, "\\015", "\r", -1)
-	logRow = strings.Replace(logRow, "\\\\", "\\", -1)
-	return logRow
-}
-
-func EscapeGreenPlumCSVOld(logRow string) string {
-	logRow = strings.Replace(logRow, "\\", "\\\\", -1)
-	logRow = strings.Replace(logRow, "\r", "\\015", -1)
-	logRow = strings.Replace(logRow, "\n", "\\012", -1)
-	logRow = strings.Replace(logRow, "\v", "\\013", -1)
-	return logRow
-}
-
 // Escapes all strings in a slice for greenplum
 func EscapeRowForGreenPlum(row []string) ([]string, error) {
 	output := make([]string, len(row))
@@ -359,6 +334,7 @@ func UnescapeGPCsvString(field string) (string, error) {
 			case backslash:
 				w.WriteByte(backslash)
 
+			// TODO: are these cases necessary? They work OK, but are they already be handled by the CSV reader
 			case 'n':
 				w.WriteByte('\n')
 			case 'r':
