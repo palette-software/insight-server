@@ -251,8 +251,8 @@ func MakeCsvReader(r io.Reader) *csv.Reader {
 	return reader
 }
 
-func MakeCsvWriter(w io.Writer) *csv.Writer {
-	writer := csv.NewWriter(w)
+func MakeCsvWriter(w io.Writer) *GpCsvWriter {
+	writer := NewGpCsvWriter(w)
 	writer.Comma = '\v'
 	writer.UseCRLF = true
 	return writer
