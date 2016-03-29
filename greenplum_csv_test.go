@@ -2,7 +2,6 @@ package insight_server
 
 import (
 	"bytes"
-	"log"
 	"strings"
 	"testing"
 )
@@ -29,8 +28,6 @@ func TestGreenplumQuotes(t *testing.T) {
 		s := strings.TrimRight(string(b.Bytes()), " \n\r")
 
 		w.Flush()
-
-		log.Printf(" %v -> '%s'", test.row, s)
 
 		assertString(t, test.output, s, "mismatch")
 	}

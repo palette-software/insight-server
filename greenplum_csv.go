@@ -28,10 +28,12 @@ type GpCsvWriter struct {
 	Comma   rune // Field delimiter (set to ',' by NewWriter)
 	UseCRLF bool // True to use \r\n as the line terminator
 
+	// NOTE: Fields added by starschema
 	// The character sequence to output when seeing a quote in a field
 	QuoteEscaped string
 	ForceQuotes  bool
-	w            *bufio.Writer
+
+	w *bufio.Writer
 }
 
 // NewWriter returns a new Writer that writes to w.
@@ -62,6 +64,7 @@ func (w *GpCsvWriter) Write(record []string) (err error) {
 			}
 			continue
 		}
+		// NOTE: forceQuotes check is added by starschema
 		if w.ForceQuotes {
 			if err = w.w.WriteByte('"'); err != nil {
 				return
@@ -71,6 +74,7 @@ func (w *GpCsvWriter) Write(record []string) (err error) {
 		for _, r1 := range field {
 			switch r1 {
 			case '"':
+				// NOTE: QuoteEscapeds is added by starschema
 				_, err = w.w.WriteString(w.QuoteEscaped)
 			case '\r':
 				if !w.UseCRLF {
@@ -90,6 +94,7 @@ func (w *GpCsvWriter) Write(record []string) (err error) {
 			}
 		}
 
+		// NOTE: forceQuotes check is added by starschema
 		if w.ForceQuotes {
 			if err = w.w.WriteByte('"'); err != nil {
 				return
