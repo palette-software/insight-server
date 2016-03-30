@@ -2,7 +2,7 @@ package insight_server
 
 import (
 	"bytes"
-	"strings"
+	"fmt"
 	"testing"
 )
 
@@ -24,11 +24,8 @@ func TestGreenplumQuotes(t *testing.T) {
 
 		w.WriteAll([][]string{test.row})
 
-		// remove the ending line breaks
-		s := strings.TrimRight(string(b.Bytes()), " \n\r")
-
 		w.Flush()
 
-		assertString(t, test.output, s, "mismatch")
+		assertString(t, fmt.Sprint(test.output, "\r\n"), string(b.Bytes()), "mismatch")
 	}
 }
