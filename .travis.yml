@@ -51,7 +51,7 @@ before_deploy:
   - echo "BUILDING VERSION:$VERSION"
 
   # build the rpm
-  - rpmbuild -bb --buildroot $(pwd) --define "version $VERSION" --define "buildepoch $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
+  - rpmbuild -bb --buildroot $(pwd) --define "version $VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
   - cd ..
   - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/server
 

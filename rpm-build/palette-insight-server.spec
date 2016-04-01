@@ -30,8 +30,8 @@
 
 Name: palette-insight-server
 Version: %version
-Epoch: %buildepoch
-Release: 1
+Epoch: 1
+Release: %buildrelease
 Summary: Palette Insight Server
 AutoReqProv: no
 # Seems specifying BuildRoot is required on older rpmbuild (like on CentOS 5)
