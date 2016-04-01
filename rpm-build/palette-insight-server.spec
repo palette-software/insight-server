@@ -30,7 +30,7 @@
 
 Name: palette-insight-server
 Version: %version
-Epoch: 1
+Epoch: %buildepoch
 Release: 1
 Summary: Palette Insight Server
 AutoReqProv: no
