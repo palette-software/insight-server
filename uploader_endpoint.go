@@ -333,7 +333,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 	})
 
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while saving uploaded file: %v", err))
+		writeResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while saving uploaded file: %v", err))
 		return
 	}
 
@@ -377,6 +377,7 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 			Basedir:    uploader.TempDirectory(),
 			Timezone:   timezoneName,
 		})
+
 	if err != nil {
 		writeResponse(w, http.StatusInternalServerError, "Error in upload callbacks")
 		return
