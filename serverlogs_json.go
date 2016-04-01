@@ -45,6 +45,7 @@ type ServerlogToParse struct {
 // Any passed files are stored in the directory pointed to by archivePath.
 func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToParse {
 	input := make(chan ServerlogToParse, bufferSize)
+	log.Printf("[serverlogs] Using %d buffer slots on input channel", bufferSize)
 	go func() {
 		for {
 			// Read a file for parsing

@@ -63,7 +63,7 @@ func main() {
 	authenticator := insight_server.NewLicenseAuthenticator(config.LicensesDirectory)
 
 	// create the server logs parser
-	serverlogsParser := insight_server.MakeServerlogParser(16, config.ServerlogsArchivePath)
+	serverlogsParser := insight_server.MakeServerlogParser(256, config.ServerlogsArchivePath)
 
 	// create the autoupdater backend
 	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
