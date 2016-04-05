@@ -45,7 +45,7 @@ type ServerlogToParse struct {
 // Any passed files are stored in the directory pointed to by archivePath.
 func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToParse {
 	input := make(chan ServerlogToParse, bufferSize)
-	log.Printf("[serverlogs] Using %d buffer slots on input channel", bufferSize)
+	log.Printf("[serverlogs.json] Using %d buffer slots on input channel", bufferSize)
 	go func() {
 		for {
 			// Read a file for parsing
@@ -54,12 +54,12 @@ func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToPar
 			// Try to parse it
 			if err := parseServerlogFile(archivePath, serverlog); err != nil {
 				// log the error but keep on spinning
-				log.Printf("[serverlogs] Error during parsing of '%s': %v", serverlog.OutputFile, err)
+				log.Printf("[serverlogs.json] Error during parsing of '%s': %v", serverlog.OutputFile, err)
 			}
 
 			// Move to the archives after parsing
 			if err := moveServerlogsToArchives(archivePath, serverlog.SourceFile, serverlog.OutputFile); err != nil {
-				log.Printf("[serverlogs] Error during moving '%s' to archives: %v", serverlog.SourceFile, err)
+				log.Printf("[serverlogs.json] Error during moving '%s' to archives: %v", serverlog.SourceFile, err)
 			}
 
 		}
@@ -97,7 +97,7 @@ func moveServerlogsToArchives(archivePath, filename, outputPath string) error {
 
 	}
 
-	log.Printf("[serverlogs] Moved uploaded serverlogs to archives as '%s'", archiveOutputPath)
+	log.Printf("[serverlogs.json] Moved uploaded serverlogs to archives as '%s'", archiveOutputPath)
 	// try to move the file there
 	return nil
 }
@@ -126,7 +126,7 @@ func parseServerlogFile(archivePath string, serverlog ServerlogToParse) (errorOu
 		return err
 	}
 
-	log.Printf("[serverlogs] Parsed %d lines with %d error lines from '%s'", len(serverlogs), len(errorRows), filename)
+	log.Printf("[serverlogs.json] Parsed %d lines with %d error lines from '%s'", len(serverlogs), len(errorRows), filename)
 
 	tmpDir := serverlog.TmpDir
 
@@ -168,7 +168,7 @@ func WriteServerlogsCsv(tmpDir, outputPath string, serverlogs []ServerlogOutputR
 		if err != nil {
 			return err
 		}
-		log.Printf("[serverlogs] written pre-parsed serverlogs to: '%s'", outputFile)
+		log.Printf("[serverlogs.json] written pre-parsed serverlogs to: '%s'", outputFile)
 	}
 	return nil
 }
@@ -189,7 +189,7 @@ func WriteServerlogErrorsCsv(tmpDir, outputPath string, errorRows []ErrorRow) er
 		if err != nil {
 			return err
 		}
-		log.Printf("[serverlogs] written pre-parsed serverlog error to: '%s'", errorsFile)
+		log.Printf("[serverlogs.json] written pre-parsed serverlog error to: '%s'", errorsFile)
 	}
 	return nil
 }
@@ -264,10 +264,10 @@ func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]stri
 	outputMd5, err := computeMd5ForFile(tempFilePath)
 	if err != nil {
 		// save the file even if the md5 is crap
-		log.Printf("[serverlogs] error while computing md5 of csv '%s': %v", tmpFile.Name(), err)
+		log.Printf("[serverlogs.json] error while computing md5 of csv '%s': %v", tmpFile.Name(), err)
 		// generate 32 bytes of bullshit as md5
 		outputMd5 = RandStringBytesMaskImprSrc(32)
-		log.Printf("[serverlogs] using '%s' instead of md5", string(outputMd5))
+		log.Printf("[serverlogs.json] using '%s' instead of md5", string(outputMd5))
 	}
 
 	// generate the output path of the file

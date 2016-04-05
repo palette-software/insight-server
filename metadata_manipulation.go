@@ -22,7 +22,7 @@ type metaColumn struct {
 }
 
 var serverlogsTable metaTable = metaTable{
-	"public", "serverlogs",
+	"public", "jsonlogs",
 }
 
 var serverlogsErrorTable metaTable = metaTable{

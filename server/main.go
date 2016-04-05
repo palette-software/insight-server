@@ -77,16 +77,18 @@ func main() {
 	// UPLOADER CALLBACKS
 	// ------------------
 
+	// add a json-parser callback
 	uploader.AddCallback(&insight_server.UploadCallback{
 		Name:     "Serverlogs parsing",
 		Pkg:      regexp.MustCompile(""),
-		Filename: regexp.MustCompile("^serverlogs-"),
+		Filename: regexp.MustCompile("^jsonlogs-"),
 		Handler: func(c *insight_server.UploadCallbackCtx) error {
 			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile, c.Basedir, c.Timezone}
 			return nil
 		},
 	})
 
+	// add a metadata updater callback
 	uploader.AddCallback(&insight_server.UploadCallback{
 		Name:     "Serverlogs metadata addition",
 		Pkg:      regexp.MustCompile(""),
