@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/palette-software/insight-server.svg?token=qWG5FJDvsjLrsJpXgxSJ&branch=master)](https://travis-ci.com/palette-software/insight-server)
+
 # Palette Insight Webservice
 
 ## Starting the webservice
