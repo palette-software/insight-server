@@ -55,6 +55,12 @@ type uploadRequest struct {
 
 type UploadCallbackCtx struct {
 	SourceFile, OutputDir, OutputFile, Basedir, Timezone string
+
+	// The name of the file as it was uploaded
+	OriginalFileName string
+
+	// The host that uploaded this file
+	Host string
 }
 
 type UploadCallbackFn func(ctx *UploadCallbackCtx) error
@@ -376,6 +382,10 @@ func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, u
 			OutputFile: uploadedFile.TargetPath,
 			Basedir:    uploader.TempDirectory(),
 			Timezone:   timezoneName,
+
+			// add some source information
+			OriginalFileName: fileName,
+			Host:             sourceHost,
 		})
 
 	if err != nil {

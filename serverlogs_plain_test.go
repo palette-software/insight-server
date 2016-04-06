@@ -17,7 +17,7 @@ const plainTextTestLines = `2016-04-02 23:57:38.215 (15992): logfile_rotation: o
 2016-04-02 23:57:44.216 (7136): tdeserver: accepting new connection`
 
 func TestPlainServerlogParse(t *testing.T) {
-	parsed, errors, err := parseServerlog(&PlainServerlogsInput{
+	parsed, errors, err := parsePlainServerlog(&PlainServerlogsInput{
 		Source: PlainServerlogsSource{
 			Host:     "Miles-PC",
 			Filename: "tdeserver0_2016_04_02_23_57_38.log",

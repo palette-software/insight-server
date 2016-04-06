@@ -39,11 +39,14 @@ type ErrorRow struct {
 
 type ServerlogToParse struct {
 	SourceFile, OutputFile, TmpDir, Timezone string
+
+	OriginalFileName string
+	Host             string
 }
 
 // Creates a new parser that accepts filenames on the channel returned.
 // Any passed files are stored in the directory pointed to by archivePath.
-func MakeServerlogParser(bufferSize int, archivePath string) chan ServerlogToParse {
+func MakeJsonServerlogParser(bufferSize int, archivePath string) chan ServerlogToParse {
 	input := make(chan ServerlogToParse, bufferSize)
 	log.Printf("[serverlogs.json] Using %d buffer slots on input channel", bufferSize)
 	go func() {
@@ -97,7 +100,7 @@ func moveServerlogsToArchives(archivePath, filename, outputPath string) error {
 
 	}
 
-	log.Printf("[serverlogs.json] Moved uploaded serverlogs to archives as '%s'", archiveOutputPath)
+	log.Printf("[serverlogs] Moved uploaded serverlogs to archives as '%s'", archiveOutputPath)
 	// try to move the file there
 	return nil
 }
@@ -216,6 +219,10 @@ func computeMd5ForFile(filePath string) ([]byte, error) {
 
 // Tries to write a bunch of rows as a greenplum-like CSV file (this function does escapes all strings)
 func WriteAsCsv(tmpDir, filename, prefix string, headers []string, rows [][]string) (string, error) {
+	if len(rows) == 0 {
+		return "", nil
+	}
+
 	// The temporary output file which we'll move to its destination
 	tmpFile, err := ioutil.TempFile(tmpDir, fmt.Sprintf("serverlogs-%s-output", prefix))
 	if err != nil {
