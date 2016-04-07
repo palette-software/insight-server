@@ -1,7 +1,6 @@
 package insight_server
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -10,7 +9,6 @@ import (
 
 	"io"
 	"mime/multipart"
-	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -78,374 +76,15 @@ const (
 	OUTPUT_DEFAULT_DIRMODE = 0755
 )
 
-// A single file that was sent to us by the client
-type UploadedFile struct {
-	// The file name this client has sent us
-	Filename string
-
-	// The path where the server has stored this file
-	UploadedPath string
-
-	// The path where the output should go
-	TargetPath string
-
-	// The md5 of the file
-	Md5 []byte
-}
-
-// Parameters for an upload request
-type uploadRequest struct {
-	sourceHost string
-	username   string
-	pkg        string
-	filename   string
-	timezone   string
-
-	requestTime time.Time
-	reader      io.Reader
-}
-
-type UploadCallbackCtx struct {
-	SourceFile, OutputDir, OutputFile, Basedir, Timezone string
-
-	// The name of the file as it was uploaded
-	OriginalFileName string
-
-	// The host that uploaded this file
-	Host string
-}
-
-type UploadCallbackFn func(ctx *UploadCallbackCtx) error
-type UploadCallback struct {
-	Name          string
-	Pkg, Filename *regexp.Regexp
-	Handler       UploadCallbackFn
-}
-
-// A generic interface implementing the saving of a file
-type Uploader interface {
-	SaveFile(req *uploadRequest) (*UploadedFile, error)
-
-	// returns the temporary directory path to use for storing files
-	TempDirectory() string
-
-	// Registers a callback that gets called with the uploaded filename if
-	// both packageRegexp matches the package and filenameRegexp matches the
-	// filename
-	AddCallback(callback *UploadCallback)
-
-	ApplyCallbacks(pkg, filename string, ctx *UploadCallbackCtx) error
-}
-
-// IMPLEMENTATIONS
-// ===============
-
-type basicUploader struct {
-	// The directory where the files are uploaded
-	baseDir string
-
-	callbacks []*UploadCallback
-}
-
-// Creates a basic uploader
-func MakeBasicUploader(basePath string) (Uploader, error) {
-	log.Printf("[uploader] Using path '%v' for upload root", basePath)
-
-	// create the uploader
-	uploader := &basicUploader{
-		baseDir:   basePath,
-		callbacks: []*UploadCallback{},
-	}
-
-	// create the temp directory
-	tmpDir := uploader.TempDirectory()
-	if err := CreateDirectoryIfNotExists(tmpDir); err != nil {
-		return nil, fmt.Errorf("Error creating temporary directory '%s': %v", tmpDir, err)
-	}
-
-	return uploader, nil
-}
-
-// Returns the temp directory to use for storing transient files.
-// This should be on the same device as the final destination
-func (u *basicUploader) TempDirectory() string {
-	return path.Join(u.baseDir, "_temp")
-}
-
-// Gets the file path inside the upload directory
-func (u *basicUploader) getUploadPathForFile(req *uploadRequest, fileHash []byte) string {
-	// the file name gets the timestamp appended (only time)
-	fileTimestamp := req.requestTime.Format("15-04--05-00")
-
-	filename := req.filename
-	fileExt := path.Ext(filename)
-	// get the extension and basename
-	fullFileName := fmt.Sprintf("%v-%v-%032x.%v",
-		SanitizeName(filename),
-		fileTimestamp,
-		fileHash,
-		// remove the '.' from the file extension
-		SanitizeName(fileExt[1:]),
-	)
-
-	return filepath.ToSlash(path.Join(
-		u.baseDir,
-		SanitizeName(req.username),
-		"uploads",
-		req.pkg,
-		req.sourceHost,
-		// the folder name is only the date
-		// TODO: this may be necessary later
-		//req.requestTime.Format("2006-01-02"),
-		fullFileName,
-	))
-}
-
-// Central function tries to create a new uploaded file.
-// The purpose of this method is to provide a unified upload capability.
-func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
-
-	// get the table name
-	tableName, seqIdx, partIdx, err := getTableInfoFromFilename(req.filename)
-	if err != nil {
-		return nil, err
-	}
-
-	// build the upload metadata
-	meta := &UploadMeta{
-		Pkg:       req.pkg,
-		Host:      req.sourceHost,
-		TableName: tableName,
-
-		Date:    req.requestTime,
-		SeqIdx:  seqIdx,
-		PartIdx: partIdx,
-	}
-
-	// Get a gzipped writer for the file
-	tmpOutputFile, err := meta.GetOutputGzippedWriter(u.baseDir, u.TempDirectory())
-	if err != nil {
-		return nil, fmt.Errorf("Error opening Gzipped output writer for %s: %v", req.filename, err)
-	}
-
-	// write the data to the temp file (and hash in the meantime)
-	bytesWritten, err := io.Copy(tmpOutputFile, req.reader)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("[upload] written %d bytes to", bytesWritten)
-
-	//// create the hasher that will hash the contents during the write
-	//md5Hasher := makeMd5Hasher(req.reader)
-	//// The prefix for the temporary file name. Useful
-	//// if we want to re-processed unprocessed files that
-	//// are stuck in the temporary directory because of an error.
-	//tmpFilePrefix := fmt.Sprintf("uploaded---%s---", req.filename)
-	//
-	//// create a temp file to move the bytes to (we do not yet know the hash of the file)
-	//tmpFile, err := ioutil.TempFile(u.TempDirectory(), tmpFilePrefix)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer tmpFile.Close()
-	//
-	//// Create a gzip writer to write a compressed output
-	//gzipWriter := gzip.NewWriter(tmpFile)
-	//defer gzipWriter.Close()
-	//
-	//// write the data to the temp file (and hash in the meantime)
-	//bytesWritten, err := io.Copy(gzipWriter, md5Hasher.Reader)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//log.Printf("[upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
-	//
-	//fileHash := md5Hasher.GetHash()
-	//
-	//// generate the output file name, and mark that its a gzipped one
-	//outputPath := fmt.Sprintf("%s.gz", u.getUploadPathForFile(req, fileHash))
-	//
-	//// create the directory of the uploaded file
-	//if err := CreateDirectoryIfNotExists(filepath.Dir(outputPath)); err != nil {
-	//	return nil, err
-	//}
-	//
-	//// Get the temp file name before closing it
-	//tempFilePath := tmpFile.Name()
-	//
-	//// close the temp file, so writes get flushed
-	//gzipWriter.Close()
-	//tmpFile.Close()
-
-	return nil, nil
-	//return &UploadedFile{
-	//	Filename:     req.filename,
-	//	UploadedPath: tmpOutputFile.tempFilePath,
-	//	TargetPath:   outputPath,
-	//	Md5:          fileHash,
-	//}, nil
-}
-
-func (u *basicUploader) AddCallback(c *UploadCallback) {
-	u.callbacks = append(u.callbacks, c)
-}
-
-// Applies callbacks after a file is uploaded succesfully
-func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallbackCtx) error {
-
-	// function that wraps invoking the handler
-	invokeHandler := func(name string, handler UploadCallbackFn) error {
-		log.Printf("[uploader.callbacks] Invoking callback: %s ", name)
-		err := handler(ctx)
-		if err != nil {
-			log.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s -- %v", name, pkg, filename, err)
-			return err
-		}
-		return nil
-	}
-
-	// if we have this handled
-	handled := false
-
-	// try each added handler
-	for _, callback := range u.callbacks {
-		if callback.Pkg.MatchString(pkg) && callback.Filename.MatchString(filename) {
-			err := invokeHandler(callback.Name, callback.Handler)
-			if err != nil {
-				return err
-			}
-			handled = true
-		}
-	}
-
-	// fallback handler
-	if !handled {
-		err := invokeHandler("move", MoveHandler)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// UPLOAD HANDLING
-// ===============
-
-// provides an actual implementation of the upload functionnality
-func uploadHandlerInner(w http.ResponseWriter, req *http.Request, tenant User, uploader Uploader, maxidbackend MaxIdBackend) {
-
-	// parse the multipart form
-	err := req.ParseMultipartForm(multipartMaxSize)
-	if err != nil {
-		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot parse multipart form: %v", err))
-		return
-	}
-
-	// get the params
-	urlParams, err := getUrlParams(req.URL, "pkg", "host", "tz")
-	if err != nil {
-		writeResponse(w, http.StatusBadRequest, fmt.Sprint(err))
-	}
-
-	pkg, sourceHost, timezoneName := urlParams[0], urlParams[1], urlParams[2]
-
-	// get the actual file
-	mainFile, fileName, err := getMultipartFile(req.MultipartForm, "_file")
-	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "Cannot find the field '_file' in the upload request")
-		return
-	}
-	defer mainFile.Close()
-
-	requestTime := time.Now()
-
-	uploadedFile, err := uploader.SaveFile(&uploadRequest{
-		sourceHost:  sourceHost,
-		username:    tenant.GetUsername(),
-		pkg:         pkg,
-		filename:    fileName,
-		requestTime: requestTime,
-		reader:      mainFile,
-		timezone:    timezoneName,
-	})
-
-	if err != nil {
-		writeResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while saving uploaded file: %v", err))
-		return
-	}
-
-	// Compare the md5 with the sent one
-	// ---------------------------------
-
-	// check the md5
-	md5Fields := req.MultipartForm.Value["_md5"]
-	if len(md5Fields) != 1 {
-		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Only one instance of the '_md5' field allowed in the request, got: %v", len(md5Fields)))
-		return
-	}
-
-	fileMd5, err := base64.StdEncoding.DecodeString(md5Fields[0])
-	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "Cannot Base64 decode the submitted MD5")
-		return
-	}
-
-	// compare the md5
-	if !bytes.Equal(fileMd5, uploadedFile.Md5) {
-		writeResponse(w, http.StatusConflict, "CONFLICT: Md5 Error")
-		return
-	}
-
-	// Save the maxid if needed
-	// ------------------------
-
-	// get the maxid if any
-	maxid, err := getUrlParam(req.URL, "maxid")
-	if err == nil {
-		tableName, tnError := getTableNameFromFilename(fileName)
-		if tnError != nil {
-			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("%v", err))
-			return
-		}
-		// if we have the maxid parameter, save it
-		maxidbackend.SaveMaxId(tenant.GetUsername(), tableName, maxid)
-	}
-
-	// Apply the callbacks
-
-	// apply any callbacks
-	err = uploader.ApplyCallbacks(pkg, fileName,
-		&UploadCallbackCtx{
-			SourceFile: uploadedFile.UploadedPath,
-			OutputDir:  filepath.Dir(uploadedFile.TargetPath),
-			OutputFile: uploadedFile.TargetPath,
-			Basedir:    uploader.TempDirectory(),
-			Timezone:   timezoneName,
-
-			// add some source information
-			OriginalFileName: fileName,
-			Host:             sourceHost,
-		})
-
-	if err != nil {
-		writeResponse(w, http.StatusInternalServerError, "Error in upload callbacks")
-		return
-	}
-
-	// signal that everything went ok
-	writeResponse(w, http.StatusOK, "")
-
-}
-
 // Creates an http endpoint handler where
-func MakeUploadHandler(uploader Uploader, maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string) HandlerFuncWithTenant {
+func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string) HandlerFuncWithTenant {
 	// the fallback handler to move files
 	fallbackHandler := &FallbackUploadHandler{tmpDir: tmpDir, baseDir: baseDir}
 
 	// processing handlers
 	handlers := []UploadHandler{
 		NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir),
+		NewMetadataUploadHandler(tmpDir, baseDir, archivesDir),
 	}
 
 	return func(w http.ResponseWriter, r *http.Request, tenant User) {
@@ -467,23 +106,6 @@ func MakeUploadHandler(uploader Uploader, maxidBackend MaxIdBackend, tmpDir, bas
 
 		writeResponse(w, http.StatusOK, "OK")
 	}
-}
-
-// DEFAULT UPLOAD HANDLERS
-// =======================
-
-// The default fallback handler that gets invoked if
-// no handlers are found
-func MoveHandler(c *UploadCallbackCtx) error {
-
-	// move the output file to the new path with the new name
-	err := os.Rename(c.SourceFile, c.OutputFile)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("[upload] Moved '%v' to '%v'\n", c.SourceFile, c.OutputFile)
-	return nil
 }
 
 // Soring callbacks
@@ -657,4 +279,34 @@ func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader mult
 		Format:       LogFormatJson,
 	}
 	return nil
+}
+
+// Metadata revriting
+// ------------------
+
+type metadataUploadHandler struct {
+	tmpDir, baseDir, archivesDir string
+}
+
+var isMetadataRegexp = regexp.MustCompile("^metadata")
+
+func NewMetadataUploadHandler(tmpDir, baseDir, archivesDir string) UploadHandler {
+	return &metadataUploadHandler{
+		tmpDir:      tmpDir,
+		baseDir:     baseDir,
+		archivesDir: archivesDir,
+	}
+}
+
+func (m *metadataUploadHandler) CanHandle(meta *UploadMeta) bool {
+	return isMetadataRegexp.MatchString(meta.TableName)
+}
+func (m *metadataUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
+	// copy the serverlog to the archives
+	archivedFile, err := copyUploadedFileTo(meta, reader, m.archivesDir, m.tmpDir)
+	if err != nil {
+		return err
+	}
+
+	return MetadataUploadHandler(meta, m.tmpDir, m.baseDir, archivedFile)
 }

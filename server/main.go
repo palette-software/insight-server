@@ -47,13 +47,8 @@ func main() {
 
 	// BACKENDS
 	// --------
-
-	// create the uploader
-	uploader, err := insight_server.MakeBasicUploader(filepath.ToSlash(config.UploadBasePath))
-	if err != nil {
-		// log the error and exit
-		log.Fatalf("Error during creating the uploader: %v", err)
-	}
+	// the temporary files are stored here so moving them wont result in errors
+	tempDir := filepath.Join(config.UploadBasePath, "_temp")
 
 	// create the maxid backend
 	maxIdBackend := insight_server.MakeFileMaxIdBackend(config.MaxIdDirectory)
@@ -77,7 +72,7 @@ func main() {
 	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
 			authenticator,
-			insight_server.MakeUploadHandler(uploader, maxIdBackend, uploader.TempDirectory(), config.UploadBasePath, config.ServerlogsArchivePath),
+			insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath),
 		),
 	)
 	// create the maxid handler
