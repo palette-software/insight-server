@@ -18,10 +18,10 @@ type metaColumn struct {
 	column, formatType string
 }
 
-var serverlogsTable = metaTable{"public", "serverlogs"}
+var serverlogsTable = metaTable{"public", "jsonlogs"}
 var plainServerlogsTable = metaTable{"public", "plainlogs"}
 
-var serverlogsErrorTable = metaTable{"public", "error_serverlogs"}
+var serverlogsErrorTable = metaTable{"public", "error_jsonlogs"}
 var plainServerlogsErrorTable = metaTable{"public", "error_plainlogs"}
 
 var preparsedServerlogsColumns = [][]metaColumn{
