@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -91,6 +92,10 @@ func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter
 // Plain logs
 // ----------
 
+var plainLineParserRegexp = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}) \(([0-9]+)\): (.*)$`)
+
+const plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
+
 type PlainLogParser struct {
 }
 
@@ -138,6 +143,14 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 
 // JSON Logs
 // ---------
+
+// The outer Json wrapper
+type ServerlogOuterJson struct {
+	Ts, Sev, Req, Sess, Site, User, K string
+	V                                 interface{}
+	Pid                               int
+	Tid                               string
+}
 
 type JsonLogParser struct{}
 
@@ -236,7 +249,6 @@ func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) c
 }
 
 func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog ServerlogInput, parser ServerlogsParser) error {
-	//inputFn := serverLog.InputFilename
 	meta := serverLog.Meta
 
 	// The input file is in the archives folder
@@ -245,18 +257,6 @@ func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog Serv
 	if parser == nil {
 		return fmt.Errorf("Unknown input format for '%s'", inputFn)
 	}
-
-	//// try to parse the timezone name
-	//sourceTimezone, err := time.LoadLocation(serverLog.Timezone)
-	//if err != nil {
-	//	return fmt.Errorf("Unknown time zone for agent  '%s': %v", serverLog.Timezone, err)
-	//}
-
-	//// copy the file to the archives
-	//archivePath := filepath.Join(archivesDir, filepath.Base(serverLog.InputFilename))
-	//if err := CopyFileRaw(serverLog.InputFilename, archivePath); err != nil {
-	//	return fmt.Errorf("Error copying file '%s' to '%s': %v", serverLog.InputFilename, archivePath, err)
-	//}
 
 	// open the file we have been sent as a gzipped file
 	inputF, err := NewGzippedFileReader(inputFn)
@@ -282,7 +282,7 @@ func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog Serv
 		return fmt.Errorf("Error during parsing serverlog file '%s': %v", inputFn, err)
 	}
 
-	log.Printf("[serverlogs] Done parsing for '%s': %d parsed, %d error rows", inputFn, logWriter.ParsedRowCount(), logWriter.ErrorRowCount())
+	log.Printf("[serverlogs] Done parsing for '%s': %d parsed, %d error rows", meta.OriginalFilename, logWriter.ParsedRowCount(), logWriter.ErrorRowCount())
 
 	return nil
 }

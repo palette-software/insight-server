@@ -37,18 +37,6 @@ func staticHandler(name, assetPath string) http.HandlerFunc {
 	return withRequestLog(name, insight_server.AssetPageHandler(assetPath))
 }
 
-func uploadCallbackCtxToServerlogToParse(c *insight_server.UploadCallbackCtx) insight_server.ServerlogToParse {
-	return insight_server.ServerlogToParse{
-		SourceFile:       c.SourceFile,
-		OutputFile:       c.OutputFile,
-		TmpDir:           c.Basedir,
-		Timezone:         c.Timezone,
-		OriginalFileName: c.OriginalFileName,
-		Host:             c.Host,
-	}
-
-}
-
 func main() {
 
 	// setup the log timezone to be UTC (and keep any old flags)
@@ -73,12 +61,6 @@ func main() {
 	// create the authenticator
 	authenticator := insight_server.NewLicenseAuthenticator(config.LicensesDirectory)
 
-	// create the server logs parser
-	//jsonServerlogsParser := insight_server.MakeJsonServerlogParser(256, config.ServerlogsArchivePath)
-	//plainServerlogsParser := insight_server.MakePlainServerlogParser(256, config.ServerlogsArchivePath)
-
-	//serverlogParser := insight_server.MakeServerlogsParser(uploader.TempDirectory(), config.UploadBasePath, config.ServerlogsArchivePath, 256)
-
 	// create the autoupdater backend
 	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
 	if err != nil {
@@ -87,33 +69,6 @@ func main() {
 
 	// for now, put the commands file in the updates directory (should be skipped by the updater)
 	commandBackend := insight_server.NewFileCommandsEndpoint(config.UpdatesDirectory)
-
-	// UPLOADER CALLBACKS
-	// ------------------
-
-	//// add a json-parser callback
-	//uploader.AddCallback(&insight_server.UploadCallback{
-	//	Name:     "JSON Serverlogs parsing",
-	//	Pkg:      regexp.MustCompile(""),
-	//	Filename: regexp.MustCompile("^(server|json)logs-"),
-	//	Handler: func(c *insight_server.UploadCallbackCtx) error {
-	//		serverlogParser <- insight_server.ServerlogInput{
-	//			Timezone: c.Timezone,
-	//			InputFilename: c.SourceFile,
-	//			OutputFilename: c.OutputFile,
-	//			Format: insight_server.LogFormatJson,
-	//		}
-	//		return nil
-	//	},
-	//})
-
-	// add a metadata updater callback
-	//uploader.AddCallback(&insight_server.UploadCallback{
-	//	Name:     "Serverlogs metadata addition",
-	//	Pkg:      regexp.MustCompile(""),
-	//	Filename: regexp.MustCompile("^metadata-"),
-	//	Handler:  insight_server.MetadataUploadHandler,
-	//})
 
 	// ENDPOINTS
 	// ---------

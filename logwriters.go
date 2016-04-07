@@ -3,7 +3,6 @@ package insight_server
 import (
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 )
 
@@ -111,8 +110,6 @@ func (w *possibleFileWriter) Close() error {
 	if err := w.file.Close(); err != nil {
 		return fmt.Errorf("Error closing CSV output: %v", err)
 	}
-
-	log.Printf("DEBUG: [writer] written '%s'", w.baseFileName)
 
 	return nil
 }
