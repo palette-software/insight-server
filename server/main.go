@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 )
 
 // Returns the current working directory
@@ -75,8 +74,10 @@ func main() {
 	authenticator := insight_server.NewLicenseAuthenticator(config.LicensesDirectory)
 
 	// create the server logs parser
-	jsonServerlogsParser := insight_server.MakeJsonServerlogParser(256, config.ServerlogsArchivePath)
-	plainServerlogsParser := insight_server.MakePlainServerlogParser(256, config.ServerlogsArchivePath)
+	//jsonServerlogsParser := insight_server.MakeJsonServerlogParser(256, config.ServerlogsArchivePath)
+	//plainServerlogsParser := insight_server.MakePlainServerlogParser(256, config.ServerlogsArchivePath)
+
+	//serverlogParser := insight_server.MakeServerlogsParser(uploader.TempDirectory(), config.UploadBasePath, config.ServerlogsArchivePath, 256)
 
 	// create the autoupdater backend
 	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
@@ -90,34 +91,29 @@ func main() {
 	// UPLOADER CALLBACKS
 	// ------------------
 
-	// add a json-parser callback
-	uploader.AddCallback(&insight_server.UploadCallback{
-		Name:     "JSON Serverlogs parsing",
-		Pkg:      regexp.MustCompile(""),
-		Filename: regexp.MustCompile("^jsonlogs-"),
-		Handler: func(c *insight_server.UploadCallbackCtx) error {
-			jsonServerlogsParser <- uploadCallbackCtxToServerlogToParse(c)
-			return nil
-		},
-	})
+	//// add a json-parser callback
+	//uploader.AddCallback(&insight_server.UploadCallback{
+	//	Name:     "JSON Serverlogs parsing",
+	//	Pkg:      regexp.MustCompile(""),
+	//	Filename: regexp.MustCompile("^(server|json)logs-"),
+	//	Handler: func(c *insight_server.UploadCallbackCtx) error {
+	//		serverlogParser <- insight_server.ServerlogInput{
+	//			Timezone: c.Timezone,
+	//			InputFilename: c.SourceFile,
+	//			OutputFilename: c.OutputFile,
+	//			Format: insight_server.LogFormatJson,
+	//		}
+	//		return nil
+	//	},
+	//})
 
-	// add a json-parser callback
-	uploader.AddCallback(&insight_server.UploadCallback{
-		Name:     "Plain Serverlogs parsing",
-		Pkg:      regexp.MustCompile(""),
-		Filename: regexp.MustCompile("^plainlogs-"),
-		Handler: func(c *insight_server.UploadCallbackCtx) error {
-			plainServerlogsParser <- uploadCallbackCtxToServerlogToParse(c)
-			return nil
-		},
-	})
 	// add a metadata updater callback
-	uploader.AddCallback(&insight_server.UploadCallback{
-		Name:     "Serverlogs metadata addition",
-		Pkg:      regexp.MustCompile(""),
-		Filename: regexp.MustCompile("^metadata-"),
-		Handler:  insight_server.MetadataUploadHandler,
-	})
+	//uploader.AddCallback(&insight_server.UploadCallback{
+	//	Name:     "Serverlogs metadata addition",
+	//	Pkg:      regexp.MustCompile(""),
+	//	Filename: regexp.MustCompile("^metadata-"),
+	//	Handler:  insight_server.MetadataUploadHandler,
+	//})
 
 	// ENDPOINTS
 	// ---------
@@ -126,7 +122,7 @@ func main() {
 	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
 			authenticator,
-			insight_server.MakeUploadHandler(uploader, maxIdBackend),
+			insight_server.MakeUploadHandler(uploader, maxIdBackend, uploader.TempDirectory(), config.UploadBasePath, config.ServerlogsArchivePath),
 		),
 	)
 	// create the maxid handler
