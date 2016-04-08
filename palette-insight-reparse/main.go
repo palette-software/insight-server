@@ -3,7 +3,6 @@ package main
 import (
 	"compress/gzip"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -12,6 +11,7 @@ import (
 
 	"flag"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/palette-software/insight-server"
 )
 
@@ -70,7 +70,7 @@ func reloadServerlogs(outputPath, tempdir, filename string, sourceTimezoneName s
 	}
 	defer gzr.Close()
 
-	log.Printf("Parsing: %s", filename)
+	logrus.Printf("Parsing: %s", filename)
 
 	hostName := getHostName(filename)
 
@@ -86,7 +86,7 @@ func reloadServerlogs(outputPath, tempdir, filename string, sourceTimezoneName s
 
 	insight_server.WriteServerlogsCsv(tempdir, strings.Replace(filename, "errors_serverlogs", "serverlogs", -1), rows)
 
-	log.Printf("Parse output: %d rows, %d errorRows", len(rows), len(errorRows))
+	logrus.Printf("Parse output: %d rows, %d errorRows", len(rows), len(errorRows))
 
 	destinationPath := filepath.Join(outputPath, hostName, filepath.Base(filename))
 
@@ -114,8 +114,8 @@ func main() {
 
 	config := insight_server.ParseOptions()
 
-	log.Printf("Config: %v", config)
-	log.Printf("BackupPath: %s", backupPath)
+	logrus.Printf("Config: %v", config)
+	logrus.Printf("BackupPath: %s", backupPath)
 
 	// create the authenticator
 

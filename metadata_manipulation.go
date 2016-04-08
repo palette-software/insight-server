@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type metaTable struct {
@@ -119,7 +120,7 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 		}
 	}
 
-	log.Printf("[metadata] adding metadata to: '%s'", c.OutputFile)
+	logrus.Printf("[metadata] adding metadata to: '%s'", c.OutputFile)
 
 	// Append the prepared serverlogs data
 	_, err = outWriter.WriteString(ServerlogsMetaString)
@@ -141,7 +142,7 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 	}
 
 	// close and delete the input file
-	log.Printf("[metadata] removing temporary '%s'", inf.Name())
+	logrus.Printf("[metadata] removing temporary '%s'", inf.Name())
 	gzipReader.Close()
 	inf.Close()
 	err = os.Remove(inf.Name())

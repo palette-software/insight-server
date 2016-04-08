@@ -2,9 +2,10 @@ package insight_server
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/Sirupsen/logrus"
 
 	"bytes"
 	"net/http"
@@ -91,16 +92,16 @@ func loadAllLicenses(licensesRoot string) Licenses {
 	for _, f := range files {
 		license, err := loadLicenseFromFile(f)
 		if err != nil {
-			log.Printf("[license] Error reading license '%s': '%v'", f, err)
+			logrus.Printf("[license] Error reading license '%s': '%v'", f, err)
 			break
 		}
 		licenses[license.LicenseId] = license
 	}
 
-	log.Printf("[license] Loaded %v licenses from %v.", len(licenses), glob)
+	logrus.Printf("[license] Loaded %v licenses from %v.", len(licenses), glob)
 
 	for _, tenant := range licenses {
-		log.Printf("[license] user: '%v' username: '%v'", tenant.Owner, tenant.LicenseId)
+		logrus.Printf("[license] user: '%v' username: '%v'", tenant.Owner, tenant.LicenseId)
 	}
 
 	return licenses

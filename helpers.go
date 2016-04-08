@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"log"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
@@ -19,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // GENERIC HELPERS
@@ -27,7 +28,7 @@ import (
 // simple helper that logs an error then panics
 func checkErr(err error, msg string) {
 	if err != nil {
-		log.Fatalln(msg, err)
+		logrus.Fatalln(msg, err)
 	}
 }
 
@@ -41,7 +42,7 @@ func SanitizeName(name string) string {
 
 // Writes the error message to the log then responds with an error message
 func writeResponse(w http.ResponseWriter, status int, err string) {
-	log.Printf("[http] <=== {%v}: %s", status, err)
+	logrus.Printf("[http] <=== {%v}: %s", status, err)
 	http.Error(w, err, status)
 	return
 }
@@ -89,7 +90,7 @@ func CreateDirectoryIfNotExists(path string) error {
 	}
 
 	// create the directory
-	log.Printf("[storage] Creating directory: '%s'", path)
+	logrus.Printf("[storage] Creating directory: '%s'", path)
 	if err := os.MkdirAll(path, OUTPUT_DEFAULT_DIRMODE); err != nil {
 		return err
 	}

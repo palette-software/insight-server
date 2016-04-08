@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	"compress/gzip"
 	"io"
@@ -91,7 +92,7 @@ type basicUploader struct {
 
 // Creates a basic uploader
 func MakeBasicUploader(basePath string) (Uploader, error) {
-	log.Printf("[uploader] Using path '%v' for upload root", basePath)
+	logrus.Printf("[uploader] Using path '%v' for upload root", basePath)
 
 	// create the uploader
 	uploader := &basicUploader{
@@ -126,13 +127,13 @@ func (u *basicUploader) createTempDirectory() error {
 
 	if !tmpDirExists {
 		// create the temporary path
-		log.Printf("[uploader] Creating temp directory: %s", tmpDir)
+		logrus.Printf("[uploader] Creating temp directory: %s", tmpDir)
 		if err := os.MkdirAll(tmpDir, OUTPUT_DEFAULT_DIRMODE); err != nil {
 			return err
 		}
 	}
 	// just signal that we are using the existing path
-	log.Printf("[uploader] Using path '%s' for temporary files", tmpDir)
+	logrus.Printf("[uploader] Using path '%s' for temporary files", tmpDir)
 
 	return nil
 }
@@ -193,7 +194,7 @@ func (u *basicUploader) SaveFile(req *uploadRequest) (*UploadedFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
+	logrus.Printf("[upload] written %v bytes to '%v'\n", bytesWritten, tmpFile.Name())
 
 	fileHash := md5Hasher.GetHash()
 
@@ -230,7 +231,7 @@ func MoveHandler(c *UploadCallbackCtx) error {
 		return err
 	}
 
-	log.Printf("[upload] Moved '%v' to '%v'\n", c.SourceFile, c.OutputFile)
+	logrus.Printf("[upload] Moved '%v' to '%v'\n", c.SourceFile, c.OutputFile)
 	return nil
 }
 
@@ -243,10 +244,10 @@ func (u *basicUploader) ApplyCallbacks(pkg, filename string, ctx *UploadCallback
 
 	// function that wraps invoking the handler
 	invokeHandler := func(name string, handler UploadCallbackFn) error {
-		log.Printf("[uploader.callbacks] Invoking callback: %s ", name)
+		logrus.Printf("[uploader.callbacks] Invoking callback: %s ", name)
 		err := handler(ctx)
 		if err != nil {
-			log.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s -- %v", name, pkg, filename, err)
+			logrus.Printf("[uploader.callbacks] Error during running '%s' for file %s::%s -- %v", name, pkg, filename, err)
 			return err
 		}
 		return nil

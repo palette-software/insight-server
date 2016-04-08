@@ -1,9 +1,10 @@
 package insight_server
 
 import (
-	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/namsral/flag"
 )
@@ -25,7 +26,7 @@ type InsightWebServiceConfig struct {
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 		panic(err)
 	}
 	return dir
