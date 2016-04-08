@@ -31,12 +31,12 @@
 Name: palette-insight-server
 Version: %version
 Epoch: 1
-Release: 1
+Release: %buildrelease
 Summary: Palette Insight Server
 AutoReqProv: no
 # Seems specifying BuildRoot is required on older rpmbuild (like on CentOS 5)
 # fpm passes '--define buildroot ...' on the commandline, so just reuse that.
-BuildRoot: %buildroot
+#BuildRoot: %buildroot
 # Add prefix, must not end with /
 
 Prefix: /
@@ -57,7 +57,7 @@ Requires(postun): /usr/sbin/userdel
 
 %pre
 # Add the user and set its homee
-/usr/bin/getent passwd %{serviceuser} || /usr/sbin/useradd -r -d %{servicehome} -s /sbin/nologin %{serviceuser}
+/usr/bin/getent passwd %{serviceuser} || /usr/sbin/useradd -r -d %{servicehome} -s /bin/bash %{serviceuser}
 /usr/bin/getent group %{serviceuser} || /usr/sbin/groupadd -r -g %{serviceuser}
 
 # Override the SELinux flag that disallows httpd to connect to the go process
@@ -67,9 +67,18 @@ setsebool httpd_can_network_connect on -P
 # Create the logfile directory for supervisord
 mkdir -p /var/log/palette-insight-server/
 
+# Create the storage directory under /data
+mkdir -p /data/insight-server/licenses
+chown insight:insight -R /data/insight-server
+
+# Start nginx on server start
+/sbin/chkconfig nginx on
+
+# Start supervisord on server start
+/sbin/chkconfig supervisord on
+
 %postun
-# Remove the user
-# /usr/sbin/userdel %{serviceuser}
+# Dont remove the user
 
 # TODO: we should switch back the httpd_can_network_connect flag for SELinux, IF we know that its safe to do so
 
@@ -100,10 +109,11 @@ Palette Insight Server
 
 # Reject config files already listed or parent directories, then prefix files
 # with "/", then make sure paths with spaces are quoted. I hate rpm so much.
-/etc/palette-insight-server/server.config
-/etc/nginx/conf.d/palette-insight-server.conf
-/etc/supervisord.d/palette-insight-server.ini
 /usr/local/bin/palette-insight-server
+
+%config /etc/palette-insight-server/server.config
+%config /etc/nginx/conf.d/palette-insight-server.conf
+%config /etc/supervisord.d/palette-insight-server.ini
 
 %changelog
 

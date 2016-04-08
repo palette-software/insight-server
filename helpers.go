@@ -22,6 +22,10 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+const VERBOSE = false
+
+const jsonDateFormat = "2006-01-02T15:04:05.999"
+
 // GENERIC HELPERS
 // ===============
 
@@ -98,6 +102,24 @@ func CreateDirectoryIfNotExists(path string) error {
 	return nil
 }
 
+func CopyFileRaw(src, dst string) error {
+	inf, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("Error opening source '%s': %v", src, err)
+	}
+	defer inf.Close()
+
+	outf, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("Error opening destination '%s' for copy: %v", dst, err)
+	}
+
+	if _, err := io.Copy(outf, inf); err != nil {
+		return fmt.Errorf("Error copying '%s' to '%s': %v", src, dst, err)
+	}
+	return nil
+}
+
 // HTTP PACKAGE HELPERS
 // ====================
 
@@ -151,10 +173,24 @@ func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 	// get the package
 	paramVals := urlParams[paramName]
 	if len(paramVals) != 1 {
-		return "", fmt.Errorf("BAD REQUEST: No '%v' parameter provided", paramName)
+		return "", fmt.Errorf("No '%v' parameter provided", paramName)
 	}
 
 	return paramVals[0], nil
+}
+
+// Tries to get a list of parameters from the URL.
+// Will return an error desribing the problematic parameter
+func getUrlParams(reqUrl *url.URL, paramNames ...string) ([]string, error) {
+	o := make([]string, len(paramNames))
+	for i, paramName := range paramNames {
+		paramVal, err := getUrlParam(reqUrl, paramName)
+		if err != nil {
+			return nil, err
+		}
+		o[i] = paramVal
+	}
+	return o, nil
 }
 
 // Returns a new handler that simply responds with an asset from the precompiled assets
@@ -171,7 +207,8 @@ func AssetPageHandler(assetName string) http.HandlerFunc {
 	}
 }
 
-// Gets the version of the server from the VERSION file in the assets directory
+// Gets the version string of the server from the VERSION file in the assets directory
+// (this should be filled by travis)
 func GetVersion() string {
 	version, err := Asset("assets/VERSION")
 	if err != nil {
@@ -207,6 +244,30 @@ func (m *Md5Hasher) GetHash() []byte {
 // Returns the (lowercased) hex string of the Md5
 func (m *Md5Hasher) GetHashString() string {
 	return fmt.Sprintf("%32x", m.GetHash())
+}
+
+// Getting table information
+// -------------------------
+
+var tableInfoRegex *regexp.Regexp = regexp.MustCompile("^([^-]+).*-seq([0-9]+).*part([0-9]+)")
+
+func getTableInfoFromFilename(fileName string) (tableName string, seqIdx, partIdx int, err error) {
+	tableInfo := tableInfoRegex.FindStringSubmatch(fileName)
+	if tableInfo == nil {
+		return "", 0, 0, fmt.Errorf("Cannot find table name and info from file name: '%v'", fileName)
+	}
+
+	// seqidx
+	seqIdx, err = strconv.Atoi(tableInfo[2])
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("Error parsing seq Idx for '%s' '%s': %v", fileName, tableInfo[2], err)
+	}
+	// seqidx
+	partIdx, err = strconv.Atoi(tableInfo[3])
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("Error parsing part Idx for '%s' '%s': %v", fileName, tableInfo[3], err)
+	}
+	return tableInfo[1], seqIdx, partIdx, nil
 }
 
 // Random string generation
