@@ -26,7 +26,7 @@ type InsightWebServiceConfig struct {
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.WithField("component", "config").WithError(err).Fatal("Error getting current path")
 		panic(err)
 	}
 	return dir

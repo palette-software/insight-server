@@ -29,13 +29,6 @@ const jsonDateFormat = "2006-01-02T15:04:05.999"
 // GENERIC HELPERS
 // ===============
 
-// simple helper that logs an error then panics
-func checkErr(err error, msg string) {
-	if err != nil {
-		logrus.Fatalln(msg, err)
-	}
-}
-
 // The regexp we use for sanitizing any strings to a file name that is valid on all systems
 var sanitizeRegexp = regexp.MustCompile("[^_A-Za-z0-9]")
 
@@ -46,7 +39,11 @@ func SanitizeName(name string) string {
 
 // Writes the error message to the log then responds with an error message
 func writeResponse(w http.ResponseWriter, status int, err string) {
-	logrus.Printf("[http] <=== {%v}: %s", status, err)
+	logrus.WithFields(logrus.Fields{
+		"component": "http",
+		"status":    status,
+		"response":  err,
+	}).Info("<== Response")
 	http.Error(w, err, status)
 	return
 }
@@ -94,7 +91,11 @@ func CreateDirectoryIfNotExists(path string) error {
 	}
 
 	// create the directory
-	logrus.Printf("[storage] Creating directory: '%s'", path)
+	logrus.WithFields(logrus.Fields{
+		"component": "storage",
+		"directory": path,
+	}).Info("Creating directory")
+
 	if err := os.MkdirAll(path, OUTPUT_DEFAULT_DIRMODE); err != nil {
 		return err
 	}

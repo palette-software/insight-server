@@ -25,7 +25,13 @@ func getCurrentPath() string {
 // Adds basic request logging to the wrapped handler
 func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logrus.Printf("[http] ====> %s -> {%v} %s (handler:%s)", r.RemoteAddr, r.Method, r.URL.RequestURI(), name)
+		logrus.WithFields(logrus.Fields{
+			"component":     "http",
+			"method":        r.Method,
+			"remoteAddress": r.RemoteAddr,
+			"url":           r.URL.RequestURI(),
+			"handler":       name,
+		}).Info("==> Request")
 		// also write all header we care about for proxies here
 		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Add("Pragma", "no-cache")
@@ -116,7 +122,10 @@ func main() {
 	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
 
 	// auto-update distribution: The updates should be publicly accessable
-	logrus.Printf("[http] Serving static content for updates from: %s", config.UpdatesDirectory)
+	logrus.WithFields(logrus.Fields{
+		"component": "http",
+		"directory": config.UpdatesDirectory,
+	}).Info("Serving static content for updates")
 	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(config.UpdatesDirectory))))
 
 	// STARTING THE SERVER
@@ -129,7 +138,12 @@ func main() {
 	}).Info("Webservice starting")
 
 	if config.UseTls {
-		logrus.Printf("[http] Using TLS cert: '%s' and key: '%s'", config.TlsCert, config.TlsKey)
+		logrus.WithFields(logrus.Fields{
+			"component": "http",
+			"cert":      config.TlsCert,
+			"key":       config.TlsKey,
+		}).Info("Using TLS cert")
+
 		err := http.ListenAndServeTLS(bindAddressWithPort, config.TlsCert, config.TlsKey, nil)
 		logrus.Fatal(err)
 	} else {

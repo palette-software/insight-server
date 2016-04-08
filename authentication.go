@@ -92,16 +92,29 @@ func loadAllLicenses(licensesRoot string) Licenses {
 	for _, f := range files {
 		license, err := loadLicenseFromFile(f)
 		if err != nil {
-			logrus.Printf("[license] Error reading license '%s': '%v'", f, err)
+			logrus.WithFields(logrus.Fields{
+				"component": "license",
+				"file":      f,
+				"error":     err,
+			}).Warn("Error reading license")
 			break
 		}
 		licenses[license.LicenseId] = license
 	}
 
-	logrus.Printf("[license] Loaded %v licenses from %v.", len(licenses), glob)
+	logrus.WithFields(logrus.Fields{
+		"component":     "license",
+		"licensesCount": len(licenses),
+		"glob":          glob,
+	}).Info("Loaded licenses")
 
 	for _, tenant := range licenses {
-		logrus.Printf("[license] user: '%v' username: '%v'", tenant.Owner, tenant.LicenseId)
+		logrus.WithFields(logrus.Fields{
+			"component":  "license",
+			"tenant":     tenant.Owner,
+			"username":   tenant.LicenseId,
+			"validUntil": tenant.ValidUntilUTC,
+		}).Info("license available")
 	}
 
 	return licenses

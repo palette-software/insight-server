@@ -221,7 +221,12 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 		return "", fmt.Errorf("Error writing uploaded bytes to '%s': %v", outputWriter.GetFileName(), err)
 	}
 
-	logrus.Printf("[copy] Written %d bytes for '%s' to '%s'", bytesWritten, meta.OriginalFilename, outputWriter.GetFileName())
+	logrus.WithFields(logrus.Fields{
+		"component":        "copy",
+		"bytesWritten":     bytesWritten,
+		"originalFileName": meta.OriginalFilename,
+		"outputFile":       outputWriter.GetFileName(),
+	}).Info("Copied uploaded file")
 	return outputWriter.GetFileName(), nil
 }
 

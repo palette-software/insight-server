@@ -7,11 +7,12 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type gzippedFileReader struct {
@@ -151,9 +152,11 @@ func (g *GzippedFileWriterWithTemp) Close() error {
 
 	// Add the MD5 to the filename
 
-	if VERBOSE {
-		log.Printf("[serverlogs] Moving '%s' to '%s'", g.tmpFile.Name(), outFileName)
-	}
+	logrus.WithFields(logrus.Fields{
+		"component":  "gzip-out",
+		"sourceFile": g.tmpFile.Name(),
+		"outputFile": outFileName,
+	}).Debug("Moving output")
 	// now we can move it to its final destination
 	return os.Rename(g.tmpFile.Name(), outFileName)
 }

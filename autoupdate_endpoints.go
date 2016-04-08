@@ -197,7 +197,12 @@ func (a *baseAutoUpdater) AddNewVersion(product string, version *Version, src io
 		return nil, fmt.Errorf("Error while saving update: %v", err)
 	}
 
-	logrus.Printf("[autoupdate] Copied new version '%s' of product '%s' to '%s'", version, product, storagePath)
+	logrus.WithFields(logrus.Fields{
+		"component":   "autoupdate",
+		"version":     version,
+		"product":     product,
+		"storagePath": storagePath,
+	}).Info("Copied new version of product")
 
 	// save the metadata
 	// ------------------
@@ -292,7 +297,10 @@ func loadVersionsFromProductDir(productDirPath string) ([]string, error) {
 		// check for version format by trying to parse it
 		_, err := StringToVersion(version.Name())
 		if err != nil {
-			logrus.Printf("[autoupdate] Skipping non-product version '%s': %v", versionPath, err)
+			logrus.WithFields(logrus.Fields{
+				"component": "autoupdate",
+				"version":   versionPath,
+			}).WithError(err).Info("Skipping non-product version")
 			continue
 		}
 
@@ -323,7 +331,10 @@ func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 		productDirPath := path.Join(basePath, product)
 		versionNames, err := loadVersionsFromProductDir(productDirPath)
 		if err != nil {
-			logrus.Printf("[autoupdate] Cannot parse directory '%s' for versions: %v", productDirPath, err)
+			logrus.WithFields(logrus.Fields{
+				"component": "autoupdate",
+				"directory": productDirPath,
+			}).WithError(err).Info("Cannot parse directory for versions")
 		}
 
 		// check all versions in descending order
@@ -341,12 +352,21 @@ func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 			// try to load its metadata and skip this product if we cannot
 			updateVersion, err := loadMetadata(basePath, product, newest)
 			if err == nil {
-				logrus.Printf("[autoupdate] Found product: '%s' with versions: %v using: '%s'", product, versionNames, updateVersion)
+				logrus.WithFields(logrus.Fields{
+					"component":       "autoupdate",
+					"product":         product,
+					"versionNames":    versionNames,
+					"selectedVersion": updateVersion,
+				}).Info("Found product")
 				productVersions[product] = updateVersion
 				break
 			} else {
 				// if we havent found our proper version, skip this one
-				logrus.Printf("[autoupdate] Cannot load metadata for '%s-%s' - skipping: %v", product, newest, err)
+				logrus.WithFields(logrus.Fields{
+					"component": "autoupdate",
+					"product":   product,
+					"version":   newest,
+				}).WithError(err).Info("Cannot load metadata - skipping")
 				validVersionIdx--
 			}
 

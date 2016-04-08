@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // Identifies the source of a serverlog
@@ -238,9 +239,15 @@ func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) c
 	go func() {
 		for serverLog := range inputChan {
 			meta := serverLog.Meta
-			log.Printf("[serverlogs] Got '%s' for parsing", meta.OriginalFilename)
+			logrus.WithFields(logrus.Fields{
+				"component": "serverlogs",
+				"file":      meta.OriginalFilename,
+			}).Info("Received parse request")
 			if err := processServerlogRequest(tmpDir, baseDir, archivesDir, serverLog, parserMap[serverLog.Format]); err != nil {
-				log.Printf("[serverlogs] ERROR: during parsing of serverlog '%s': %v", meta.OriginalFilename, err)
+				logrus.WithFields(logrus.Fields{
+					"component": "serverlogs",
+					"file":      meta.OriginalFilename,
+				}).WithError(err).Error("Error during parsing of serverlog")
 			}
 		}
 	}()
@@ -282,7 +289,12 @@ func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog Serv
 		return fmt.Errorf("Error during parsing serverlog file '%s': %v", inputFn, err)
 	}
 
-	log.Printf("[serverlogs] Done parsing for '%s': %d parsed, %d error rows", meta.OriginalFilename, logWriter.ParsedRowCount(), logWriter.ErrorRowCount())
+	logrus.WithFields(logrus.Fields{
+		"component":  "serverlogs",
+		"file":       meta.OriginalFilename,
+		"parsedRows": logWriter.ParsedRowCount(),
+		"errorRows":  logWriter.ErrorRowCount(),
+	}).Info("Done parsing")
 
 	return nil
 }

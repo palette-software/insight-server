@@ -88,7 +88,11 @@ func (m *fileMaxIdBackend) getFileName(username, tableName string) string {
 
 func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
 	fileName := m.getFileName(username, tableName)
-	logrus.Printf("[maxid] writing maxid '%s' for table '%v' into file '%v' ", maxid, tableName, fileName)
+	logrus.WithFields(logrus.Fields{
+		"component": "maxid",
+		"table":     tableName,
+		"file":      fileName,
+	}).Debug("Writing maxid")
 
 	// create the output file path
 	if err := os.MkdirAll(filepath.Dir(fileName), OUTPUT_DEFAULT_DIRMODE); err != nil {
@@ -100,11 +104,23 @@ func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
 
 func (m *fileMaxIdBackend) GetMaxId(username, tableName string) (string, error) {
 	fileName := m.getFileName(username, tableName)
-	logrus.Printf("[maxid] getting maxid for table '%v' from file '%v' ", tableName, fileName)
+
+	logrus.WithFields(logrus.Fields{
+		"component": "maxid",
+		"table":     tableName,
+		"file":      fileName,
+	}).Debug("getting maxid for table")
+
 	contents, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return "", err
 	}
-	logrus.Printf("[maxid] maxid for table '%v' is '%v' ", tableName, contents)
+
+	logrus.WithFields(logrus.Fields{
+		"component": "maxid",
+		"table":     tableName,
+		"maxid":     contents,
+	}).Info("Got maxid for table")
+
 	return string(contents), nil
 }
