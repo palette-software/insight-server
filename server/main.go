@@ -45,16 +45,15 @@ func staticHandler(name, assetPath string) http.HandlerFunc {
 }
 
 func main() {
+	config := insight_server.ParseOptions()
 
 	// setup the log timezone to be UTC (and keep any old flags)
-	insight_server.SetupLogging()
+	insight_server.SetupLogging(config.LogFormat, config.LogLevel)
 	logrus.WithFields(logrus.Fields{
 		"component": "boot",
 		"version":   insight_server.GetVersion(),
 		"path":      getCurrentPath(),
 	}).Printf("Starting palette insight-server")
-
-	config := insight_server.ParseOptions()
 
 	// BACKENDS
 	// --------

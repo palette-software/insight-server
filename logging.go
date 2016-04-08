@@ -1,19 +1,39 @@
 package insight_server
 
-import "github.com/Sirupsen/logrus"
+import (
+	"fmt"
+
+	"github.com/Sirupsen/logrus"
+)
 
 // Sets up the logging to use UTC timestamps and a proper output format
-func SetupLogging() {
-	if logrus.IsTerminal() {
-		logrus.SetFormatter(&logrus.TextFormatter{
-			ForceColors: true,
-		})
-	} else {
+func SetupLogging(logFormat, logLevel string) {
+	switch logFormat {
+	case "json":
 		logrus.SetFormatter(&logrus.JSONFormatter{})
+	case "text":
+		logrus.SetFormatter(&logrus.TextFormatter{})
+	// force colors
+	case "color":
+		logrus.SetFormatter(&logrus.TextFormatter{ForceColors: true})
+	default:
+		panic(fmt.Sprintf("Cannot find proper log format for %s", logFormat))
 	}
 
-	logrus.SetLevel(logrus.InfoLevel)
+	switch logLevel {
+	case "debug":
+		logrus.SetLevel(logrus.DebugLevel)
+	case "info":
+		logrus.SetLevel(logrus.InfoLevel)
+	case "warn":
+		logrus.SetLevel(logrus.WarnLevel)
+	case "error":
+		logrus.SetLevel(logrus.ErrorLevel)
+	default:
+		logrus.SetLevel(logrus.InfoLevel)
+	}
 
+	// add the UTC timestamp hook
 	logrus.AddHook(new(LogrusTimeFixerHook))
 }
 
