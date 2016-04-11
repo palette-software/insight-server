@@ -137,10 +137,5 @@ func MetadataUploadHandler(meta *UploadMeta, tmpDir, baseDir, archivedFile strin
 	}
 
 	// Flush the outputs buffer
-	err = outWriter.Flush()
-	if err != nil {
-		return err
-	}
-	return nil
-
+	return outWriter.Flush()
 }
