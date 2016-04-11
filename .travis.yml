@@ -4,7 +4,7 @@ go:
 
 env:
   global:
-      - DEPLOY_HOST=54.88.58.55
+      - DEPLOY_HOST=rpm.palette-software.net
       - DEPLOY_PATH=/var/palette-rpm-repo
       - DEPLOY_USER=palette-rpm
 
