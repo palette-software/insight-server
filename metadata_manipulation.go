@@ -2,12 +2,9 @@ package insight_server
 
 import (
 	"bufio"
-	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"os"
 	"regexp"
 	"strings"
 )
@@ -21,29 +18,48 @@ type metaColumn struct {
 	column, formatType string
 }
 
-var serverlogsTable metaTable = metaTable{
-	"public", "serverlogs",
-}
+var serverlogsTable = metaTable{"public", "jsonlogs"}
+var plainServerlogsTable = metaTable{"public", "plainlogs"}
 
-var serverlogsErrorTable metaTable = metaTable{
-	"public", "error_serverlogs",
-}
-var preparsedServerlogsColumns []metaColumn = []metaColumn{
-	metaColumn{serverlogsTable, "filename", "text"},
-	metaColumn{serverlogsTable, "host_name", "text"},
-	metaColumn{serverlogsTable, "ts", "timestamp without time zone"},
-	metaColumn{serverlogsTable, "pid", "integer"},
-	metaColumn{serverlogsTable, "tid", "integer"},
-	metaColumn{serverlogsTable, "sev", "text"},
-	metaColumn{serverlogsTable, "req", "text"},
-	metaColumn{serverlogsTable, "sess", "text"},
-	metaColumn{serverlogsTable, "site", "text"},
-	metaColumn{serverlogsTable, "user", "text"},
-	metaColumn{serverlogsTable, "k", "text"},
-	metaColumn{serverlogsTable, "v", "text"},
+var serverlogsErrorTable = metaTable{"public", "error_jsonlogs"}
+var plainServerlogsErrorTable = metaTable{"public", "error_plainlogs"}
 
-	metaColumn{serverlogsErrorTable, "error", "text"},
-	metaColumn{serverlogsErrorTable, "line", "text"},
+var preparsedServerlogsColumns = [][]metaColumn{
+	{
+		metaColumn{serverlogsTable, "filename", "text"},
+		metaColumn{serverlogsTable, "host_name", "text"},
+		metaColumn{serverlogsTable, "ts", "timestamp without time zone"},
+		metaColumn{serverlogsTable, "pid", "integer"},
+		metaColumn{serverlogsTable, "tid", "integer"},
+		metaColumn{serverlogsTable, "sev", "text"},
+		metaColumn{serverlogsTable, "req", "text"},
+		metaColumn{serverlogsTable, "sess", "text"},
+		metaColumn{serverlogsTable, "site", "text"},
+		metaColumn{serverlogsTable, "user", "text"},
+		metaColumn{serverlogsTable, "k", "text"},
+		metaColumn{serverlogsTable, "v", "text"},
+	},
+	{
+
+		metaColumn{plainServerlogsTable, "filename", "text"},
+		metaColumn{plainServerlogsTable, "host_name", "text"},
+		metaColumn{plainServerlogsTable, "ts", "timestamp without time zone"},
+		metaColumn{plainServerlogsTable, "pid", "integer"},
+		metaColumn{plainServerlogsTable, "line", "text"},
+	},
+	{
+
+		metaColumn{serverlogsErrorTable, "error", "text"},
+		metaColumn{serverlogsErrorTable, "host_name", "text"},
+		metaColumn{serverlogsErrorTable, "filename", "text"},
+		metaColumn{serverlogsErrorTable, "line", "text"},
+	},
+	{
+		metaColumn{plainServerlogsErrorTable, "error", "text"},
+		metaColumn{plainServerlogsErrorTable, "host_name", "text"},
+		metaColumn{plainServerlogsErrorTable, "filename", "text"},
+		metaColumn{plainServerlogsErrorTable, "line", "text"},
+	},
 }
 
 func makeMetaString(cols []metaColumn) string {
@@ -59,8 +75,6 @@ func makeMetaString(cols []metaColumn) string {
 	return strings.Join(o, "\r\n")
 }
 
-var ServerlogsMetaString string = makeMetaString(preparsedServerlogsColumns)
-
 // The regexp we use to filter out the serverlogs rows
 var serverlogsRegexp *regexp.Regexp = regexp.MustCompile("serverlogs")
 
@@ -68,37 +82,22 @@ var serverlogsRegexp *regexp.Regexp = regexp.MustCompile("serverlogs")
 var eolChars []byte = []byte{'\r', '\n'}
 
 // Handler updating metadata
-func MetadataUploadHandler(c *UploadCallbackCtx) error {
+func MetadataUploadHandler(meta *UploadMeta, tmpDir, baseDir, archivedFile string) error {
 
-	// open the output
-	outf, err := ioutil.TempFile(c.Basedir, "metadata-rewrite")
+	outFileWriter, err := meta.GetOutputGzippedWriter(baseDir, tmpDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error opening metadata output: %v", err)
 	}
-	defer outf.Close()
 
-	// put a gzipped writer on top
-	gzipWriter := gzip.NewWriter(outf)
-	defer gzipWriter.Close()
+	defer outFileWriter.Close()
 
-	// open the input
-	inf, err := os.Open(c.SourceFile)
-	if err != nil {
-		return err
-	}
-	defer inf.Close()
-
-	// open a gzipped reader
-	gzipReader, err := gzip.NewReader(inf)
-	if err != nil {
-		return err
-	}
-	defer gzipReader.Close()
+	inFileReader, err := NewGzippedFileReader(archivedFile)
+	defer inFileReader.Close()
 
 	// Create a pair of buffered readers on top of the
 	// gzip stream.
-	inReader := bufio.NewReader(gzipReader)
-	outWriter := bufio.NewWriter(gzipWriter)
+	inReader := bufio.NewReader(inFileReader)
+	outWriter := bufio.NewWriter(outFileWriter)
 
 	// Filter out
 	for {
@@ -119,40 +118,21 @@ func MetadataUploadHandler(c *UploadCallbackCtx) error {
 		}
 	}
 
-	log.Printf("[metadata] adding metadata to: '%s'", c.OutputFile)
+	log.Printf("[metadata] adding metadata to: '%s'", meta.OriginalFilename)
+
+	metadata := make([]string, len(preparsedServerlogsColumns))
+	for i, table := range preparsedServerlogsColumns {
+		metadata[i] = makeMetaString(table)
+	}
+
+	metadataString := strings.Join(metadata, "\r\n")
 
 	// Append the prepared serverlogs data
-	_, err = outWriter.WriteString(ServerlogsMetaString)
+	_, err = outWriter.WriteString(metadataString)
 	if err != nil {
 		return err
 	}
 
 	// Flush the outputs buffer
-	err = outWriter.Flush()
-	if err != nil {
-		return err
-	}
-
-	// close the output gzip writer
-	gzipWriter.Close()
-	err = outf.Close()
-	if err != nil {
-		return err
-	}
-
-	// close and delete the input file
-	log.Printf("[metadata] removing temporary '%s'", inf.Name())
-	gzipReader.Close()
-	inf.Close()
-	err = os.Remove(inf.Name())
-	if err != nil {
-		return err
-	}
-
-	// defer moving to the default move handler
-	return MoveHandler(&UploadCallbackCtx{
-		SourceFile: outf.Name(),
-		OutputDir:  c.OutputDir,
-		OutputFile: c.OutputFile,
-	})
+	return outWriter.Flush()
 }

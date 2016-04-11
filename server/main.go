@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 )
 
 // Returns the current working directory
@@ -48,22 +47,14 @@ func main() {
 
 	// BACKENDS
 	// --------
-
-	// create the uploader
-	uploader, err := insight_server.MakeBasicUploader(filepath.ToSlash(config.UploadBasePath))
-	if err != nil {
-		// log the error and exit
-		log.Fatalf("Error during creating the uploader: %v", err)
-	}
+	// the temporary files are stored here so moving them wont result in errors
+	tempDir := filepath.Join(config.UploadBasePath, "_temp")
 
 	// create the maxid backend
 	maxIdBackend := insight_server.MakeFileMaxIdBackend(config.MaxIdDirectory)
 
 	// create the authenticator
 	authenticator := insight_server.NewLicenseAuthenticator(config.LicensesDirectory)
-
-	// create the server logs parser
-	serverlogsParser := insight_server.MakeServerlogParser(256, config.ServerlogsArchivePath)
 
 	// create the autoupdater backend
 	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
@@ -74,26 +65,6 @@ func main() {
 	// for now, put the commands file in the updates directory (should be skipped by the updater)
 	commandBackend := insight_server.NewFileCommandsEndpoint(config.UpdatesDirectory)
 
-	// UPLOADER CALLBACKS
-	// ------------------
-
-	uploader.AddCallback(&insight_server.UploadCallback{
-		Name:     "Serverlogs parsing",
-		Pkg:      regexp.MustCompile(""),
-		Filename: regexp.MustCompile("^serverlogs-"),
-		Handler: func(c *insight_server.UploadCallbackCtx) error {
-			serverlogsParser <- insight_server.ServerlogToParse{c.SourceFile, c.OutputFile, c.Basedir, c.Timezone}
-			return nil
-		},
-	})
-
-	uploader.AddCallback(&insight_server.UploadCallback{
-		Name:     "Serverlogs metadata addition",
-		Pkg:      regexp.MustCompile(""),
-		Filename: regexp.MustCompile("^metadata-"),
-		Handler:  insight_server.MetadataUploadHandler,
-	})
-
 	// ENDPOINTS
 	// ---------
 
@@ -101,7 +72,7 @@ func main() {
 	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
 			authenticator,
-			insight_server.MakeUploadHandler(uploader, maxIdBackend),
+			insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath),
 		),
 	)
 	// create the maxid handler
