@@ -44,31 +44,41 @@ func NewPossibleFileWriter(tmpDir, baseFileName string, headers []string) *possi
 	}
 }
 
+// Creates the output file for this writer
+func (w *possibleFileWriter) CreateFile() error {
+	// if the file already exists, dont continue
+	if w.hasFile {
+		return nil
+	}
+
+	f, err := NewGzippedFileWriterWithTemp(w.baseFileName, w.tmpDir)
+	if err != nil {
+		return fmt.Errorf("Error while creating parse error output file for '%s': %v", w.baseFileName, err)
+	}
+
+	w.file = f
+	w.writer = MakeCsvWriter(f)
+
+	// escape each header
+	escapedHeaders, err := EscapeRowForGreenPlum(w.headers)
+	if err != nil {
+		return fmt.Errorf("Error escaping header fields for greenplum >>%v<<: %v", w.headers, err)
+	}
+
+	// write the error header to the file
+	if err := w.writer.Write(escapedHeaders); err != nil {
+		return fmt.Errorf("Error writing parse error CSV file '%s' header: %v", w.baseFileName, err)
+	}
+
+	// mark that we have the file created
+	w.hasFile = true
+	return nil
+}
+
 // Writes a row to the csv writer
 func (w *possibleFileWriter) WriteRow(row []string) error {
 	if !w.hasFile {
-
-		f, err := NewGzippedFileWriterWithTemp(w.baseFileName, w.tmpDir)
-		if err != nil {
-			return fmt.Errorf("Error while creating parse error output file for '%s': %v", w.baseFileName, err)
-		}
-
-		w.file = f
-		w.writer = MakeCsvWriter(f)
-
-		// escape each header
-		escapedHeaders, err := EscapeRowForGreenPlum(w.headers)
-		if err != nil {
-			return fmt.Errorf("Error escaping header fields for greenplum >>%v<<: %v", w.headers, err)
-		}
-
-		// write the error header to the file
-		if err := w.writer.Write(escapedHeaders); err != nil {
-			return fmt.Errorf("Error writing parse error CSV file '%s' header: %v", w.baseFileName, err)
-		}
-
-		// mark that we have the file created
-		w.hasFile = true
+		w.CreateFile()
 	}
 
 	// escape each field
