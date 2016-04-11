@@ -90,6 +90,23 @@ func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter
 	return fmt.Errorf("Unreachable code reached")
 }
 
+// Shared helpers
+// --------------
+
+// Tries to parse a timestamp in the given timezone using the provided format.
+// Returns the parsed timestamp in a JSON timestamp format.
+func convertTimestringToUTC(format, timeString string, tz *time.Location) (string, error) {
+
+	// parse the timestamp
+	tsParsed, err := time.ParseInLocation(format, timeString, tz)
+	if err != nil {
+		return "", fmt.Errorf("Parsing timestamp '%s' with format '%s': %v", timeString, format, err)
+	}
+
+	// unify the output format
+	return tsParsed.UTC().Format(jsonDateFormat), nil
+}
+
 // Plain logs
 // ----------
 
@@ -119,9 +136,9 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 	ts, pid, line := matches[0][1], matches[0][2], matches[0][3]
 
 	// parse the timestamp
-	tsParsed, err := time.ParseInLocation(plainServerlogsTimestampFormat, ts, src.Timezone)
+	tsUtc, err := convertTimestringToUTC(plainServerlogsTimestampFormat, ts, src.Timezone)
 	if err != nil {
-		return fmt.Errorf("Parsing timestamp '%s': %v", ts, err)
+		return fmt.Errorf("Parsing log timestamp: %v", err)
 	}
 
 	// parse the pid (so we can check if is a valid number)
@@ -131,7 +148,7 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 
 	// Write the parsed line out (make sure its in the right order)
 	w.WriteParsed(src, []string{
-		tsParsed.UTC().Format(jsonDateFormat),
+		tsUtc,
 		pid,
 		line,
 	})
@@ -175,14 +192,13 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		return fmt.Errorf("Tid Parse error: %v", err)
 	}
 
-	// Parse the timestamp with the proper time zone
-	transcodedTs, err := time.ParseInLocation(jsonDateFormat, outerJson.Ts, src.Timezone)
+	tsUtc, err := convertTimestringToUTC(jsonDateFormat, outerJson.Ts, src.Timezone)
 	if err != nil {
-		return fmt.Errorf("Timestamp parse error: %v", err)
+		return fmt.Errorf("Parsing log timestamp: %v", err)
 	}
 
-	// Convert the timestamp to utc
-	outerJson.Ts = transcodedTs.UTC().Format(jsonDateFormat)
+	// Re-assign the converted timestamp
+	outerJson.Ts = tsUtc
 
 	// since the inner JSON can be anything, we unmarshal it into
 	// a string, so the json marshaler can do his thing and we
