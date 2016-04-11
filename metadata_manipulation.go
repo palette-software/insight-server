@@ -47,19 +47,16 @@ var preparsedServerlogsColumns = [][]metaColumn{
 		metaColumn{plainServerlogsTable, "pid", "integer"},
 		metaColumn{plainServerlogsTable, "line", "text"},
 	},
-	// Hostname and host_name are incosistent because they were used
-	// this way, and they might be hardcoded into SQL
-	// TODO: fix this situation
 	{
 
 		metaColumn{serverlogsErrorTable, "error", "text"},
-		metaColumn{serverlogsErrorTable, "hostname", "text"},
+		metaColumn{serverlogsErrorTable, "host_name", "text"},
 		metaColumn{serverlogsErrorTable, "filename", "text"},
 		metaColumn{serverlogsErrorTable, "line", "text"},
 	},
 	{
 		metaColumn{plainServerlogsErrorTable, "error", "text"},
-		metaColumn{plainServerlogsErrorTable, "hostname", "text"},
+		metaColumn{plainServerlogsErrorTable, "host_name", "text"},
 		metaColumn{plainServerlogsErrorTable, "filename", "text"},
 		metaColumn{plainServerlogsErrorTable, "line", "text"},
 	},
