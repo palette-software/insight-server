@@ -261,9 +261,20 @@ func NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir string) UploadH
 }
 
 var isJsonServerlogRegexp = regexp.MustCompile("^(server|json)logs")
+var isPlainServerlogRegexp = regexp.MustCompile("^plainlogs")
+
+// Is this a JSON formatted log
+func isJsonLog(fn string) bool {
+	return isJsonServerlogRegexp.MatchString(fn)
+}
+
+// Is this a plain text log?
+func isPlainLog(fn string) bool {
+	return isPlainServerlogRegexp.MatchString(fn)
+}
 
 func (j *JsonServerlogsUploadHandler) CanHandle(meta *UploadMeta) bool {
-	return isJsonServerlogRegexp.MatchString(meta.TableName)
+	return isJsonLog(meta.TableName) || isPlainLog(meta.TableName)
 }
 
 func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
@@ -273,10 +284,15 @@ func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader mult
 		return err
 	}
 
+	logFormat := LogFormatJson
+	if isPlainLog(meta.TableName) {
+		logFormat = LogFormatPlain
+	}
+
 	j.parserChan <- ServerlogInput{
 		Meta:         meta,
 		ArchivedFile: archivedFile,
-		Format:       LogFormatJson,
+		Format:       logFormat,
 	}
 	return nil
 }
