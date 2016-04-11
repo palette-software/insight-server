@@ -123,9 +123,6 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		return fmt.Errorf("Parsing timestamp '%s': %v", ts, err)
 	}
 
-	//
-	tsParsed = tsParsed.UTC()
-
 	// parse the pid (so we can check if is a valid number)
 	if _, err := strconv.Atoi(pid); err != nil {
 		return fmt.Errorf("Parsing pid '%s': %v", pid, err)
