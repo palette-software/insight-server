@@ -73,7 +73,7 @@ const (
 	// when dealing with multipart messages
 	multipartMaxSize = 128 * 1024 * 1024
 
-	// The directory persions to use when creating a new directory
+	// The directory permissions to use when creating a new directory
 	OUTPUT_DEFAULT_DIRMODE = 0755
 )
 
