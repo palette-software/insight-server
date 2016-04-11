@@ -20,7 +20,7 @@ type ServerlogWriter interface {
 // ----------
 
 // A writer that creates output files on-demand
-type possibleFileWriter struct {
+type csvFileWriter struct {
 	tmpDir string
 
 	baseFileName string
@@ -34,8 +34,8 @@ type possibleFileWriter struct {
 	isClosed bool
 }
 
-func NewPossibleFileWriter(tmpDir, baseFileName string, headers []string) *possibleFileWriter {
-	return &possibleFileWriter{
+func NewPossibleFileWriter(tmpDir, baseFileName string, headers []string) *csvFileWriter {
+	return &csvFileWriter{
 		tmpDir:       tmpDir,
 		baseFileName: baseFileName,
 		hasFile:      false,
@@ -45,7 +45,7 @@ func NewPossibleFileWriter(tmpDir, baseFileName string, headers []string) *possi
 }
 
 // Creates the output file for this writer
-func (w *possibleFileWriter) CreateFile() error {
+func (w *csvFileWriter) CreateFile() error {
 	// if the file already exists, dont continue
 	if w.hasFile {
 		return nil
@@ -76,7 +76,7 @@ func (w *possibleFileWriter) CreateFile() error {
 }
 
 // Writes a row to the csv writer
-func (w *possibleFileWriter) WriteRow(row []string) error {
+func (w *csvFileWriter) WriteRow(row []string) error {
 	if !w.hasFile {
 		w.CreateFile()
 	}
@@ -96,7 +96,7 @@ func (w *possibleFileWriter) WriteRow(row []string) error {
 }
 
 // Closes the file if it is open
-func (w *possibleFileWriter) Close() error {
+func (w *csvFileWriter) Close() error {
 	// if we are already closed, return
 	if w.isClosed {
 		return nil
@@ -128,7 +128,7 @@ func (w *possibleFileWriter) Close() error {
 // -----------------------------------------
 
 type serverlogsWriter struct {
-	parsedWriter, errorsWriter *possibleFileWriter
+	parsedWriter, errorsWriter *csvFileWriter
 
 	parsedCount, errorCount int
 	isClosed                bool
