@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // An agent command with a timestamp
@@ -42,10 +43,16 @@ func NewFileCommandsEndpoint(baseDir string) CommandsEndpoint {
 		lastCommands: map[string]AgentCommand{},
 	}
 
-	log.Printf("[commands] Using '%s' as commands file", ep.saveFileName())
+	logrus.WithFields(logrus.Fields{
+		"component": "commands",
+		"file":      ep.saveFileName(),
+	}).Info("Using commands file")
 
 	if err := ep.loadLastCommands(); err != nil {
-		log.Printf("[commands] Error while loading back commands list '%s': %v", ep.saveFileName(), err)
+		logrus.WithFields(logrus.Fields{
+			"component": "commands",
+			"file":      ep.saveFileName(),
+		}).WithError(err).Warn("Error while loading back commands list")
 	}
 
 	return ep
@@ -67,7 +74,9 @@ func (f *fileCommandsEndpoint) AddCommand(tenant, command string) *AgentCommand 
 	f.lastCommands[tenant] = cmd
 
 	if err := f.saveLastCommands(); err != nil {
-		log.Printf("[commands] ERROR while saving commands list: %v", err)
+		logrus.WithFields(logrus.Fields{
+			"component": "commands",
+		}).WithError(err).Error("Error while saving commands list")
 	}
 
 	// return the address of the command, but dont touch lastCommands
@@ -116,8 +125,6 @@ func (f *fileCommandsEndpoint) saveLastCommands() error {
 		return fmt.Errorf("Error while moving commands file '%s' to '%s': %v", tmpFile.Name(), f.saveFileName(), err)
 	}
 
-	log.Printf("[commands] Moved temporary commands file '%s' to '%s'", tmpFile.Name(), f.saveFileName())
-
 	return nil
 }
 
@@ -138,7 +145,11 @@ func (f *fileCommandsEndpoint) loadLastCommands() error {
 	}
 
 	// log some status
-	log.Printf("[commands] Loaded commmands list from commands file '%s': %v", f.saveFileName(), f.lastCommands)
+	logrus.WithFields(logrus.Fields{
+		"component": "commands",
+		"file":      f.saveFileName(),
+		"commands":  f.lastCommands,
+	}).Info("Loaded commands")
 
 	return nil
 }
@@ -163,7 +174,10 @@ func NewAddCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 		cmd := cep.AddCommand(tenant, command)
 		if err := json.NewEncoder(w).Encode(cmd); err != nil {
 			// log the error
-			log.Printf("[commands] Error encoding command json for http: %v", err)
+			// log some status
+			logrus.WithFields(logrus.Fields{
+				"component": "commands",
+			}).WithError(err).Error("Error encoding commands for json")
 			// but hide this fact from the outside world
 			writeResponse(w, http.StatusInternalServerError, "")
 			return
@@ -194,7 +208,9 @@ func NewGetCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 
 		if err := json.NewEncoder(w).Encode(cmd); err != nil {
 			// log the error
-			log.Printf("[commands] Error encoding command json for http: %v", err)
+			logrus.WithFields(logrus.Fields{
+				"component": "commands",
+			}).WithError(err).Error("Error encoding command json for http")
 			// but hide this fact from the outside world
 			writeResponse(w, http.StatusInternalServerError, "")
 			return

@@ -3,9 +3,10 @@ package insight_server
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	"io"
 	"mime/multipart"
@@ -220,7 +221,12 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 		return "", fmt.Errorf("Error writing uploaded bytes to '%s': %v", outputWriter.GetFileName(), err)
 	}
 
-	log.Printf("[copy] Written %d bytes for '%s' to '%s'", bytesWritten, meta.OriginalFilename, outputWriter.GetFileName())
+	logrus.WithFields(logrus.Fields{
+		"component":        "copy",
+		"bytesWritten":     bytesWritten,
+		"originalFileName": meta.OriginalFilename,
+		"outputFile":       outputWriter.GetFileName(),
+	}).Info("Copied uploaded file")
 	return outputWriter.GetFileName(), nil
 }
 

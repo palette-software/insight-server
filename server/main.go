@@ -4,17 +4,18 @@ import (
 	"github.com/palette-software/insight-server"
 
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // Returns the current working directory
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 		panic(err)
 	}
 	return dir
@@ -24,7 +25,13 @@ func getCurrentPath() string {
 // Adds basic request logging to the wrapped handler
 func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[http] ====> %s -> {%v} %s (handler:%s)", r.RemoteAddr, r.Method, r.URL.RequestURI(), name)
+		logrus.WithFields(logrus.Fields{
+			"component":     "http",
+			"method":        r.Method,
+			"remoteAddress": r.RemoteAddr,
+			"url":           r.URL.RequestURI(),
+			"handler":       name,
+		}).Info("==> Request")
 		// also write all header we care about for proxies here
 		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Add("Pragma", "no-cache")
@@ -38,12 +45,15 @@ func staticHandler(name, assetPath string) http.HandlerFunc {
 }
 
 func main() {
+	config := insight_server.ParseOptions()
 
 	// setup the log timezone to be UTC (and keep any old flags)
-	log.SetFlags(log.Flags() | log.LUTC)
-	log.Printf("[boot] Starting palette insight-server %s", insight_server.GetVersion())
-
-	config := insight_server.ParseOptions()
+	insight_server.SetupLogging(config.LogFormat, config.LogLevel)
+	logrus.WithFields(logrus.Fields{
+		"component": "boot",
+		"version":   insight_server.GetVersion(),
+		"path":      getCurrentPath(),
+	}).Info("Starting palette insight-server")
 
 	// BACKENDS
 	// --------
@@ -59,7 +69,7 @@ func main() {
 	// create the autoupdater backend
 	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
 	if err != nil {
-		log.Fatalf("Error during creation of Autoupdater: %v", err)
+		logrus.Fatalf("Error during creation of Autoupdater: %v", err)
 	}
 
 	// for now, put the commands file in the updates directory (should be skipped by the updater)
@@ -111,22 +121,33 @@ func main() {
 	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
 
 	// auto-update distribution: The updates should be publicly accessable
-	log.Printf("[http] Serving static content for updates from: %s", config.UpdatesDirectory)
+	logrus.WithFields(logrus.Fields{
+		"component": "http",
+		"directory": config.UpdatesDirectory,
+	}).Info("Serving static content for updates")
 	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(config.UpdatesDirectory))))
 
 	// STARTING THE SERVER
 	// ===================
 
 	bindAddressWithPort := fmt.Sprintf("%s:%v", config.BindAddress, config.BindPort)
-	log.Printf("[http] Webservice starting on %v\n", bindAddressWithPort)
+	logrus.WithFields(logrus.Fields{
+		"component": "http",
+		"address":   bindAddressWithPort,
+	}).Info("Webservice starting")
 
 	if config.UseTls {
-		log.Printf("[http] Using TLS cert: '%s' and key: '%s'", config.TlsCert, config.TlsKey)
+		logrus.WithFields(logrus.Fields{
+			"component": "http",
+			"cert":      config.TlsCert,
+			"key":       config.TlsKey,
+		}).Info("Using TLS cert")
+
 		err := http.ListenAndServeTLS(bindAddressWithPort, config.TlsCert, config.TlsKey, nil)
-		log.Fatal(err)
+		logrus.Fatal(err)
 	} else {
 		err := http.ListenAndServe(bindAddressWithPort, nil)
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 }

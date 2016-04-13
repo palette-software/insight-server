@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"regexp"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type metaTable struct {
@@ -118,7 +119,10 @@ func MetadataUploadHandler(meta *UploadMeta, tmpDir, baseDir, archivedFile strin
 		}
 	}
 
-	log.Printf("[metadata] adding metadata to: '%s'", meta.OriginalFilename)
+	logrus.WithFields(logrus.Fields{
+		"component": "metadata",
+		"file":      meta.OriginalFilename,
+	}).Info("Adding metadata")
 
 	metadata := make([]string, len(preparsedServerlogsColumns))
 	for i, table := range preparsedServerlogsColumns {
