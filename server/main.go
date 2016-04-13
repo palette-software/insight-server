@@ -53,7 +53,7 @@ func main() {
 		"component": "boot",
 		"version":   insight_server.GetVersion(),
 		"path":      getCurrentPath(),
-	}).Printf("Starting palette insight-server")
+	}).Info("Starting palette insight-server")
 
 	// BACKENDS
 	// --------
