@@ -2,26 +2,21 @@ package insight_server
 
 import (
 	"bytes"
-	"net/http"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"github.com/Sirupsen/logrus"
+	"net/http"
 	"time"
 )
 
 type LicenseCheckResponse struct {
-	Valid bool
+	Valid     bool
 	OwnerName string
 }
 
 func LicenseCheckHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		//err := r.ParseMultipartForm(multipartMaxSize)
-		//if err != nil {
-		//	writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while parsing multipart form: %v", err))
-		//	return
-		//}
-
+		// License file to be checked is expected as a multipart file
 		mpr, err := r.MultipartReader()
 		if err != nil {
 			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while getting multipart reader: %v", err))
@@ -36,7 +31,7 @@ func LicenseCheckHandler() http.HandlerFunc {
 		}
 
 		logrus.WithFields(logrus.Fields{
-			"component":       "license check endpoint",
+			"component": "license check endpoint",
 		}).Infof("Retrieved part's file name: %v", part.FileName())
 
 		license, err := ReadLicense(part)
@@ -47,7 +42,7 @@ func LicenseCheckHandler() http.HandlerFunc {
 		}
 
 		checkResponse := LicenseCheckResponse{
-			Valid: time.Now().Before(license.ValidUntilUTC),
+			Valid:     time.Now().Before(license.ValidUntilUTC),
 			OwnerName: license.Owner,
 		}
 
@@ -61,4 +56,3 @@ func LicenseCheckHandler() http.HandlerFunc {
 		w.Write(wb.Bytes())
 	}
 }
-
