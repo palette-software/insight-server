@@ -100,6 +100,8 @@ func main() {
 	newCommandHandler := withRequestLog("commands-new", insight_server.NewAddCommandHandler(commandBackend))
 	getCommandHandler := withRequestLog("commands-get", insight_server.NewGetCommandHandler(commandBackend))
 
+	licenseCheckHandler := withRequestLog("license-check", insight_server.LicenseCheckHandler())
+
 	// HANDLERS
 	// ========
 
@@ -119,6 +121,9 @@ func main() {
 	http.HandleFunc("/commands/new", newCommandHandler)
 	http.HandleFunc("/commands/recent", getCommandHandler)
 	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
+
+	// License check
+	http.HandleFunc("/license-check", licenseCheckHandler)
 
 	// auto-update distribution: The updates should be publicly accessable
 	logrus.WithFields(logrus.Fields{
