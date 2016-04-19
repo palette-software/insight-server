@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"bytes"
 	"io"
 	"mime/multipart"
 	"path"
@@ -42,7 +43,7 @@ type UploadMeta struct {
 	PartIdx int
 
 	// The orignal Md5 the agent sent us
-	Md5 []byte
+	OriginalMd5 []byte
 }
 
 // Returns the file name for an upload request
@@ -165,6 +166,7 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 	// build the upload metadata
 	return &UploadMeta{
 		OriginalFilename: fileName,
+		OriginalMd5:      fileMd5,
 
 		Tenant: tenantName,
 
@@ -200,12 +202,12 @@ func findUploadHandler(meta *UploadMeta, handlers []UploadHandler, fallback Uplo
 // -------
 
 // Shared handler to copy an uploaded file to a location
-func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, err error) {
+func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, md5 []byte, err error) {
 
 	// create the output writer
 	outputWriter, err := meta.GetOutputGzippedWriter(baseDir, tmpDir)
 	if err != nil {
-		return "", fmt.Errorf("Error opening gzipped output: %v", err)
+		return "", nil, fmt.Errorf("Error opening gzipped output: %v", err)
 	}
 	// safety defered close to always close the file
 	defer outputWriter.Close()
@@ -213,12 +215,12 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 	// copy the data to the output
 	bytesWritten, err := io.Copy(outputWriter, reader)
 	if err != nil {
-		return "", fmt.Errorf("Error copying data to output: %v", err)
+		return "", nil, fmt.Errorf("Error copying data to output: %v", err)
 	}
 
 	// pick up any errors during close
 	if err := outputWriter.Close(); err != nil {
-		return "", fmt.Errorf("Error writing uploaded bytes to '%s': %v", outputWriter.GetFileName(), err)
+		return "", nil, fmt.Errorf("Error writing uploaded bytes to '%s': %v", outputWriter.GetFileName(), err)
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -228,7 +230,25 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 		"originalFileName": meta.OriginalFilename,
 		"outputFile":       outputWriter.GetFileName(),
 	}).Info("Copied uploaded file")
-	return outputWriter.GetFileName(), nil
+
+	return outputWriter.GetFileName(), outputWriter.Md5(), nil
+}
+
+// Shared handler to copy an uploaded file to a location
+func copyUploadedFileAndCheckMd5(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, err error) {
+	outFileName, fileMd5, err := copyUploadedFileTo(meta, reader, baseDir, tmpDir)
+
+	// Check for errors
+	if err != nil {
+		return outFileName, err
+	}
+
+	// Check if the md5 isnt a match
+	if bytes.Compare(meta.OriginalMd5, fileMd5) != 0 {
+		return outFileName, fmt.Errorf("Invalid md5: agent sent '%032x' copy got '%032x'", meta.OriginalMd5, fileMd5)
+	}
+
+	return outFileName, nil
 }
 
 // Simple move handler
@@ -244,7 +264,7 @@ func (f *FallbackUploadHandler) CanHandle(meta *UploadMeta) bool {
 }
 
 func (f *FallbackUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
-	_, err := copyUploadedFileTo(meta, reader, f.baseDir, f.tmpDir)
+	_, err := copyUploadedFileAndCheckMd5(meta, reader, f.baseDir, f.tmpDir)
 	return err
 }
 
@@ -286,7 +306,7 @@ func (j *JsonServerlogsUploadHandler) CanHandle(meta *UploadMeta) bool {
 
 func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
 	// copy the serverlog to the archives
-	archivedFile, err := copyUploadedFileTo(meta, reader, j.archivesDir, j.tmpDir)
+	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, j.archivesDir, j.tmpDir)
 	if err != nil {
 		return err
 	}
@@ -326,7 +346,7 @@ func (m *metadataUploadHandler) CanHandle(meta *UploadMeta) bool {
 }
 func (m *metadataUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
 	// copy the serverlog to the archives
-	archivedFile, err := copyUploadedFileTo(meta, reader, m.archivesDir, m.tmpDir)
+	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, m.archivesDir, m.tmpDir)
 	if err != nil {
 		return err
 	}
