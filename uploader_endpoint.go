@@ -43,23 +43,51 @@ type UploadMeta struct {
 
 	// The orignal Md5 the agent sent us
 	Md5 []byte
+
+	// By putting this flag here, we can decouple the configuration of
+	// this flag from its implementation
+	UseOldFormatFilename bool
 }
 
 // Returns the file name for an upload request
 func (u *UploadMeta) GetOutputFilename(baseDir string) string {
+	dateUtc := u.Date.UTC()
+
+	// The name of the output file
+	var outFilePattern string
+
+	if u.UseOldFormatFilename {
+		// example:
+		// countersamples-2016-04-18--14-10-08--seq0000--part0000-csv-08-00--14-00-95755b03f960d2994dbad08067504e02.csv.gz
+		outFilePattern = fmt.Sprintf("%s-%s--seq%04d--part%04d-csv-%s-{{md5}}.csv",
+			SanitizeName(u.TableName),
+			// the current time as part of the 2nd timestamp
+			dateUtc.Format("2006-01-02--15-04-05"),
+			u.PartIdx,
+			u.SeqIdx,
+			// copy the timestamp to the latter place
+			dateUtc.Format("01-02--15-04"),
+		)
+
+	} else {
+		// example:
+		// threadinfo-2016-04-19--12-36-58--seq000--part0000-bc2ce0e4421cd7dea704eff080bb6f43.csv.gz
+		outFilePattern = fmt.Sprintf("%s-%s--seq%03d--part%04d-{{md5}}.csv",
+			SanitizeName(u.TableName),
+			// the current time as part of the 2nd timestamp
+			u.Date.UTC().Format("2006-01-02--15-04-05"),
+			u.PartIdx,
+			u.SeqIdx,
+		)
+	}
+	//
 	return filepath.ToSlash(path.Join(
 		baseDir,
 		SanitizeName(u.Tenant),
 		"uploads",
 		SanitizeName(u.Pkg),
 		SanitizeName(u.Host),
-		fmt.Sprintf("%s-%s--seq%03d--part%04d-{{md5}}.csv",
-			SanitizeName(u.TableName),
-			// the current time as part of the 2nd timestamp
-			u.Date.UTC().Format("2006-01-02--15-04-05"),
-			u.PartIdx,
-			u.SeqIdx,
-		),
+		outFilePattern,
 	))
 }
 
@@ -78,7 +106,7 @@ const (
 )
 
 // Creates an http endpoint handler where
-func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string) HandlerFuncWithTenant {
+func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string, useOldFormatFilename bool) HandlerFuncWithTenant {
 	// the fallback handler to move files
 	fallbackHandler := &FallbackUploadHandler{tmpDir: tmpDir, baseDir: baseDir}
 
@@ -98,6 +126,9 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 			return
 		}
 		defer mainFile.Close()
+
+		// update the filename flag from the config
+		meta.UseOldFormatFilename = useOldFormatFilename
 
 		// find the handler for this table
 		if err := findUploadHandler(meta, handlers, fallbackHandler).HandleUpload(meta, mainFile); err != nil {
@@ -162,6 +193,8 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 		return nil, nil, err
 	}
 
+	// TODO: check MD5
+
 	// build the upload metadata
 	return &UploadMeta{
 		OriginalFilename: fileName,
@@ -176,6 +209,9 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 		Timezone: sourceTimezone,
 		SeqIdx:   seqIdx,
 		PartIdx:  partIdx,
+
+		// default to not using the old format
+		UseOldFormatFilename: false,
 	}, mainFile, nil
 }
 
@@ -222,8 +258,8 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"sourceHost":       meta.Host,
 		"component":        "copy",
+		"sourceHost":       meta.Host,
 		"bytesWritten":     bytesWritten,
 		"originalFileName": meta.OriginalFilename,
 		"tableName":        meta.TableName,

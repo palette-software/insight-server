@@ -25,6 +25,11 @@ type InsightWebServiceConfig struct {
 
 	// The archive path for the serverlogs
 	ServerlogsArchivePath string
+
+	// Should the filenames use the old format?
+	// like 'countersamples-2016-04-18--14-10-08--seq0000--part0000-csv-08-00--14-00-95755b03f960d2994dbad08067504e02.csv.gz'
+	// (with double timestampt)
+	UseOldFormatFilename bool
 }
 
 // Returns the current working directory
@@ -83,6 +88,12 @@ func ParseOptions() InsightWebServiceConfig {
 	flag.StringVar(&tlsCert, "cert", "cert.pem", "The TLS certificate file to use when tls is set.")
 	flag.StringVar(&tlsKey, "key", "key.pem", "The TLS certificate key file to use when tls is set.")
 
+	// MISC
+	// ====
+	var useOldFormatFilename bool
+
+	flag.BoolVar(&useOldFormatFilename, "old_filename", false, "Use the old output filename format")
+
 	// CONFIG FILE
 	// ===========
 
@@ -113,5 +124,6 @@ func ParseOptions() InsightWebServiceConfig {
 		LogLevel:  logLevel,
 
 		ServerlogsArchivePath: archivePath,
+		UseOldFormatFilename:  useOldFormatFilename,
 	}
 }
