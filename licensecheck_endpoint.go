@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"net/http"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type LicenseCheckResponse struct {
@@ -32,7 +33,8 @@ func LicenseCheckHandler() http.HandlerFunc {
 
 		logrus.WithFields(logrus.Fields{
 			"component": "license check endpoint",
-		}).Infof("Retrieved part's file name: %v", part.FileName())
+			"file":      part.FileName(),
+		}).Debug("Retrieved part's file name")
 
 		license, err := ReadLicense(part)
 		if err != nil {
