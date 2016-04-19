@@ -28,7 +28,7 @@ type InsightWebServiceConfig struct {
 
 	// Should the filenames use the old format?
 	// like 'countersamples-2016-04-18--14-10-08--seq0000--part0000-csv-08-00--14-00-95755b03f960d2994dbad08067504e02.csv.gz'
-	// (with double timestampt)
+	// (with double timestamp)
 	UseOldFormatFilename bool
 }
 
