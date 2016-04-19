@@ -36,18 +36,23 @@ The environment variables and their corresponding configuration file values and 
 | string | -bind_address 127.0.0.1                    | BIND_ADDRESS=127.0.0.1                    | bind_address=127.0.0.1                    |
 | bool   | -tls                                       | TLS=true                                  | tls=true                                  |
 | string | -cert certs/cert.pem                       | CERT=certs/cert.pem                       | cert=certs/cert.pem                       |
-| string | -key certs/key.pem                         | KEY=certs/key.pem                         | cert=certs/key.pem                        |
+| string | -key certs/key.pem                         | KEY=certs/key.pem                         | key=certs/key.pem                         |
+| string | -logformat json                            | LOGFORMAT=text                            | logformat=color                           |
+| string | -loglevel warn                             | LOGLEVEL=debug                            | loglevel=info                             |
 
 To get a list of command line options, use the ```--help``` switch. On my machine (windows) this results in:
 
 ```
-./server --help
+./server.exe --help
 Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server\server.exe:
+  -archive_path="": The directory where the uploaded serverlogs are archived.
   -bind_address="": The address to bind to. Leave empty for default .
   -cert="cert.pem": The TLS certificate file to use when tls is set.
   -config="": Configuration file to use.
   -key="key.pem": The TLS certificate key file to use when tls is set.
   -licenses_path="C:\\Users\\Miles\\go\\src\\github.com\\palette-software\\insight-server\\server\\licenses": The directory the licenses are loaded from on start.
+  -logformat="text": The log format to use ('json' or 'text' or 'color')
+  -loglevel="info": The log level to use ('info', 'warn' or 'debug')
   -maxid_path="C:\\Users\\Miles\\AppData\\Local\\Temp\\uploads\\maxid": The root directory for the maxid files to go into.
   -port=9000: The port the server is binding itself to
   -tls=false: Use TLS for serving through HTTPS.
@@ -57,18 +62,58 @@ Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server
 
 ## Sample configuration file
 
-A sample configuration file from one of the test machines:
+A sample configuration file can be found in the ```server``` folder as ```sample.config```
 
 ```
-upload_path=/mnt/dbdata/insight-server/uploads
-maxid_path=/mnt/dbdata/insight-server/maxids
-licenses_path=/mnt/dbdata/insight-server/licenses
+# PATHS
+# =====
+
+# The root directory for the uploads to go into.
+upload_path=/data/insight-server/uploads
+
+# The path where the maxid files are stored
+maxid_path=/data/insight-server/maxids
+
+# The path where the licenses are stored
+licenses_path=/data/insight-server/licenses
+
+# The directory where the update files for the agent are stored.
+updates_path=/data/insight-server/updates
+
+# SERVER
+# ======
+
+# The address to bind to. Leave empty for default which is 0.0.0.0
+bind_address=
+
+# The port the server is binding itself to
 port=9443
-tls=true
-#cert=/mnt/dbdata/insight-server/ssl-certs/server.crt
-cert=/mnt/dbdata/insight-server/ssl-certs/star_palette-software_net.crt
-key=/mnt/dbdata/insight-server/ssl-certs/server.key
+
+# SSL
+# ===
+
+# As we are using Nginx to forward the HTTPS requests to our port, we
+# generally dont need to run with TLS
+
+# Should the server use SSL?
+#tls=true
+
+# The locations of the SSL certificate and key files
+#cert=/data/insight-server/ssl-certs/star_palette-software_net.crt
+#key=/data/insight-server/ssl-certs/server.key
+
+# LOGGING
+# =======
+
+# Sets the minimal log level. Can be 'debug', 'info', 'warn', 'error'
+loglevel=info
+
+# Sets the output format for logs. Can be 'json', 'text', 'color' (the last one
+# force color output for windows terminals
+logformat=json
 ```
+
+This configuration file gets installed as default when using the RPM installer.
 
 ## IpTables
 
