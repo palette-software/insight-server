@@ -193,8 +193,6 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 		return nil, nil, err
 	}
 
-	// TODO: check MD5
-
 	// build the upload metadata
 	return &UploadMeta{
 		OriginalFilename: fileName,
