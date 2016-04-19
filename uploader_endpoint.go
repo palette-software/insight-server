@@ -226,6 +226,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 		"component":        "copy",
 		"bytesWritten":     bytesWritten,
 		"originalFileName": meta.OriginalFilename,
+		"tableName":        meta.TableName,
 		"outputFile":       outputWriter.GetFileName(),
 	}).Info("Copied uploaded file")
 	return outputWriter.GetFileName(), nil
