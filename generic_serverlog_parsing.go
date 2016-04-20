@@ -171,6 +171,7 @@ type JsonLogParser struct{}
 
 func (j *JsonLogParser) Header() []string {
 	return []string{
+		"ts",
 		"pid", "tid",
 		"sev", "req", "sess", "site", "user",
 		"k", "v",
@@ -208,10 +209,12 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		return fmt.Errorf("Inner JSON remarshaling error: %v", err)
 	}
 
+	// "ts"
 	//"pid", "tid",
 	//"sev", "req", "sess", "site", "user",
 	//"k", "v",
 	w.WriteParsed(src, []string{
+		outerJson.Ts.Format(jsonDateFormat),
 		strconv.Itoa(outerJson.Pid), outerJson.Tid, // the tid is already a string
 		outerJson.Sev, outerJson.Req, outerJson.Sess, outerJson.Site, outerJson.User,
 		outerJson.K, string(innerStr),
