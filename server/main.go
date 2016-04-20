@@ -82,7 +82,7 @@ func main() {
 	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
 			authenticator,
-			insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath),
+			insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath, config.UseOldFormatFilename),
 		),
 	)
 	// create the maxid handler
