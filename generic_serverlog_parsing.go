@@ -214,7 +214,7 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 	//"sev", "req", "sess", "site", "user",
 	//"k", "v",
 	w.WriteParsed(src, []string{
-		outerJson.Ts.Format(jsonDateFormat),
+		outerJson.Ts,
 		strconv.Itoa(outerJson.Pid), outerJson.Tid, // the tid is already a string
 		outerJson.Sev, outerJson.Req, outerJson.Sess, outerJson.Site, outerJson.User,
 		outerJson.K, string(innerStr),
