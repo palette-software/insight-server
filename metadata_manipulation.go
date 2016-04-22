@@ -19,10 +19,12 @@ type metaColumn struct {
 	column, formatType string
 }
 
-var serverlogsTable = metaTable{"public", "jsonlogs"}
+var serverlogsTable = metaTable{"public", "serverlogs"}
+var serverlogsTableAlt = metaTable{"public", "jsonlogs"}
 var plainServerlogsTable = metaTable{"public", "plainlogs"}
 
 var serverlogsErrorTable = metaTable{"public", "error_jsonlogs"}
+var serverlogsAltErrorTable = metaTable{"public", "error_serverlogs"}
 var plainServerlogsErrorTable = metaTable{"public", "error_plainlogs"}
 
 var preparsedServerlogsColumns = [][]metaColumn{
@@ -41,6 +43,20 @@ var preparsedServerlogsColumns = [][]metaColumn{
 		metaColumn{serverlogsTable, "v", "text"},
 	},
 	{
+		metaColumn{serverlogsTableAlt, "filename", "text"},
+		metaColumn{serverlogsTableAlt, "host_name", "text"},
+		metaColumn{serverlogsTableAlt, "ts", "timestamp without time zone"},
+		metaColumn{serverlogsTableAlt, "pid", "integer"},
+		metaColumn{serverlogsTableAlt, "tid", "integer"},
+		metaColumn{serverlogsTableAlt, "sev", "text"},
+		metaColumn{serverlogsTableAlt, "req", "text"},
+		metaColumn{serverlogsTableAlt, "sess", "text"},
+		metaColumn{serverlogsTableAlt, "site", "text"},
+		metaColumn{serverlogsTableAlt, "user", "text"},
+		metaColumn{serverlogsTableAlt, "k", "text"},
+		metaColumn{serverlogsTableAlt, "v", "text"},
+	},
+	{
 
 		metaColumn{plainServerlogsTable, "filename", "text"},
 		metaColumn{plainServerlogsTable, "host_name", "text"},
@@ -49,7 +65,12 @@ var preparsedServerlogsColumns = [][]metaColumn{
 		metaColumn{plainServerlogsTable, "line", "text"},
 	},
 	{
-
+		metaColumn{serverlogsAltErrorTable, "error", "text"},
+		metaColumn{serverlogsAltErrorTable, "host_name", "text"},
+		metaColumn{serverlogsAltErrorTable, "filename", "text"},
+		metaColumn{serverlogsAltErrorTable, "line", "text"},
+	},
+	{
 		metaColumn{serverlogsErrorTable, "error", "text"},
 		metaColumn{serverlogsErrorTable, "host_name", "text"},
 		metaColumn{serverlogsErrorTable, "filename", "text"},
