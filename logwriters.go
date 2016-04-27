@@ -2,9 +2,10 @@ package insight_server
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"io"
 	"path/filepath"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type ServerlogWriter interface {

@@ -260,6 +260,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 	logrus.WithFields(logrus.Fields{
 		"component":        "copy",
 		"sourceHost":       meta.Host,
+		"tenant":           meta.Tenant,
 		"bytesWritten":     bytesWritten,
 		"originalFileName": meta.OriginalFilename,
 		"tableName":        meta.TableName,
