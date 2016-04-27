@@ -2,6 +2,7 @@ package insight_server
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"io"
 	"path/filepath"
 )
@@ -156,6 +157,14 @@ func NewServerlogsWriter(outputDir, tmpDir, fileBaseName string, parsedHeaders [
 }
 
 func (w *serverlogsWriter) WriteError(source *ServerlogsSource, parseErr error, line string) error {
+	// log errors so splunk can pick them up
+	logrus.WithFields(logrus.Fields{
+		"component":  "serverlogs",
+		"sourceHost": source.Host,
+		"file":       source.Filename,
+		"line":       line,
+	}).WithError(parseErr).Error("Error during serverlog parsing")
+
 	err := w.errorsWriter.WriteRow([]string{fmt.Sprint(parseErr), source.Host, source.Filename, line})
 	if err == nil {
 		w.errorCount++
