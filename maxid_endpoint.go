@@ -92,6 +92,7 @@ func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
 		"component": "maxid",
 		"table":     tableName,
 		"file":      fileName,
+		"maxid":     maxid,
 	}).Debug("Writing maxid")
 
 	// create the output file path
