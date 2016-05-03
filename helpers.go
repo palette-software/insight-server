@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"unicode/utf8"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -341,8 +343,9 @@ func hexToDecimal(tidHexa string) (string, error) {
 }
 
 const (
-	backslash   = '\\'
-	octalPrefix = '0'
+	backslash     = '\\'
+	octalPrefix   = '0'
+	unicodePrefix = 'u'
 
 	escapeStateNormal = 0
 	// when we are in after a normal backslash
@@ -359,6 +362,7 @@ func UnescapeGPCsvString(field string) (string, error) {
 
 	b := make([]byte, 1)
 	octalBuffer := []byte{0, 0}
+	unicodeBuffer := []byte{0, 0, 0, 0}
 	state := escapeStateNormal
 
 	for {
@@ -431,6 +435,32 @@ func UnescapeGPCsvString(field string) (string, error) {
 
 				state = escapeStateNormal
 
+			// if its the octal prefix, move to octal mode
+			case unicodePrefix:
+
+				// try to read four bytes for octal
+				bytesRead, err := r.Read(unicodeBuffer)
+				if err != nil {
+					return "", fmt.Errorf("Error while reading unicode escape sequence from '%s': %v", field, err)
+				}
+				if bytesRead != 4 {
+					return "", fmt.Errorf("Premature end of string '%s' during unicode escape.", field)
+				}
+
+				// parse the unicode code
+				charCode, err := strconv.ParseInt(string(unicodeBuffer), 16, 32)
+				if err != nil {
+					return "", fmt.Errorf("Error while parsing unicode escape '%s': %v", unicodeBuffer, err)
+				}
+
+				unicodeDecodeBuffer := []byte{0, 0, 0, 0}
+				// write to the buffer and figure out how many bytes do we have to
+				// write
+				outLen := utf8.EncodeRune(unicodeDecodeBuffer, rune(charCode))
+
+				w.Write(unicodeDecodeBuffer[0:outLen])
+
+				state = escapeStateNormal
 			default:
 				return "", fmt.Errorf("Invalid backslashed character in '%s' @ %d: %d", field, r.Len(), char)
 			}
@@ -479,4 +509,85 @@ func EscapeGPCsvString(field string) (string, error) {
 	}
 
 	return "", fmt.Errorf("Unreachable code reached.")
+}
+
+// Unescape the unicode code points in a string
+func unescapeUnicodePoints(r io.Reader, w io.Writer) error {
+
+	b, unicodeBuffer := make([]byte, 1), make([]byte, 4)
+	state := escapeStateNormal
+
+	for {
+		_, err := r.Read(b)
+
+		// if end of string, return the built string
+		if err == io.EOF {
+			return nil
+		}
+
+		// otherwise return the error
+		if err != nil {
+			return err
+		}
+
+		char := b[0]
+
+		switch state {
+
+		// if we arent escaped, write the character to the normal buffer
+		case escapeStateNormal:
+			if char == backslash {
+				state = escapeStateBackslashed
+			} else {
+				// write the bufffer
+				if _, err := w.Write(b); err != nil {
+					return fmt.Errorf("Error during writing of unicode unescape: %v", err)
+				}
+			}
+
+		case escapeStateBackslashed:
+			// move the state back after this read
+			state = escapeStateNormal
+			switch char {
+
+			// if its the octal prefix, move to octal mode
+			case unicodePrefix:
+
+				// try to read four bytes for octal
+				bytesRead, err := r.Read(unicodeBuffer)
+				if err != nil {
+					return fmt.Errorf("Error while reading unicode escape sequence: %v", err)
+				}
+				if bytesRead != 4 {
+					return fmt.Errorf("Premature end of string during unicode escape.")
+				}
+
+				// parse the unicode code
+				charCode, err := strconv.ParseInt(string(unicodeBuffer), 16, 32)
+				if err != nil {
+					return fmt.Errorf("Error while parsing unicode escape '%s': %v", unicodeBuffer, err)
+				}
+
+				unicodeDecodeBuffer := []byte{0, 0, 0, 0}
+				// write to the buffer and figure out how many bytes do we have to
+				// write
+				outLen := utf8.EncodeRune(unicodeDecodeBuffer, rune(charCode))
+
+				w.Write(unicodeDecodeBuffer[0:outLen])
+
+				state = escapeStateNormal
+			default:
+				// since we are coming after a backslash (which we swallowed
+				// in the previous step), we write it out here, so this function
+				// does no unescapes apart from unicode on:w
+				// e
+				w.Write([]byte{backslash})
+				w.Write(b)
+			}
+
+		}
+
+	}
+
+	return fmt.Errorf("Unreachable code reached.")
 }
