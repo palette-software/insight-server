@@ -15,6 +15,11 @@ server/server
 rpm-build/_build/**/*.rpm
 
 
+# IDE files
 .idea
 *.iml
+*.swp
 palette-insight-reparse/palette-insight-reparse*
+
+# Build executable
+insight-server

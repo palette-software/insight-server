@@ -5,16 +5,15 @@
 ## Starting the webservice
 
 ```bash
-cd server
-go build && ./server
+go get
+go build && ./insight-server
 ```
 
 or on Windows:
 
 ```
-cd server
 go build
-server.exe
+insight-server.exe
 ```
 
 ## Configuration
