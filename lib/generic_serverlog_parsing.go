@@ -267,12 +267,14 @@ func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) c
 			logrus.WithFields(logrus.Fields{
 				"component":  "serverlogs",
 				"sourceHost": meta.Host,
+				"tenant":     meta.Tenant,
 				"file":       meta.OriginalFilename,
 			}).Info("Received parse request")
 			if err := processServerlogRequest(tmpDir, baseDir, archivesDir, serverLog, parserMap[serverLog.Format]); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"component":  "serverlogs",
 					"sourceHost": meta.Host,
+					"tenant":     meta.Tenant,
 					"file":       meta.OriginalFilename,
 				}).WithError(err).Error("Error during parsing of serverlog")
 			}
@@ -319,6 +321,7 @@ func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog Serv
 	logrus.WithFields(logrus.Fields{
 		"component":  "serverlogs",
 		"file":       meta.OriginalFilename,
+		"tenant":     meta.Tenant,
 		"sourceHost": meta.Host,
 		"parsedRows": logWriter.ParsedRowCount(),
 		"errorRows":  logWriter.ErrorRowCount(),

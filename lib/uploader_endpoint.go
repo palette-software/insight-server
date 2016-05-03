@@ -118,6 +118,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 	}
 
 	return func(w http.ResponseWriter, r *http.Request, tenant User) {
+
 		//uploadHandlerInner(w, r, tenant, uploader, maxidBackend)
 
 		// Convert the request to metadata for handling
@@ -135,6 +136,19 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 		if err := findUploadHandler(meta, handlers, fallbackHandler).HandleUpload(meta, mainFile); err != nil {
 			writeResponse(w, http.StatusInternalServerError, fmt.Sprint(err))
 			return
+		}
+
+		// get the maxid and save it if needed
+		maxid, err := getUrlParam(r.URL, "maxid")
+		if err == nil {
+			if err := maxidBackend.SaveMaxId(meta.Tenant, meta.TableName, maxid); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"component": "maxid",
+					"tenant":    meta.Tenant,
+					"table":     meta.TableName,
+					"maxid":     maxid,
+				}).WithError(err).Error("Failed to save maxid")
+			}
 		}
 
 		writeResponse(w, http.StatusOK, "OK")
@@ -260,6 +274,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 	logrus.WithFields(logrus.Fields{
 		"component":        "copy",
 		"sourceHost":       meta.Host,
+		"tenant":           meta.Tenant,
 		"bytesWritten":     bytesWritten,
 		"originalFileName": meta.OriginalFilename,
 		"tableName":        meta.TableName,
