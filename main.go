@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/palette-software/insight-server"
+	"github.com/palette-software/insight-server/lib"
 
 	"fmt"
 	"net/http"

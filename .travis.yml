@@ -33,7 +33,7 @@ before_script:
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server
   # re-compile the server so the version is updated
-  - (cd server && go install)
+  - go install
 
 
 
@@ -46,14 +46,14 @@ before_deploy:
   - mkdir -p usr/local/bin
 
   # Copy the binary
-  - cp -v $GOPATH/bin/server usr/local/bin/palette-insight-server
-  - cp -v ../server/sample.config etc/palette-insight-server/server.config
+  - cp -v $GOPATH/bin/insight-server usr/local/bin/palette-insight-server
+  - cp -v ../sample.config etc/palette-insight-server/server.config
   - echo "BUILDING VERSION:$VERSION"
 
   # build the rpm
   - rpmbuild -bb --buildroot $(pwd) --define "version $VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
   - cd ..
-  - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/server
+  - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/insight-server
 
   # Upload the RPM to the RPM repository
   # by exportin it to SSHPASS, sshpass wont log the command line and the password
