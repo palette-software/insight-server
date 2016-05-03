@@ -362,7 +362,6 @@ func UnescapeGPCsvString(field string) (string, error) {
 
 	b := make([]byte, 1)
 	octalBuffer := []byte{0, 0}
-	unicodeBuffer := []byte{0, 0, 0, 0}
 	state := escapeStateNormal
 
 	for {
@@ -435,32 +434,6 @@ func UnescapeGPCsvString(field string) (string, error) {
 
 				state = escapeStateNormal
 
-			// if its the octal prefix, move to octal mode
-			case unicodePrefix:
-
-				// try to read four bytes for octal
-				bytesRead, err := r.Read(unicodeBuffer)
-				if err != nil {
-					return "", fmt.Errorf("Error while reading unicode escape sequence from '%s': %v", field, err)
-				}
-				if bytesRead != 4 {
-					return "", fmt.Errorf("Premature end of string '%s' during unicode escape.", field)
-				}
-
-				// parse the unicode code
-				charCode, err := strconv.ParseInt(string(unicodeBuffer), 16, 32)
-				if err != nil {
-					return "", fmt.Errorf("Error while parsing unicode escape '%s': %v", unicodeBuffer, err)
-				}
-
-				unicodeDecodeBuffer := []byte{0, 0, 0, 0}
-				// write to the buffer and figure out how many bytes do we have to
-				// write
-				outLen := utf8.EncodeRune(unicodeDecodeBuffer, rune(charCode))
-
-				w.Write(unicodeDecodeBuffer[0:outLen])
-
-				state = escapeStateNormal
 			default:
 				return "", fmt.Errorf("Invalid backslashed character in '%s' @ %d: %d", field, r.Len(), char)
 			}
