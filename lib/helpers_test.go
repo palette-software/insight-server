@@ -1,6 +1,8 @@
 package insight_server
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -27,4 +29,16 @@ func TestSanitizeName(t *testing.T) {
 	assertString(t, SanitizeName("a_sd"), "a_sd", "Underscored version escaped badly")
 	assertString(t, SanitizeName("a_s d"), "a_s-d", "Underscored-spaced version escaped badly")
 	assertString(t, SanitizeName("a_s d*&:%"), "a_s-d----", "Underscored-spaced and misc characters version escaped badly")
+}
+
+func TestUnicodeUnescape(t *testing.T) {
+	inString := `(\"CalQtrOffset\" \u003c= 0) AND (\"CalQtrOffset\" \u003e= -4)`
+
+	outStr := &bytes.Buffer{}
+
+	if err := unescapeUnicodePoints(strings.NewReader(inString), outStr); err != nil {
+		panic(err)
+	}
+
+	assertString(t, `(\"CalQtrOffset\" <= 0) AND (\"CalQtrOffset\" >= -4)`, string(outStr.Bytes()), "Mismattched strign")
 }

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -204,9 +206,16 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 	// since the inner JSON can be anything, we unmarshal it into
 	// a string, so the json marshaler can do his thing and we
 	// dont have to care about what data is inside
-	innerStr, err := json.Marshal(outerJson.V)
+	innerJsonStr, err := json.Marshal(outerJson.V)
 	if err != nil {
 		return fmt.Errorf("Inner JSON remarshaling error: %v", err)
+	}
+
+	unicodeUnescapeJsonBuffer := &bytes.Buffer{}
+	// we need to do the unicode unescaping here in the inner JSON string
+	// as '>' and  '<' appear frequently in their unicode escaped form
+	if err := unescapeUnicodePoints(bytes.NewReader(innerJsonStr), unicodeUnescapeJsonBuffer); err != nil {
+		return fmt.Errorf("Error during unicode unescape: %v", err)
 	}
 
 	// "ts"
@@ -217,7 +226,7 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		outerJson.Ts,
 		strconv.Itoa(outerJson.Pid), outerJson.Tid, // the tid is already a string
 		outerJson.Sev, outerJson.Req, outerJson.Sess, outerJson.Site, outerJson.User,
-		outerJson.K, string(innerStr),
+		outerJson.K, string(unicodeUnescapeJsonBuffer.Bytes()),
 	})
 
 	return nil
