@@ -129,6 +129,12 @@ func (p *PlainLogParser) Header() []string {
 // Parses a plaintext log line
 func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
 
+	// if the line is empty, skip it
+	if len(line) == 0 {
+		return nil
+	}
+
+	// try to extract the timestamp
 	matches := plainLineParserRegexp.FindAllStringSubmatch(line, -1)
 	if len(matches) != 1 {
 		return fmt.Errorf("Error in regex matching log line: got %d row instead of 1", len(matches))
