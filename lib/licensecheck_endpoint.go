@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"io"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -31,17 +33,29 @@ func LicenseCheckHandler() http.HandlerFunc {
 			return
 		}
 
+		// Create a buffer and a teeReader to read the raw license
+		// into for logging
+		licenseBuffer := &bytes.Buffer{}
+		licenseReader := io.TeeReader(part, licenseBuffer)
+
 		logrus.WithFields(logrus.Fields{
-			"component": "license check endpoint",
+			"component": "licensecheck",
 			"file":      part.FileName(),
 		}).Debug("Retrieved part's file name")
 
-		license, err := ReadLicense(part)
+		// Read the license from the teeReader
+		license, err := ReadLicense(licenseReader)
 		if err != nil {
 			writeResponse(w, http.StatusInternalServerError,
 				fmt.Sprintf("Failed to read license from multipart: %v! Error message: %v", part, err))
 			return
 		}
+
+		logrus.WithFields(logrus.Fields{
+			"component":  "licensecheck",
+			"file":       part.FileName(),
+			"rawLicense": licenseBuffer,
+		}).Debug("Read license from agent")
 
 		checkResponse := LicenseCheckResponse{
 			Valid:     time.Now().Before(license.ValidUntilUTC),
@@ -51,7 +65,7 @@ func LicenseCheckHandler() http.HandlerFunc {
 		wb := &bytes.Buffer{}
 		if err := json.NewEncoder(wb).Encode(checkResponse); err != nil {
 			writeResponse(w, http.StatusInternalServerError,
-				fmt.Sprintf("Failed to encode license check response: %v", err))
+				fmt.Sprintf("Failed to encode license check response %v: %v", checkResponse, err))
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
