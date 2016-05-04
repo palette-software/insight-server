@@ -523,7 +523,7 @@ func unescapeUnicodePoints(r io.Reader, w io.Writer) error {
 			state = escapeStateNormal
 			switch char {
 
-			// if its the octal prefix, move to octal mode
+			// if its the unicode prefix, move to unicode mode
 			case unicodePrefix:
 
 				// try to read four bytes for octal
