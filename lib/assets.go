@@ -85,7 +85,7 @@ func assetsVersion() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/VERSION", size: 8, mode: os.FileMode(438), modTime: time.Unix(1458568347, 0)}
+	info := bindataFileInfo{name: "assets/VERSION", size: 8, mode: os.FileMode(438), modTime: time.Unix(1460382262, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -105,7 +105,7 @@ func assetsAgentCommandsHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/agent-commands.html", size: 2698, mode: os.FileMode(438), modTime: time.Unix(1458575015, 0)}
+	info := bindataFileInfo{name: "assets/agent-commands.html", size: 2698, mode: os.FileMode(438), modTime: time.Unix(1459424248, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -125,7 +125,7 @@ func assetsUploadNewVersionHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/upload-new-version.html", size: 2805, mode: os.FileMode(438), modTime: time.Unix(1457710550, 0)}
+	info := bindataFileInfo{name: "assets/upload-new-version.html", size: 2805, mode: os.FileMode(438), modTime: time.Unix(1458641353, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
