@@ -28,7 +28,7 @@ before_install:
 before_script:
   - export BUILD_TAG="$TRAVIS_BRANCH-$(date -u "+%Y-%m-%d").$TRAVIS_BUILD_NUMBER"
   - echo "==== Setting ${BUILD_TAG} as version ===="
-  - echo ${BUILD_TAG} > assets/VERSION
+  - echo ${BUILD_TAG} > lib/assets/VERSION
 
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server
