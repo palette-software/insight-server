@@ -99,6 +99,7 @@ func makeMetaString(cols []metaColumn) string {
 
 // The regexp we use to filter out the serverlogs rows
 var serverlogsRegexp *regexp.Regexp = regexp.MustCompile("serverlogs")
+var plainlogsRegexp *regexp.Regexp = regexp.MustCompile("plainlogs")
 
 // The EOL characters used in the output csv file
 var eolChars []byte = []byte{'\r', '\n'}
@@ -133,8 +134,8 @@ func MetadataUploadHandler(meta *UploadMeta, tmpDir, baseDir, archivedFile strin
 			return err
 		}
 
-		// skip any lines from the serverlogs table
-		if !serverlogsRegexp.Match(line) {
+		// skip any lines from the serverlogs or plainlogs table
+		if !serverlogsRegexp.Match(line) && !plainlogsRegexp.Match(line) {
 			outWriter.Write(line)
 			outWriter.Write(eolChars)
 		}
