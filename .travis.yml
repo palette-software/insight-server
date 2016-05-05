@@ -31,7 +31,7 @@ before_script:
   - echo ${BUILD_TAG} > lib/assets/VERSION
 
   # re-generate the assets after the version change
-  - go generate -x github.com/palette-software/insight-server
+  - go generate -x github.com/palette-software/insight-server/lib
   # re-compile the server so the version is updated
   - go install
 
