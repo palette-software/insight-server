@@ -60,6 +60,9 @@ func main() {
 	// the temporary files are stored here so moving them wont result in errors
 	tempDir := filepath.Join(config.UploadBasePath, "_temp")
 
+	// make sure the temporary directory exists
+	insight_server.CreateDirectoryIfNotExists(tempDir)
+
 	// create the maxid backend
 	maxIdBackend := insight_server.MakeFileMaxIdBackend(config.MaxIdDirectory)
 

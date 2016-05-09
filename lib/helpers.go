@@ -39,11 +39,19 @@ func SanitizeName(name string) string {
 
 // Writes the error message to the log then responds with an error message
 func writeResponse(w http.ResponseWriter, status int, err string) {
-	logrus.WithFields(logrus.Fields{
+	logLine := logrus.WithFields(logrus.Fields{
 		"component": "http",
 		"status":    status,
 		"response":  err,
-	}).Info("<== Response")
+	})
+
+	// Log as Info if we are sending 20x or as error otherwise
+	if status == http.StatusOK || status == http.StatusNoContent {
+		logLine.Info("<== Response")
+	} else {
+		logLine.Error("<== Response")
+	}
+
 	http.Error(w, err, status)
 	return
 }
