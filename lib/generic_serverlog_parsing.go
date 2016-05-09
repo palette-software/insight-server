@@ -81,6 +81,11 @@ func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter
 			continue
 		}
 
+		// if the line is empty, dont try to parse it
+		if len(unescapedRow) == 0 {
+			continue
+		}
+
 		// try to parse it and log errors
 		if err := parser.Parse(rowSrc, unescapedRow, w); err != nil {
 			w.WriteError(rowSrc, err, unescapedRow)
@@ -128,11 +133,6 @@ func (p *PlainLogParser) Header() []string {
 
 // Parses a plaintext log line
 func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
-
-	// if the line is empty, skip it
-	if len(line) == 0 {
-		return nil
-	}
 
 	// try to extract the timestamp
 	matches := plainLineParserRegexp.FindAllStringSubmatch(line, -1)
