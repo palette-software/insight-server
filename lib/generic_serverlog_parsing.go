@@ -182,10 +182,19 @@ func (j *JsonLogParser) Header() []string {
 		"ts",
 		"pid", "tid",
 		"sev", "req", "sess", "site", "user",
-		"k", "v",
+		"k", "v", "elapsed", "start_ts",
 	}
 }
 
+// Returns the elapsed time, if the incoming string value is a JSON
+// value and it contains an "elapsed" or an "elapsed-ms" key. The
+// returned value is always given back in milliseconds.
+//
+// NOTE: "elapsed" key has its value in seconds, but "elapsed-ms"
+// key has its in milliseconds.
+//
+// If the JSON value contains both keys, the value of the "elapsed"
+// key is returned.
 func getElapsed(v string) *int64 {
 	m := map[string]interface{}{}
 	err := json.Unmarshal([]byte(v), &m)
