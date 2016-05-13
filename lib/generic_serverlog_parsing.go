@@ -186,6 +186,57 @@ func (j *JsonLogParser) Header() []string {
 	}
 }
 
+func getElapsed(v string) *int64 {
+	m := map[string]interface{}{}
+	err := json.Unmarshal([]byte(v), &m)
+	if err != nil {
+		return nil
+	}
+	if m["elapsed"] != nil {
+		value, ok := m["elapsed"].(float64)
+		if !ok {
+			return nil
+		}
+		elapsedMs := int64(value * 1000)
+		return &elapsedMs
+	}
+	if m["elapsed-ms"] != nil {
+		value, ok := m["elapsed-ms"].(float64)
+		if !ok {
+			return nil
+		}
+		elapsedMs := int64(value)
+		return &elapsedMs
+	}
+	return nil
+}
+
+func elapsedAsString(elapsedMs *int64) string {
+	nullValue := "\\N"
+	if elapsedMs == nil {
+		return nullValue
+	}
+	elapsedSeconds := float64(*elapsedMs) / 1000
+	return strconv.FormatFloat(elapsedSeconds, 'f', 3, 64)
+}
+
+func getStartTime(end string, elapsed *int64) string {
+	nullValue := "\\N"
+	if elapsed == nil {
+		return nullValue
+	}
+	end_ts, err := time.Parse(jsonDateFormat, end)
+	if err != nil {
+		return nullValue
+	}
+	start_ts := end_ts.Add(-time.Duration(*elapsed) * time.Millisecond)
+	start := start_ts.Format(jsonDateFormat)
+	if err != nil {
+		return nullValue
+	}
+	return start
+}
+
 // parses a server log in JSON format
 func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
 
@@ -224,15 +275,20 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		return fmt.Errorf("Error during unicode unescape: %v", err)
 	}
 
+	v := string(unicodeUnescapeJsonBuffer.Bytes())
+	elapsedMs := getElapsed(v)
+	elapsed := elapsedAsString(elapsedMs)
+	start_ts := getStartTime(outerJson.Ts, elapsedMs)
+
 	// "ts"
 	//"pid", "tid",
 	//"sev", "req", "sess", "site", "user",
-	//"k", "v",
+	//"k", "v", "elapsed", "start_ts"
 	w.WriteParsed(src, []string{
 		outerJson.Ts,
 		strconv.Itoa(outerJson.Pid), outerJson.Tid, // the tid is already a string
 		outerJson.Sev, outerJson.Req, outerJson.Sess, outerJson.Site, outerJson.User,
-		outerJson.K, string(unicodeUnescapeJsonBuffer.Bytes()),
+		outerJson.K, v, elapsed, start_ts,
 	})
 
 	return nil
