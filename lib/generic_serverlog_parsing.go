@@ -30,6 +30,8 @@ type ServerlogsParser interface {
 	Parse(src *ServerlogsSource, line string, w ServerlogWriter) error
 }
 
+const NullValue string = "\\N"
+
 // A generic log parser that takes a reader and a timezone
 func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter, tz *time.Location) error {
 
@@ -154,9 +156,15 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		return fmt.Errorf("Parsing pid '%s': %v", pid, err)
 	}
 
-	elapsedMs := getElapsedFromPlainlogs(line)
-	elapsed := elapsedAsString(elapsedMs)
-	start_ts := getStartTime(tsUtc, elapsedMs)
+	elapsedMs, err := getElapsedFromPlainlogs(line)
+	var elapsed, start_ts string
+	if err != nil {
+		elapsed = elapsedAsString(elapsedMs)
+		start_ts = getStartTime(tsUtc, elapsedMs)
+	} else {
+		elapsed = NullValue
+		start_ts = NullValue
+	}
 
 	// Write the parsed line out (make sure its in the right order)
 	w.WriteParsed(src, []string{
@@ -201,73 +209,63 @@ func (j *JsonLogParser) Header() []string {
 //
 // If the JSON value contains both keys, the value of the "elapsed"
 // key is returned.
-func getElapsed(v string) *int64 {
+func getElapsed(line string) (int64, error) {
 	m := map[string]interface{}{}
-	err := json.Unmarshal([]byte(v), &m)
+	err := json.Unmarshal([]byte(line), &m)
 	if err != nil {
-		return nil
+		return 0, err
 	}
 	if m["elapsed"] != nil {
 		value, ok := m["elapsed"].(float64)
 		if !ok {
-			return nil
+			return 0, fmt.Errorf("Can't parse elapsed to float64")
 		}
-		elapsedMs := int64(value * 1000)
-		return &elapsedMs
+		return int64(value * 1000), nil
 	}
 	if m["elapsed-ms"] != nil {
 		value, ok := m["elapsed-ms"].(float64)
 		if !ok {
-			return nil
+			return 0, fmt.Errorf("Can't parse elapsed-ms to float64")
 		}
-		elapsedMs := int64(value)
-		return &elapsedMs
+		return int64(value), nil
 	}
-	return nil
+	return 0, fmt.Errorf("No elapsed or elapsed-ms in log line.")
 }
 
 // Returns the elapsed time, if the incoming string value is from a plaintext log file
 // and it contains an "Elapsed time:x.xxxs" section. The
 // returned value is given back in milliseconds.
-func getElapsedFromPlainlogs(line string) *int64 {
+func getElapsedFromPlainlogs(line string) (int64, error) {
 	hasElapsed := regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
 	if hasElapsed.MatchString(line) {
 		m := hasElapsed.FindStringSubmatch(line)
 		if m == nil || len(m) < 2 {
-			return nil
+			return 0, fmt.Errorf("No elapsed in log line.")
 		}
 		value, err := strconv.ParseFloat(m[1], 64)
 		if err != nil {
-			return nil
+			return 0, fmt.Errorf("Can't parse elapsed time value to float")
 		}
-		milliseconds := int64(value * 1000)
-		return &milliseconds
+		return int64(value * 1000), nil
 	}
-	return nil
+	return 0, fmt.Errorf("No elapsed in log line.")
 }
 
-func elapsedAsString(elapsedMs *int64) string {
-	nullValue := "\\N"
-	if elapsedMs == nil {
-		return nullValue
-	}
-	elapsedSeconds := float64(*elapsedMs) / 1000
+func elapsedAsString(elapsedMs int64) string {
+	elapsedSeconds := float64(elapsedMs) / 1000
 	return strconv.FormatFloat(elapsedSeconds, 'f', 3, 64)
 }
 
-func getStartTime(end string, elapsed *int64) string {
-	nullValue := "\\N"
-	if elapsed == nil {
-		return nullValue
-	}
-	end_ts, err := time.Parse(jsonDateFormat, end)
+func getStartTime(end string, elapsed int64) string {
+	layout := "2006-01-02 15:04:05.000"
+	end_ts, err := time.Parse(layout, end)
 	if err != nil {
-		return nullValue
+		return NullValue
 	}
-	start_ts := end_ts.Add(-time.Duration(*elapsed) * time.Millisecond)
-	start := start_ts.Format(jsonDateFormat)
+	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
+	start := start_ts.Format(layout)
 	if err != nil {
-		return nullValue
+		return NullValue
 	}
 	return start
 }
@@ -311,9 +309,15 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 	}
 
 	v := string(unicodeUnescapeJsonBuffer.Bytes())
-	elapsedMs := getElapsed(v)
-	elapsed := elapsedAsString(elapsedMs)
-	start_ts := getStartTime(outerJson.Ts, elapsedMs)
+	elapsedMs, err := getElapsed(v)
+	var elapsed, start_ts string
+	if err != nil {
+		elapsed = elapsedAsString(elapsedMs)
+		start_ts = getStartTime(tsUtc, elapsedMs)
+	} else {
+		elapsed = NullValue
+		start_ts = NullValue
+	}
 
 	// "ts"
 	//"pid", "tid",

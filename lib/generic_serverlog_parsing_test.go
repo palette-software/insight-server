@@ -1,54 +1,59 @@
 package insight_server
 
 import (
-	"testing"
 	tassert "github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestGetElapsed(t *testing.T) {
 	testValue := `{"elapsed":0.215}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Equal(t, int64(215), *elapsedTimePtr)
+	elapsedTime, err := getElapsed(testValue)
+	tassert.Nil(t, err)
+	tassert.Equal(t, int64(215), elapsedTime)
 }
 
 func TestGetElapsed_WithIgnoredValues(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":0.215, "this":66}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Equal(t, int64(215), *elapsedTimePtr)
+	elapsedTime, err := getElapsed(testValue)
+	tassert.Nil(t, err)
+	tassert.Equal(t, int64(215), elapsedTime)
 }
 
 func TestGetElapsed_MissingElapsed(t *testing.T) {
 	testValue := `{"just":"ignore", "this":66}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Nil(t, elapsedTimePtr)
+	_, err := getElapsed(testValue)
+	tassert.NotNil(t, err)
 }
 
 func TestGetElapsed_InvalidElapsed(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":"should_not_be_string", "this":66}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Nil(t, elapsedTimePtr)
+	_, err := getElapsed(testValue)
+	tassert.NotNil(t, err)
 }
 
 func TestGetElapsedMs(t *testing.T) {
 	testValue := `{"elapsed-ms":44}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Equal(t, int64(44), *elapsedTimePtr)
+	elapsedTime, err := getElapsed(testValue)
+	tassert.Nil(t, err)
+	tassert.Equal(t, int64(44), elapsedTime)
 }
 
 func TestGetElapsedMs_IgnoreFractionOfMilliseconds(t *testing.T) {
 	testValue := `{"elapsed-ms":23.215}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Equal(t, int64(23), *elapsedTimePtr)
+	elapsedTime, err := getElapsed(testValue)
+	tassert.Nil(t, err)
+	tassert.Equal(t, int64(23), elapsedTime)
 }
 
 func TestGetElapsedMs_HandleInvalidValue(t *testing.T) {
 	testValue := `{"elapsed-ms":true}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Nil(t, elapsedTimePtr)
+	_, err := getElapsed(testValue)
+	tassert.NotNil(t, err)
 }
 
 func TestGetElapsed_BothElapsedAndElapsedMs(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":4.876, "elapsed-ms":3, "this":66}`
-	elapsedTimePtr := getElapsed(testValue)
-	tassert.Equal(t, int64(4876), *elapsedTimePtr, "In such situations we currently expect 'elapsed' to win.")
+	elapsedTime, err := getElapsed(testValue)
+	tassert.Nil(t, err)
+	tassert.Equal(t, int64(4876), elapsedTime, "In such situations we currently expect 'elapsed' to win.")
 }
