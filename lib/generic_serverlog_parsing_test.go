@@ -34,17 +34,16 @@ func TestGetElapsed_InvalidElapsed(t *testing.T) {
 }
 
 func TestGetElapsedMs(t *testing.T) {
-	testValue := `{"elapsed-ms":44}`
+	testValue := `{"elapsed-ms":"44"}`
 	elapsedTime, err := getElapsed(testValue)
 	tassert.Nil(t, err)
 	tassert.Equal(t, int64(44), elapsedTime)
 }
 
-func TestGetElapsedMs_IgnoreFractionOfMilliseconds(t *testing.T) {
-	testValue := `{"elapsed-ms":23.215}`
-	elapsedTime, err := getElapsed(testValue)
-	tassert.Nil(t, err)
-	tassert.Equal(t, int64(23), elapsedTime)
+func TestGetElapsedMs_InsertNullForInsaneValue(t *testing.T) {
+	testValue := `{"elapsed-ms":"asd"}`
+	_, err := getElapsed(testValue)
+	tassert.NotNil(t, err)
 }
 
 func TestGetElapsedMs_HandleInvalidValue(t *testing.T) {
@@ -89,13 +88,29 @@ func (m MockWriter) ErrorRowCount() int {
 
 func TestJsonParseElapsed_ShouldParseElapsedWhenAvailable(t *testing.T) {
 	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd", "elapsed":0.039}}`
-	tz, _ := time.LoadLocation("Europe/Berlin")
+	tz := time.UTC
 	src := ServerlogsSource{Timezone: tz}
 	w := new(MockWriter)
 	var p JsonLogParser
 	w.On("WriteParsed", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fields := args.Get(1).([]string)
 		tassert.Equal(t, "39", fields[10])
+		tassert.Equal(t, "2016-03-25T00:59:10.56", fields[11])
+	})
+	err := p.Parse(&src, testLogLine, *w)
+	tassert.Nil(t, err)
+}
+
+func TestJsonParseElapsed_ShouldParseElapsedMsWhenAvailable(t *testing.T) {
+	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd", "elapsed-ms":"2"}}`
+	tz := time.UTC
+	src := ServerlogsSource{Timezone: tz}
+	w := new(MockWriter)
+	var p JsonLogParser
+	w.On("WriteParsed", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fields := args.Get(1).([]string)
+		tassert.Equal(t, "2", fields[10])
+		tassert.Equal(t, "2016-03-25T00:59:10.597", fields[11])
 	})
 	err := p.Parse(&src, testLogLine, *w)
 	tassert.Nil(t, err)

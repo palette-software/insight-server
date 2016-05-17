@@ -123,6 +123,7 @@ var plainLineParserRegexp = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-
 var plainLineElapsedRegexp = regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
 
 const plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
+const jsonDateFormat = "2006-01-02T15:04:05.999"
 
 type PlainLogParser struct {
 }
@@ -224,11 +225,15 @@ func getElapsed(line string) (int64, error) {
 		return int64(value * 1000), nil
 	}
 	if m["elapsed-ms"] != nil {
-		value, ok := m["elapsed-ms"].(float64)
+		value, ok := m["elapsed-ms"].(string)
 		if !ok {
-			return 0, fmt.Errorf("Can't parse elapsed-ms to float64")
+			return 0, fmt.Errorf("Can't parse elapsed-ms to string")
 		}
-		return int64(value), nil
+		intValue, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return intValue, nil
 	}
 	return 0, fmt.Errorf("No elapsed or elapsed-ms in log line.")
 }
@@ -250,14 +255,15 @@ func getElapsedFromPlainlogs(line string) (int64, error) {
 }
 
 func getStartTime(end string, elapsed int64) string {
-	layout := "2006-01-02 15:04:05.000"
-	end_ts, err := time.Parse(layout, end)
+	end_ts, err := time.Parse(jsonDateFormat, end)
 	if err != nil {
+		fmt.Printf("Error: %v\n", err)
 		return GreenplumNullValue
 	}
 	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
-	start := start_ts.Format(layout)
+	start := start_ts.Format(jsonDateFormat)
 	if err != nil {
+		fmt.Printf("Error: %v\n", err)
 		return GreenplumNullValue
 	}
 	return start
