@@ -160,7 +160,7 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 	elapsedMs, err := getElapsedFromPlainlogs(line)
 	var elapsed, start_ts string
 	if err == nil {
-		elapsed = string(elapsedMs)
+		elapsed = strconv.FormatInt(elapsedMs, 10)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
 		elapsed = GreenplumNullValue
@@ -305,7 +305,7 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 	elapsedMs, err := getElapsed(v)
 	var elapsed, start_ts string
 	if err == nil {
-		elapsed = string(elapsedMs)
+		elapsed = strconv.FormatInt(elapsedMs, 10)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
 		elapsed = GreenplumNullValue
