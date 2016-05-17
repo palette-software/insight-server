@@ -30,7 +30,7 @@ type ServerlogsParser interface {
 	Parse(src *ServerlogsSource, line string, w ServerlogWriter) error
 }
 
-const NullValue string = "\\N"
+const GreenplumNullValue string = "\\N"
 
 // A generic log parser that takes a reader and a timezone
 func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter, tz *time.Location) error {
@@ -120,6 +120,7 @@ func convertTimestringToUTC(format, timeString string, tz *time.Location) (strin
 // ----------
 
 var plainLineParserRegexp = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}) \(([0-9]+)\): (.*)$`)
+var plainLineElapsedRegexp = regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
 
 const plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
 
@@ -162,8 +163,8 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		elapsed = string(elapsedMs)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
-		elapsed = NullValue
-		start_ts = NullValue
+		elapsed = GreenplumNullValue
+		start_ts = GreenplumNullValue
 	}
 
 	// Write the parsed line out (make sure its in the right order)
@@ -236,8 +237,7 @@ func getElapsed(line string) (int64, error) {
 // and it contains an "Elapsed time:x.xxxs" section. The
 // returned value is given back in milliseconds.
 func getElapsedFromPlainlogs(line string) (int64, error) {
-	hasElapsed := regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
-	m := hasElapsed.FindStringSubmatch(line)
+	m := plainLineElapsedRegexp.FindStringSubmatch(line)
 	if  m == nil || len(m) < 2 {
 		return 0, fmt.Errorf("No elapsed in log line.")
 	}
@@ -253,12 +253,12 @@ func getStartTime(end string, elapsed int64) string {
 	layout := "2006-01-02 15:04:05.000"
 	end_ts, err := time.Parse(layout, end)
 	if err != nil {
-		return NullValue
+		return GreenplumNullValue
 	}
 	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
 	start := start_ts.Format(layout)
 	if err != nil {
-		return NullValue
+		return GreenplumNullValue
 	}
 	return start
 }
@@ -308,8 +308,8 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		elapsed = string(elapsedMs)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
-		elapsed = NullValue
-		start_ts = NullValue
+		elapsed = GreenplumNullValue
+		start_ts = GreenplumNullValue
 	}
 
 	// "ts"
