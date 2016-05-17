@@ -41,7 +41,7 @@ var preparsedServerlogsColumns = [][]metaColumn{
 		metaColumn{serverlogsTable, "user", "text"},
 		metaColumn{serverlogsTable, "k", "text"},
 		metaColumn{serverlogsTable, "v", "text"},
-		metaColumn{serverlogsTable, "elapsed", "double"},
+		metaColumn{serverlogsTable, "elapsed_ms", "integer"},
 		metaColumn{serverlogsTable, "start_ts", "timestamp without time zone"},
 	},
 	{
@@ -57,7 +57,7 @@ var preparsedServerlogsColumns = [][]metaColumn{
 		metaColumn{serverlogsTableAlt, "user", "text"},
 		metaColumn{serverlogsTableAlt, "k", "text"},
 		metaColumn{serverlogsTableAlt, "v", "text"},
-		metaColumn{serverlogsTableAlt, "elapsed", "double"},
+		metaColumn{serverlogsTableAlt, "elapsed_ms", "integer"},
 		metaColumn{serverlogsTableAlt, "start_ts", "timestamp without time zone"},
 	},
 	{
@@ -66,7 +66,7 @@ var preparsedServerlogsColumns = [][]metaColumn{
 		metaColumn{plainServerlogsTable, "ts", "timestamp without time zone"},
 		metaColumn{plainServerlogsTable, "pid", "integer"},
 		metaColumn{plainServerlogsTable, "line", "text"},
-		metaColumn{plainServerlogsTable, "elapsed", "double"},
+		metaColumn{plainServerlogsTable, "elapsed_ms", "integer"},
 		metaColumn{plainServerlogsTable, "start_ts", "timestamp without time zone"},
 	},
 	{

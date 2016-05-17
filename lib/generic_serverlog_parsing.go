@@ -129,7 +129,7 @@ type PlainLogParser struct {
 // Headers for the plain serverlog files
 func (p *PlainLogParser) Header() []string {
 	return []string{
-		"ts", "pid", "line", "elapsed", "start_ts",
+		"ts", "pid", "line", "elapsed_ms", "start_ts",
 	}
 }
 
@@ -159,7 +159,7 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 	elapsedMs, err := getElapsedFromPlainlogs(line)
 	var elapsed, start_ts string
 	if err != nil {
-		elapsed = elapsedAsString(elapsedMs)
+		elapsed = string(elapsedMs)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
 		elapsed = NullValue
@@ -196,7 +196,7 @@ func (j *JsonLogParser) Header() []string {
 		"ts",
 		"pid", "tid",
 		"sev", "req", "sess", "site", "user",
-		"k", "v", "elapsed", "start_ts",
+		"k", "v", "elapsed_ms", "start_ts",
 	}
 }
 
@@ -237,23 +237,16 @@ func getElapsed(line string) (int64, error) {
 // returned value is given back in milliseconds.
 func getElapsedFromPlainlogs(line string) (int64, error) {
 	hasElapsed := regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
-	if hasElapsed.MatchString(line) {
-		m := hasElapsed.FindStringSubmatch(line)
-		if m == nil || len(m) < 2 {
-			return 0, fmt.Errorf("No elapsed in log line.")
-		}
-		value, err := strconv.ParseFloat(m[1], 64)
-		if err != nil {
-			return 0, fmt.Errorf("Can't parse elapsed time value to float")
-		}
-		return int64(value * 1000), nil
+	m := hasElapsed.FindStringSubmatch(line)
+	if  m == nil || len(m) < 2 {
+		return 0, fmt.Errorf("No elapsed in log line.")
 	}
-	return 0, fmt.Errorf("No elapsed in log line.")
-}
 
-func elapsedAsString(elapsedMs int64) string {
-	elapsedSeconds := float64(elapsedMs) / 1000
-	return strconv.FormatFloat(elapsedSeconds, 'f', 3, 64)
+	value, err := strconv.ParseFloat(m[1], 64)
+	if err != nil {
+		return 0, fmt.Errorf("Can't parse elapsed time value to float")
+	}
+	return int64(value * 1000), nil
 }
 
 func getStartTime(end string, elapsed int64) string {
@@ -312,7 +305,7 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 	elapsedMs, err := getElapsed(v)
 	var elapsed, start_ts string
 	if err != nil {
-		elapsed = elapsedAsString(elapsedMs)
+		elapsed = string(elapsedMs)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
 		elapsed = NullValue
