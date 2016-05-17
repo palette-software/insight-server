@@ -2,7 +2,9 @@ package insight_server
 
 import (
 	tassert "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"testing"
+	"time"
 )
 
 func TestGetElapsed(t *testing.T) {
@@ -56,4 +58,59 @@ func TestGetElapsed_BothElapsedAndElapsedMs(t *testing.T) {
 	elapsedTime, err := getElapsed(testValue)
 	tassert.Nil(t, err)
 	tassert.Equal(t, int64(4876), elapsedTime, "In such situations we currently expect 'elapsed' to win.")
+}
+
+// Fake writer, something that we can set expectations on.
+type MockWriter struct {
+	mock.Mock
+}
+
+// NOTE: This method is not being tested here, code that uses this object is.
+func (m MockWriter) WriteParsed(source *ServerlogsSource, fields []string) error {
+	args := m.Called(source, fields)
+	return args.Error(0)
+}
+func (m MockWriter) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+func (m MockWriter) WriteError(source *ServerlogsSource, err error, line string) error {
+	args := m.Called(source, err, line)
+	return args.Error(0)
+}
+func (m MockWriter) ParsedRowCount() int {
+	args := m.Called()
+	return args.Int(0)
+}
+func (m MockWriter) ErrorRowCount() int {
+	args := m.Called()
+	return args.Int(0)
+}
+
+func TestJsonParseElapsed_ShouldParseElapsedWhenAvailable(t *testing.T) {
+	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd", "elapsed":0.034}}`
+	tz, _ := time.LoadLocation("Europe/Berlin")
+	src := ServerlogsSource{Timezone: tz}
+	w := new(MockWriter)
+	var p JsonLogParser
+	w.On("WriteParsed", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fields := args.Get(1).([]string)
+		tassert.NotEqual(t, "\\N", fields[10])
+	})
+	err := p.Parse(&src, testLogLine, *w)
+	tassert.Nil(t, err)
+}
+
+func TestJsonParseElapsed_ShouldInsertNullWhenUnAvailable(t *testing.T) {
+	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd"}}`
+	tz, _ := time.LoadLocation("Europe/Berlin")
+	src := ServerlogsSource{Timezone: tz}
+	w := new(MockWriter)
+	var p JsonLogParser
+	w.On("WriteParsed", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fields := args.Get(1).([]string)
+		tassert.Equal(t, "\\N", fields[10])
+	})
+	err := p.Parse(&src, testLogLine, w)
+	tassert.Nil(t, err)
 }
