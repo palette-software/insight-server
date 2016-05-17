@@ -30,6 +30,8 @@ type ServerlogsParser interface {
 	Parse(src *ServerlogsSource, line string, w ServerlogWriter) error
 }
 
+const GreenplumNullValue string = "\\N"
+
 // A generic log parser that takes a reader and a timezone
 func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter, tz *time.Location) error {
 
@@ -118,6 +120,7 @@ func convertTimestringToUTC(format, timeString string, tz *time.Location) (strin
 // ----------
 
 var plainLineParserRegexp = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}) \(([0-9]+)\): (.*)$`)
+var plainLineElapsedRegexp = regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
 
 const plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
 
@@ -127,7 +130,7 @@ type PlainLogParser struct {
 // Headers for the plain serverlog files
 func (p *PlainLogParser) Header() []string {
 	return []string{
-		"ts", "pid", "line",
+		"ts", "pid", "line", "elapsed_ms", "start_ts",
 	}
 }
 
@@ -154,11 +157,23 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		return fmt.Errorf("Parsing pid '%s': %v", pid, err)
 	}
 
+	elapsedMs, err := getElapsedFromPlainlogs(line)
+	var elapsed, start_ts string
+	if err != nil {
+		elapsed = string(elapsedMs)
+		start_ts = getStartTime(tsUtc, elapsedMs)
+	} else {
+		elapsed = GreenplumNullValue
+		start_ts = GreenplumNullValue
+	}
+
 	// Write the parsed line out (make sure its in the right order)
 	w.WriteParsed(src, []string{
 		tsUtc,
 		pid,
 		line,
+		elapsed,
+		start_ts,
 	})
 
 	return nil
@@ -182,8 +197,70 @@ func (j *JsonLogParser) Header() []string {
 		"ts",
 		"pid", "tid",
 		"sev", "req", "sess", "site", "user",
-		"k", "v",
+		"k", "v", "elapsed_ms", "start_ts",
 	}
+}
+
+// Returns the elapsed time, if the incoming string value is a JSON
+// value and it contains an "elapsed" or an "elapsed-ms" key. The
+// returned value is always given back in milliseconds.
+//
+// NOTE: "elapsed" key has its value in seconds, but "elapsed-ms"
+// key has its in milliseconds.
+//
+// If the JSON value contains both keys, the value of the "elapsed"
+// key is returned.
+func getElapsed(line string) (int64, error) {
+	m := map[string]interface{}{}
+	err := json.Unmarshal([]byte(line), &m)
+	if err != nil {
+		return 0, err
+	}
+	if m["elapsed"] != nil {
+		value, ok := m["elapsed"].(float64)
+		if !ok {
+			return 0, fmt.Errorf("Can't parse elapsed to float64")
+		}
+		return int64(value * 1000), nil
+	}
+	if m["elapsed-ms"] != nil {
+		value, ok := m["elapsed-ms"].(float64)
+		if !ok {
+			return 0, fmt.Errorf("Can't parse elapsed-ms to float64")
+		}
+		return int64(value), nil
+	}
+	return 0, fmt.Errorf("No elapsed or elapsed-ms in log line.")
+}
+
+// Returns the elapsed time, if the incoming string value is from a plaintext log file
+// and it contains an "Elapsed time:x.xxxs" section. The
+// returned value is given back in milliseconds.
+func getElapsedFromPlainlogs(line string) (int64, error) {
+	m := plainLineElapsedRegexp.FindStringSubmatch(line)
+	if  m == nil || len(m) < 2 {
+		return 0, fmt.Errorf("No elapsed in log line.")
+	}
+
+	value, err := strconv.ParseFloat(m[1], 64)
+	if err != nil {
+		return 0, fmt.Errorf("Can't parse elapsed time value to float")
+	}
+	return int64(value * 1000), nil
+}
+
+func getStartTime(end string, elapsed int64) string {
+	layout := "2006-01-02 15:04:05.000"
+	end_ts, err := time.Parse(layout, end)
+	if err != nil {
+		return GreenplumNullValue
+	}
+	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
+	start := start_ts.Format(layout)
+	if err != nil {
+		return GreenplumNullValue
+	}
+	return start
 }
 
 // parses a server log in JSON format
@@ -224,15 +301,26 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		return fmt.Errorf("Error during unicode unescape: %v", err)
 	}
 
+	v := string(unicodeUnescapeJsonBuffer.Bytes())
+	elapsedMs, err := getElapsed(v)
+	var elapsed, start_ts string
+	if err != nil {
+		elapsed = string(elapsedMs)
+		start_ts = getStartTime(tsUtc, elapsedMs)
+	} else {
+		elapsed = GreenplumNullValue
+		start_ts = GreenplumNullValue
+	}
+
 	// "ts"
 	//"pid", "tid",
 	//"sev", "req", "sess", "site", "user",
-	//"k", "v",
+	//"k", "v", "elapsed_ms", "start_ts"
 	w.WriteParsed(src, []string{
 		outerJson.Ts,
 		strconv.Itoa(outerJson.Pid), outerJson.Tid, // the tid is already a string
 		outerJson.Sev, outerJson.Req, outerJson.Sess, outerJson.Site, outerJson.User,
-		outerJson.K, string(unicodeUnescapeJsonBuffer.Bytes()),
+		outerJson.K, v, elapsed, start_ts,
 	})
 
 	return nil
