@@ -1,8 +1,10 @@
 package insight_server
 
 import (
+	"fmt"
 	tassert "github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestGetElapsed(t *testing.T) {
@@ -56,4 +58,56 @@ func TestGetElapsed_BothElapsedAndElapsedMs(t *testing.T) {
 	elapsedTime, err := getElapsed(testValue)
 	tassert.Nil(t, err)
 	tassert.Equal(t, int64(4876), elapsedTime, "In such situations we currently expect 'elapsed' to win.")
+}
+
+type TestFunc func(fields []string)
+type DummyServerlogWriter struct {
+	tests TestFunc
+}
+
+func (w DummyServerlogWriter) WriteParsed(source *ServerlogsSource, fields []string) error {
+	w.tests(fields)
+	return nil
+}
+
+func (w DummyServerlogWriter) WriteError(source *ServerlogsSource, err error, line string) error {
+	return nil
+}
+
+func (w DummyServerlogWriter) ParsedRowCount() int {
+	return 0
+}
+
+func (w DummyServerlogWriter) ErrorRowCount() int {
+	return 0
+}
+
+func (w DummyServerlogWriter) Close() error {
+	return nil
+}
+
+func TestJsonParseElapsed_ShouldParseElapsedWhenAvailable(t *testing.T) {
+	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd", "elapsed":0.034}}`
+	tz, _ := time.LoadLocation("Europe/Berlin")
+	src := ServerlogsSource{Timezone: tz}
+	actualTests := func(fields []string) {
+		tassert.NotEqual(t, "\\N", fields[10])
+	}
+	w := DummyServerlogWriter{tests: actualTests}
+	var p JsonLogParser
+	err := p.Parse(&src, testLogLine, w)
+	tassert.Nil(t, err)
+}
+
+func TestJsonParseElapsed_ShouldInsertNullWhenUnAvailable(t *testing.T) {
+	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd"}}`
+	tz, _ := time.LoadLocation("Europe/Berlin")
+	src := ServerlogsSource{Timezone: tz}
+	actualTests := func(fields []string) {
+		tassert.Equal(t, "\\N", fields[10])
+	}
+	w := DummyServerlogWriter{tests: actualTests}
+	var p JsonLogParser
+	err := p.Parse(&src, testLogLine, w)
+	tassert.Nil(t, err)
 }

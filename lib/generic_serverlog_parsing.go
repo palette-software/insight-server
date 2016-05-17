@@ -159,7 +159,7 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 
 	elapsedMs, err := getElapsedFromPlainlogs(line)
 	var elapsed, start_ts string
-	if err != nil {
+	if err == nil {
 		elapsed = string(elapsedMs)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
@@ -238,7 +238,7 @@ func getElapsed(line string) (int64, error) {
 // returned value is given back in milliseconds.
 func getElapsedFromPlainlogs(line string) (int64, error) {
 	m := plainLineElapsedRegexp.FindStringSubmatch(line)
-	if  m == nil || len(m) < 2 {
+	if m == nil || len(m) < 2 {
 		return 0, fmt.Errorf("No elapsed in log line.")
 	}
 
@@ -266,7 +266,7 @@ func getStartTime(end string, elapsed int64) string {
 // parses a server log in JSON format
 func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
 
-	// try to parse the low row
+	// try to parse the log row
 	outerJson := ServerlogOuterJson{}
 	err := json.NewDecoder(strings.NewReader(line)).Decode(&outerJson)
 	if err != nil {
@@ -304,7 +304,7 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 	v := string(unicodeUnescapeJsonBuffer.Bytes())
 	elapsedMs, err := getElapsed(v)
 	var elapsed, start_ts string
-	if err != nil {
+	if err == nil {
 		elapsed = string(elapsedMs)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
