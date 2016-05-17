@@ -66,6 +66,8 @@ var preparsedServerlogsColumns = [][]metaColumn{
 		metaColumn{plainServerlogsTable, "ts", "timestamp without time zone"},
 		metaColumn{plainServerlogsTable, "pid", "integer"},
 		metaColumn{plainServerlogsTable, "line", "text"},
+		metaColumn{plainServerlogsTable, "elapsed", "double"},
+		metaColumn{plainServerlogsTable, "start_ts", "timestamp without time zone"},
 	},
 	{
 		metaColumn{serverlogsAltErrorTable, "error", "text"},

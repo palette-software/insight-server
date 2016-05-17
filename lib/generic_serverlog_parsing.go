@@ -127,7 +127,7 @@ type PlainLogParser struct {
 // Headers for the plain serverlog files
 func (p *PlainLogParser) Header() []string {
 	return []string{
-		"ts", "pid", "line",
+		"ts", "pid", "line", "elapsed", "start_ts",
 	}
 }
 
@@ -154,11 +154,17 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		return fmt.Errorf("Parsing pid '%s': %v", pid, err)
 	}
 
+	elapsedMs := getElapsedFromPlainlogs(line)
+	elapsed := elapsedAsString(elapsedMs)
+	start_ts := getStartTime(tsUtc, elapsedMs)
+
 	// Write the parsed line out (make sure its in the right order)
 	w.WriteParsed(src, []string{
 		tsUtc,
 		pid,
 		line,
+		elapsed,
+		start_ts,
 	})
 
 	return nil
@@ -216,6 +222,26 @@ func getElapsed(v string) *int64 {
 		}
 		elapsedMs := int64(value)
 		return &elapsedMs
+	}
+	return nil
+}
+
+// Returns the elapsed time, if the incoming string value is from a plaintext log file
+// and it contains an "Elapsed time:x.xxxs" section. The
+// returned value is given back in milliseconds.
+func getElapsedFromPlainlogs(line string) *int64 {
+	hasElapsed := regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
+	if hasElapsed.MatchString(line) {
+		m := hasElapsed.FindStringSubmatch(line)
+		if m == nil || len(m) < 2 {
+			return nil
+		}
+		value, err := strconv.ParseFloat(m[1], 64)
+		if err != nil {
+			return nil
+		}
+		milliseconds := int64(value * 1000)
+		return &milliseconds
 	}
 	return nil
 }
