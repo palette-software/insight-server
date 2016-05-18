@@ -47,7 +47,7 @@ Vendor: palette-software.net
 URL: https://palette-software.net/insight
 Packager: Julian <julian@palette-software.com>
 
-Requires: supervisor,nginx,palette-insight-certs
+Requires: nginx,palette-insight-certs
 
 # Add the user for the service & setup SELinux
 # ============================================
