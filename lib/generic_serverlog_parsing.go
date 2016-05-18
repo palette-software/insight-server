@@ -218,6 +218,7 @@ func getElapsed(line string) (int64, error) {
 	if m["elapsed"] != nil {
 		value, ok := m["elapsed"].(float64)
 		if !ok {
+			logrus.Error("Can't parse elapsed to float64")
 			return 0, fmt.Errorf("Can't parse elapsed to float64")
 		}
 		return int64(value * 1000), nil
@@ -225,6 +226,7 @@ func getElapsed(line string) (int64, error) {
 	if m["elapsed-ms"] != nil {
 		value, ok := m["elapsed-ms"].(string)
 		if !ok {
+			logrus.Error("Can't parse elapsed-ms to string")
 			return 0, fmt.Errorf("Can't parse elapsed-ms to string")
 		}
 		intValue, err := strconv.ParseInt(value, 10, 64)
