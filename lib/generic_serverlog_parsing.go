@@ -30,8 +30,6 @@ type ServerlogsParser interface {
 	Parse(src *ServerlogsSource, line string, w ServerlogWriter) error
 }
 
-const GreenplumNullValue string = "\\N"
-
 // A generic log parser that takes a reader and a timezone
 func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter, tz *time.Location) error {
 
@@ -164,8 +162,8 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		elapsed = strconv.FormatInt(elapsedMs, 10)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
-		elapsed = GreenplumNullValue
-		start_ts = GreenplumNullValue
+		elapsed = "0"
+		start_ts = tsUtc
 	}
 
 	// Write the parsed line out (make sure its in the right order)
@@ -257,14 +255,14 @@ func getElapsedFromPlainlogs(line string) (int64, error) {
 func getStartTime(end string, elapsed int64) string {
 	end_ts, err := time.Parse(jsonDateFormat, end)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return GreenplumNullValue
+		logrus.Error("Unable to parse ts while calculating startTime")
+		return end
 	}
 	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
 	start := start_ts.Format(jsonDateFormat)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return GreenplumNullValue
+		logrus.Error("Unable to format start_ts while calculating it")
+		return end
 	}
 	return start
 }
@@ -314,8 +312,8 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		elapsed = strconv.FormatInt(elapsedMs, 10)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
-		elapsed = GreenplumNullValue
-		start_ts = GreenplumNullValue
+		elapsed = "0"
+		start_ts = tsUtc
 	}
 
 	// "ts"

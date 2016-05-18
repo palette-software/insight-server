@@ -118,13 +118,14 @@ func TestJsonParseElapsed_ShouldParseElapsedMsWhenAvailable(t *testing.T) {
 
 func TestJsonParseElapsed_ShouldInsertNullWhenUnAvailable(t *testing.T) {
 	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd"}}`
-	tz, _ := time.LoadLocation("Europe/Berlin")
+	tz := time.UTC
 	src := ServerlogsSource{Timezone: tz}
 	w := new(MockWriter)
 	var p JsonLogParser
 	w.On("WriteParsed", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		fields := args.Get(1).([]string)
-		tassert.Equal(t, "\\N", fields[10])
+		tassert.Equal(t, "0", fields[10])
+		tassert.Equal(t, "2016-03-25T00:59:10.599", fields[11])
 	})
 	err := p.Parse(&src, testLogLine, w)
 	tassert.Nil(t, err)
