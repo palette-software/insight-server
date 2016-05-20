@@ -318,18 +318,13 @@ sudo /sbin/chkconfig supervisord on
 sudo supervisorctl status
 # => palette-insight-server           RUNNING   pid 11799, uptime 0:04:05
 
-# Stop the server
-sudo supervisorctl stop palette-insight-server
-
-
-
 
 # Update the server
 sudo yum update palette-insight-server
 
 
 # Restart supervisord
-sudo supervisorctl start palette-insight-server
+sudo supervisorctl restart palette-insight-server
 
 
 # Check if its running correctly (wait 10 seconds)
