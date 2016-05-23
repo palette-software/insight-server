@@ -254,9 +254,8 @@ func findUploadHandler(meta *UploadMeta, handlers []UploadHandler, fallback Uplo
 // (if its not empty) and postfixes each line with postfix
 func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) (err error) {
 
-	lastByteChecker := MakeLastByteChecker(from)
 	// create a buffered reader on top for line-reading
-	bufferedReader := bufio.NewReader(lastByteChecker)
+	bufferedReader := bufio.NewReader(from)
 
 	// Our new line endings
 	unixEol := []byte("\n")
