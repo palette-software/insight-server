@@ -250,6 +250,94 @@ func findUploadHandler(meta *UploadMeta, handlers []UploadHandler, fallback Uplo
 // Helpers
 // -------
 
+// Copies a file line-by-line, changes the line endings, prefixes each line with prefix
+// (if its not empty) and postfixes each line with postfix
+func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) (err error) {
+
+	// create a buffered reader on top for line-reading
+	bufferedReader := bufio.NewReader(from)
+
+	// Our new line endings
+	unixEol := []byte("\n")
+
+	hasPrefix := len(prefix) > 0
+	hasPostfix := len(postfix) > 0
+
+	writePostfix := func() error {
+		if hasPostfix {
+			// append the postfix column
+			if _, err := to.Write([]byte(postfix)); err != nil {
+				return fmt.Errorf("Error writing postfix: %v", err)
+			}
+		}
+		return nil
+	}
+
+	// read the input line-by line.
+	// Since Readline() does not include the EOL chars, we can
+	// use this to convert the line endings
+	for {
+		// ============= BEGINING OF THE LINE ===================
+
+		// try the read
+		line, isPrefix, err := bufferedReader.ReadLine()
+
+		// if we are EOF, we are done (as we are at the beginning of
+		// a new line, we dont have to write a postfix either)
+		if err == io.EOF {
+			return nil
+		}
+
+		if err != nil {
+			return fmt.Errorf("Error reading CSV: %v", err)
+		}
+
+		if hasPrefix {
+			// only write the filename if there is an actual line
+			if _, err := to.Write([]byte(prefix)); err != nil {
+				return fmt.Errorf("Error writing CSV: %v", err)
+			}
+		}
+
+		// copy
+		if _, err := to.Write(line); err != nil {
+			return fmt.Errorf("Error writing CSV: %v", err)
+		}
+
+		// ============= MIDDLE OF THE LINE ===================
+
+		// if the line is not yet complete (because the buffer of
+		// the reader is too small), copy the rest of it
+		for isPrefix {
+			line, isPrefix, err = bufferedReader.ReadLine()
+			if err == io.EOF {
+				// if we get an EOF in the middle of the line
+				// we still have to write the postfix
+				return writePostfix()
+			}
+			// propagate errors
+			if err != nil {
+				return fmt.Errorf("Error reading CSV content: %v", err)
+			}
+			// write out the next bit
+			if _, err := to.Write(line); err != nil {
+				return fmt.Errorf("Error writing CSV: %v", err)
+			}
+		}
+
+		// ============= END OF THE LINE ===================
+
+		if err := writePostfix(); err != nil {
+			return err
+		}
+
+		// append a UNIX line ending char
+		to.Write(unixEol)
+	}
+
+	return fmt.Errorf("Unreadhable code reached")
+}
+
 // Shared handler to copy an uploaded file to a location
 func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, md5 []byte, err error) {
 
@@ -271,71 +359,18 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 	// create the md5 hasher that hashes input data
 	md5HashedReader := makeMd5Hasher(reader)
 
-	// create a buffered reader on top for line-reading
-	bufferedReader := bufio.NewReader(md5HashedReader)
-
-	// Create the pre and postfixes needed for each line
+	// Create the pre & postfixes
 	prefixColumn := fmt.Sprintf("%s\v", outFileName)
 	postfixColumn := fmt.Sprintf("\v%s", time.Now().Format("2006-01-02 15:04:05"))
-	// Our new line endings
-	unixEol := []byte("\n")
 
-	// read the input line-by line.
-	// Since Readline() does not include the EOL chars, we can
-	// use this to convert the line endings
-	for {
-		// ============= BEGINING OF THE LINE ===================
+	// if its a metadata file, we dont want to write pre & postfixes
+	if meta.TableName == "metadata" {
+		prefixColumn = ""
+		postfixColumn = ""
+	}
 
-		// try the read
-		line, isPrefix, err := bufferedReader.ReadLine()
-
-		// if we are EOF, we are done
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return "", nil, fmt.Errorf("Error reading CSV: %v", err)
-		}
-
-		// only write the filename if there is an actual line
-		if _, err := outputWriter.Write([]byte(prefixColumn)); err != nil {
-			return "", nil, fmt.Errorf("Error writing CSV: %v", err)
-		}
-
-		// copy
-		if _, err := outputWriter.Write(line); err != nil {
-			return "", nil, fmt.Errorf("Error writing CSV: %v", err)
-		}
-
-		// ============= MIDDLE OF THE LINE ===================
-
-		// if the line is not yet complete (because the buffer of
-		// the reader is too small), copy the rest of it
-		for isPrefix {
-			line, isPrefix, err = bufferedReader.ReadLine()
-			if err == io.EOF {
-				break
-			}
-			// propagate errors
-			if err != nil {
-				return "", nil, fmt.Errorf("Error reading CSV: %v", err)
-			}
-			// write out the next bit
-			if _, err := outputWriter.Write(line); err != nil {
-				return "", nil, fmt.Errorf("Error writing CSV: %v", err)
-			}
-		}
-
-		// ============= END OF THE LINE ===================
-
-		// append the date column
-		if _, err := outputWriter.Write([]byte(postfixColumn)); err != nil {
-			return "", nil, fmt.Errorf("Error writing CSV: %v", err)
-		}
-
-		// append a UNIX line ending char
-		outputWriter.Write(unixEol)
+	if err := extendAndCopyByLines(md5HashedReader, outputWriter, []byte(prefixColumn), []byte(postfixColumn)); err != nil {
+		return "", nil, fmt.Errorf("Error copying CSV content: %v", err)
 	}
 
 	// pick up any errors during close
