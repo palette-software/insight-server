@@ -253,6 +253,10 @@ func (m *Md5Hasher) GetHashString() string {
 	return fmt.Sprintf("%32x", m.GetHash())
 }
 
+func (m *Md5Hasher) Read(p []byte) (n int, err error) {
+	return m.Reader.Read(p)
+}
+
 // Getting table information
 // -------------------------
 
@@ -291,7 +295,7 @@ const (
 
 // Generates a bunch of random bytes for a string. Is pretty fast...
 // https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
-func RandStringBytesMaskImprSrc(n int) []byte {
+func RandStringBytes(n int) []byte {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
 	for i, cache, remain := n-1, randomStringSrc.Int63(), letterIdxMax; i >= 0; {

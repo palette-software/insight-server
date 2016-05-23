@@ -102,7 +102,11 @@ func (g *GzippedFileWriterWithTemp) Md5() []byte {
 // Returns the output filename by using the hash and the original output filename
 func (g *GzippedFileWriterWithTemp) GetFileName() string {
 	// get the file hash
-	fileMd5 := fmt.Sprintf("%032x", g.Md5())
+	return g.GetFileNameForMd5(fmt.Sprintf("%032x", g.Md5()))
+}
+
+// Returns the output filename by using the supplied md5 string and the original output filename
+func (g *GzippedFileWriterWithTemp) GetFileNameForMd5(fileMd5 string) string {
 	// replace the {{md5}} token with the actual md5
 	baseFilename := strings.Replace(filepath.Base(g.filePath), "{{md5}}", fileMd5, -1)
 	baseFileExt := filepath.Ext(baseFilename)
@@ -124,7 +128,14 @@ func (g *GzippedFileWriterWithTemp) Close() error {
 		return nil
 	}
 
-	outFileName := g.GetFileName()
+	return g.CloseWithFileName(g.GetFileName())
+}
+
+func (g *GzippedFileWriterWithTemp) CloseWithFileName(outFileName string) error {
+	// if we are already closed
+	if g.isClosed {
+		return nil
+	}
 
 	// Create the files directory
 	if err := CreateDirectoryIfNotExists(filepath.Dir(outFileName)); err != nil {
@@ -151,7 +162,6 @@ func (g *GzippedFileWriterWithTemp) Close() error {
 	}
 
 	// Add the MD5 to the filename
-
 	logrus.WithFields(logrus.Fields{
 		"component":  "gzip-out",
 		"sourceFile": g.tmpFile.Name(),
