@@ -254,8 +254,9 @@ func findUploadHandler(meta *UploadMeta, handlers []UploadHandler, fallback Uplo
 // (if its not empty) and postfixes each line with postfix
 func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) (err error) {
 
+	lastByteChecker := MakeLastByteChecker(from)
 	// create a buffered reader on top for line-reading
-	bufferedReader := bufio.NewReader(from)
+	bufferedReader := bufio.NewReader(lastByteChecker)
 
 	// Our new line endings
 	unixEol := []byte("\n")
@@ -272,6 +273,10 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) 
 		}
 		return nil
 	}
+
+	// Flag to mark the first line (where we dont need to write
+	// an EOL)
+	isFirstLine := true
 
 	// read the input line-by line.
 	// Since Readline() does not include the EOL chars, we can
@@ -291,6 +296,12 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) 
 		if err != nil {
 			return fmt.Errorf("Error reading CSV: %v", err)
 		}
+
+		// Write the last lines EOL here
+		if !isFirstLine {
+			to.Write(unixEol)
+		}
+		isFirstLine = false
 
 		if hasPrefix {
 			// only write the filename if there is an actual line
@@ -330,9 +341,6 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) 
 		if err := writePostfix(); err != nil {
 			return err
 		}
-
-		// append a UNIX line ending char
-		to.Write(unixEol)
 	}
 
 	return fmt.Errorf("Unreadhable code reached")
