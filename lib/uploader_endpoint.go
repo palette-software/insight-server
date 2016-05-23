@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"bufio"
 	"bytes"
 	"io"
 	"mime/multipart"
@@ -252,36 +253,107 @@ func findUploadHandler(meta *UploadMeta, handlers []UploadHandler, fallback Uplo
 // Shared handler to copy an uploaded file to a location
 func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, md5 []byte, err error) {
 
+	// generate a random 32 char string
+	randomChars := fmt.Sprintf("%032x", RandStringBytes(32))
+
 	// create the output writer
 	outputWriter, err := meta.GetOutputGzippedWriter(baseDir, tmpDir)
 	if err != nil {
 		return "", nil, fmt.Errorf("Error opening gzipped output: %v", err)
 	}
-	// safety defered close to always close the file
-	defer outputWriter.Close()
 
-	// copy the data to the output
-	bytesWritten, err := io.Copy(outputWriter, reader)
-	if err != nil {
-		return "", nil, fmt.Errorf("Error copying data to output: %v", err)
+	// Get the filename we'll use for the output
+	outFileName = outputWriter.GetFileNameForMd5(randomChars)
+
+	// safety defered close to always close the file with our new filename
+	defer outputWriter.CloseWithFileName(outFileName)
+
+	// create the md5 hasher that hashes input data
+	md5HashedReader := makeMd5Hasher(reader)
+
+	// create a buffered reader on top for line-reading
+	bufferedReader := bufio.NewReader(md5HashedReader)
+
+	// Create the pre and postfixes needed for each line
+	prefixColumn := fmt.Sprintf("%s\v", outFileName)
+	postfixColumn := fmt.Sprintf("\v%s", time.Now().Format("2006-01-02 15:04:05"))
+	// Our new line endings
+	unixEol := []byte("\n")
+
+	// read the input line-by line.
+	// Since Readline() does not include the EOL chars, we can
+	// use this to convert the line endings
+	for {
+		// ============= BEGINING OF THE LINE ===================
+
+		// try the read
+		line, isPrefix, err := bufferedReader.ReadLine()
+
+		// if we are EOF, we are done
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return "", nil, fmt.Errorf("Error reading CSV: %v", err)
+		}
+
+		// only write the filename if there is an actual line
+		if _, err := outputWriter.Write([]byte(prefixColumn)); err != nil {
+			return "", nil, fmt.Errorf("Error writing CSV: %v", err)
+		}
+
+		// copy
+		if _, err := outputWriter.Write(line); err != nil {
+			return "", nil, fmt.Errorf("Error writing CSV: %v", err)
+		}
+
+		// ============= MIDDLE OF THE LINE ===================
+
+		// if the line is not yet complete (because the buffer of
+		// the reader is too small), copy the rest of it
+		for isPrefix {
+			line, isPrefix, err = bufferedReader.ReadLine()
+			if err == io.EOF {
+				break
+			}
+			// propagate errors
+			if err != nil {
+				return "", nil, fmt.Errorf("Error reading CSV: %v", err)
+			}
+			// write out the next bit
+			if _, err := outputWriter.Write(line); err != nil {
+				return "", nil, fmt.Errorf("Error writing CSV: %v", err)
+			}
+		}
+
+		// ============= END OF THE LINE ===================
+
+		// append the date column
+		if _, err := outputWriter.Write([]byte(postfixColumn)); err != nil {
+			return "", nil, fmt.Errorf("Error writing CSV: %v", err)
+		}
+
+		// append a UNIX line ending char
+		outputWriter.Write(unixEol)
 	}
 
 	// pick up any errors during close
-	if err := outputWriter.Close(); err != nil {
-		return "", nil, fmt.Errorf("Error writing uploaded bytes to '%s': %v", outputWriter.GetFileName(), err)
+	if err := outputWriter.CloseWithFileName(outFileName); err != nil {
+		return "", nil, fmt.Errorf("Error writing uploaded bytes to '%s': %v", outFileName, err)
 	}
 
 	logrus.WithFields(logrus.Fields{
 		"component":        "copy",
 		"sourceHost":       meta.Host,
 		"tenant":           meta.Tenant,
-		"bytesWritten":     bytesWritten,
+		"bytesWritten":     outputWriter.BytesWritten,
 		"originalFileName": meta.OriginalFilename,
 		"tableName":        meta.TableName,
-		"outputFile":       outputWriter.GetFileName(),
+		"outputFile":       outFileName,
 	}).Info("Copied uploaded file")
 
-	return outputWriter.GetFileName(), outputWriter.Md5(), nil
+	return outFileName, md5HashedReader.GetHash(), nil
 }
 
 // Shared handler to copy an uploaded file to a location
