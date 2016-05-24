@@ -10,6 +10,7 @@ import (
 
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"io"
 	"mime/multipart"
 	"path"
@@ -29,6 +30,9 @@ type UploadMeta struct {
 
 	// The host where we got this table
 	Host string
+
+	// The compression of the uploaded file
+	Compression string
 
 	// The original name of the uploaded table
 	TableName string
@@ -169,16 +173,31 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 		return nil, nil, fmt.Errorf("Cannot parse multipart form: %v", err)
 	}
 
-	// get the params
-	urlParams, err := getUrlParams(req.URL, "pkg", "host", "tz")
+	foundUrlParams := make(map[string]string)
+	const pkgUrlParam = "pkg"
+	const hostUrlParam = "host"
+	const timezoneUrlParam = "tz"
+	const compressionUrlParam = "compression"
+
+	// Get the URL params. Missing required params will be handled a bit later.
+	urlParams := [...]string{pkgUrlParam, hostUrlParam, timezoneUrlParam, compressionUrlParam}
+	for _, paramName := range urlParams {
+		paramVal, err := getUrlParam(req.URL, paramName)
+		if err != nil {
+			continue
+		}
+		foundUrlParams[paramName] = paramVal
+	}
+
+	// compression parameter is optional, so it can be empty, but the others are required
+	err = validateUrlParams(foundUrlParams, pkgUrlParam, hostUrlParam, timezoneUrlParam)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	pkg, sourceHost, timezoneName := urlParams[0], urlParams[1], urlParams[2]
-
 	// parse the timezone
 	// try to parse the timezone name
+	timezoneName := foundUrlParams[timezoneUrlParam]
 	sourceTimezone, err := time.LoadLocation(timezoneName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Unknown time zone for agent  '%s': %v", timezoneName, err)
@@ -216,9 +235,10 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 
 		Tenant: tenantName,
 
-		Pkg:       pkg,
-		Host:      sourceHost,
-		TableName: tableName,
+		Pkg:         foundUrlParams[pkgUrlParam],
+		Host:        foundUrlParams[hostUrlParam],
+		Compression: foundUrlParams[compressionUrlParam],
+		TableName:   tableName,
 
 		Date:     requestTime,
 		Timezone: sourceTimezone,
@@ -230,8 +250,21 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 	}, mainFile, nil
 }
 
+func validateUrlParams(urlParams map[string]string, paramNames ...string) error {
+	for _, param := range paramNames {
+		value := urlParams[param]
+		if value == "" {
+			// Empty string is the zero-value of the string type. So it generally means that
+			// the requested key was not found in the map. Either way, empty string values
+			// would be also meaningless.
+			return fmt.Errorf("Requested URL parameter: %v not found!", param)
+		}
+	}
+	return nil
+}
+
 type UploadHandler interface {
-	HandleUpload(meta *UploadMeta, reader multipart.File) error
+	HandleUpload(meta *UploadMeta, reader io.Reader) error
 	// Returns true if this handler can handle this request
 	CanHandle(meta *UploadMeta) bool
 }
@@ -353,7 +386,7 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefix_header, p
 }
 
 // Shared handler to copy an uploaded file to a location
-func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, md5 []byte, err error) {
+func copyUploadedFileTo(meta *UploadMeta, reader io.Reader, baseDir, tmpDir string) (outFileName string, md5 []byte, err error) {
 
 	// generate a random 32 char string
 	randomChars := fmt.Sprintf("%032x", RandStringBytes(32))
@@ -372,6 +405,21 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 
 	// create the md5 hasher that hashes input data
 	md5HashedReader := makeMd5Hasher(reader)
+	var inputReader io.Reader = md5HashedReader
+
+	// handle compressed uploads
+	switch meta.Compression {
+	case "gzip":
+		gz, err := gzip.NewReader(md5HashedReader)
+		if err != nil {
+			return "", nil, fmt.Errorf("Error creating gzip reader on file: %v! Error: %v", meta.OriginalFilename, err)
+		}
+		defer gz.Close()
+		// This assignment is safe, because the deferred Close() functions will still do their work properly.
+		inputReader = gz
+	default:
+	// Nothing needs to be done in this case, no compression is presumed
+	}
 
 	// Create the pre & postfixes
 	prefixColumn := fmt.Sprintf("%s\v", outFileName)
@@ -383,7 +431,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 		postfixColumn = ""
 	}
 
-	if err := extendAndCopyByLines(md5HashedReader, outputWriter, []byte(prefixColumn), []byte("p_filepath\v"), []byte(postfixColumn), []byte("\vp_cre_date")); err != nil {
+	if err := extendAndCopyByLines(inputReader, outputWriter, []byte(prefixColumn), []byte("p_filepath\v"), []byte(postfixColumn), []byte("\vp_cre_date")); err != nil {
 		return "", nil, fmt.Errorf("Error copying CSV content: %v", err)
 	}
 
@@ -406,7 +454,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 }
 
 // Shared handler to copy an uploaded file to a location
-func copyUploadedFileAndCheckMd5(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, err error) {
+func copyUploadedFileAndCheckMd5(meta *UploadMeta, reader io.Reader, baseDir, tmpDir string) (outFileName string, err error) {
 	outFileName, fileMd5, err := copyUploadedFileTo(meta, reader, baseDir, tmpDir)
 
 	// Check for errors
@@ -434,7 +482,7 @@ func (f *FallbackUploadHandler) CanHandle(meta *UploadMeta) bool {
 	return true
 }
 
-func (f *FallbackUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
+func (f *FallbackUploadHandler) HandleUpload(meta *UploadMeta, reader io.Reader) error {
 	_, err := copyUploadedFileAndCheckMd5(meta, reader, f.baseDir, f.tmpDir)
 	return err
 }
@@ -475,7 +523,7 @@ func (j *JsonServerlogsUploadHandler) CanHandle(meta *UploadMeta) bool {
 	return isJsonLog(meta.TableName) || isPlainLog(meta.TableName)
 }
 
-func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
+func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader io.Reader) error {
 	// copy the serverlog to the archives
 	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, j.archivesDir, j.tmpDir)
 	if err != nil {
@@ -515,7 +563,7 @@ func NewMetadataUploadHandler(tmpDir, baseDir, archivesDir string) UploadHandler
 func (m *metadataUploadHandler) CanHandle(meta *UploadMeta) bool {
 	return isMetadataRegexp.MatchString(meta.TableName)
 }
-func (m *metadataUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
+func (m *metadataUploadHandler) HandleUpload(meta *UploadMeta, reader io.Reader) error {
 	// copy the serverlog to the archives
 	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, m.archivesDir, m.tmpDir)
 	if err != nil {

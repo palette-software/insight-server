@@ -187,7 +187,7 @@ func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 }
 
 // Tries to get a list of parameters from the URL.
-// Will return an error desribing the problematic parameter
+// Will return an error describing the problematic parameter
 func getUrlParams(reqUrl *url.URL, paramNames ...string) ([]string, error) {
 	o := make([]string, len(paramNames))
 	for i, paramName := range paramNames {
