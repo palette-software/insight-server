@@ -302,11 +302,6 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefixHeader, po
 			return fmt.Errorf("Error reading CSV: %v", err)
 		}
 
-		// Write the last lines EOL here
-		if !isFirstLine {
-			to.Write(unixEol)
-		}
-
 		if hasPrefix {
 			// only write the filename if there is an actual line
 			if _, err := to.Write([]byte(prefix)); err != nil {
@@ -345,6 +340,8 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefixHeader, po
 		if err := writePostfix(); err != nil {
 			return err
 		}
+
+		to.Write(unixEol)
 
 		// if we have finished the first line, use the actual
 		// pre- & postfixes
