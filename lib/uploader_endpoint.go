@@ -252,7 +252,7 @@ func findUploadHandler(meta *UploadMeta, handlers []UploadHandler, fallback Uplo
 
 // Copies a file line-by-line, changes the line endings, prefixes each line with prefix
 // (if its not empty) and postfixes each line with postfix
-func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefix_header, postfix, postfix_header []byte) (err error) {
+func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefixHeader, postfix, postfixHeader []byte) (err error) {
 
 	// create a buffered reader on top for line-reading
 	bufferedReader := bufio.NewReader(from)
@@ -263,6 +263,7 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefix_header, p
 	hasPrefix := len(prefix) > 0
 	hasPostfix := len(postfix) > 0
 
+	// Shared code between mid-line exit & post-line exit
 	writePostfix := func() error {
 		if hasPostfix {
 			// append the postfix column
@@ -279,8 +280,8 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefix_header, p
 	originalPrefix := prefix
 	originalPostfix := postfix
 
-	prefix = prefix_header
-	postfix = postfix_header
+	prefix = prefixHeader
+	postfix = postfixHeader
 
 	// read the input line-by line.
 	// Since Readline() does not include the EOL chars, we can
@@ -344,19 +345,26 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefix_header, p
 		if err := writePostfix(); err != nil {
 			return err
 		}
-		isFirstLine = false
-		prefix = originalPrefix
-		postfix = originalPostfix
+
+		// if we have finished the first line, use the actual
+		// pre- & postfixes
+		if isFirstLine {
+			isFirstLine = false
+			prefix = originalPrefix
+			postfix = originalPostfix
+		}
 	}
 
 	return fmt.Errorf("Unreadhable code reached")
 }
 
-// Shared handler to copy an uploaded file to a location
-func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, md5 []byte, err error) {
+// Helper for converting args of extendAndCopyByLines() from string to []byte
+func extendAndCopyByLinesString(from io.Reader, to io.Writer, prefix, prefixHeader, postfix, postfixHeader string) (err error) {
+	return extendAndCopyByLines(from, to, []byte(prefix), []byte(prefixHeader), []byte(postfix), []byte(postfixHeader))
+}
 
-	// generate a random 32 char string
-	randomChars := fmt.Sprintf("%032x", RandStringBytes(32))
+// Shared handler to copy an uploaded file to a location
+func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string, hasLoaderColumns bool) (outFileName string, md5 []byte, err error) {
 
 	// create the output writer
 	outputWriter, err := meta.GetOutputGzippedWriter(baseDir, tmpDir)
@@ -365,7 +373,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 	}
 
 	// Get the filename we'll use for the output
-	outFileName = outputWriter.GetFileNameForMd5(randomChars)
+	outFileName = outputWriter.GetRandomFileName()
 
 	// safety defered close to always close the file with our new filename
 	defer outputWriter.CloseWithFileName(outFileName)
@@ -375,15 +383,15 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 
 	// Create the pre & postfixes
 	prefixColumn := fmt.Sprintf("%s\v", outFileName)
-	postfixColumn := fmt.Sprintf("\v%s", time.Now().Format("2006-01-02 15:04:05"))
+	postfixColumn := fmt.Sprintf("\v%s", time.Now().Format(GpfdistPostfixTsFormat))
 
 	// if its a metadata file, we dont want to write pre & postfixes
-	if meta.TableName == "metadata" {
+	if !hasLoaderColumns {
 		prefixColumn = ""
 		postfixColumn = ""
 	}
 
-	if err := extendAndCopyByLines(md5HashedReader, outputWriter, []byte(prefixColumn), []byte("p_filepath\v"), []byte(postfixColumn), []byte("\vp_cre_date")); err != nil {
+	if err := extendAndCopyByLinesString(md5HashedReader, outputWriter, prefixColumn, "p_filepath\v", postfixColumn, "\vp_cre_date"); err != nil {
 		return "", nil, fmt.Errorf("Error copying CSV content: %v", err)
 	}
 
@@ -406,8 +414,8 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 }
 
 // Shared handler to copy an uploaded file to a location
-func copyUploadedFileAndCheckMd5(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string) (outFileName string, err error) {
-	outFileName, fileMd5, err := copyUploadedFileTo(meta, reader, baseDir, tmpDir)
+func copyUploadedFileAndCheckMd5(meta *UploadMeta, reader multipart.File, baseDir, tmpDir string, hasLoaderColumns bool) (outFileName string, err error) {
+	outFileName, fileMd5, err := copyUploadedFileTo(meta, reader, baseDir, tmpDir, hasLoaderColumns)
 
 	// Check for errors
 	if err != nil {
@@ -435,7 +443,9 @@ func (f *FallbackUploadHandler) CanHandle(meta *UploadMeta) bool {
 }
 
 func (f *FallbackUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
-	_, err := copyUploadedFileAndCheckMd5(meta, reader, f.baseDir, f.tmpDir)
+
+	// skip adding filenames and datetimes for metadata files
+	_, err := copyUploadedFileAndCheckMd5(meta, reader, f.baseDir, f.tmpDir, true)
 	return err
 }
 
@@ -476,8 +486,9 @@ func (j *JsonServerlogsUploadHandler) CanHandle(meta *UploadMeta) bool {
 }
 
 func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
-	// copy the serverlog to the archives
-	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, j.archivesDir, j.tmpDir)
+	// copy the serverlog to the archives, dont add filenames and datetimes for
+	// the loader since we will be adding them later during serverlog parsing
+	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, j.archivesDir, j.tmpDir, false)
 	if err != nil {
 		return err
 	}
@@ -517,7 +528,7 @@ func (m *metadataUploadHandler) CanHandle(meta *UploadMeta) bool {
 }
 func (m *metadataUploadHandler) HandleUpload(meta *UploadMeta, reader multipart.File) error {
 	// copy the serverlog to the archives
-	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, m.archivesDir, m.tmpDir)
+	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, m.archivesDir, m.tmpDir, false)
 	if err != nil {
 		return err
 	}

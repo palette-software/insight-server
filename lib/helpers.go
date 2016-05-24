@@ -574,3 +574,15 @@ func unescapeUnicodePoints(r io.Reader, w io.Writer) error {
 
 	return fmt.Errorf("Unreachable code reached.")
 }
+
+// Helper to add the pre- and postfixes to each written row
+func surroundWith(row []string, prefix, postfix string) []string {
+	outLen := len(row) + 2
+	o := make([]string, outLen)
+	o[0] = prefix
+	o[outLen-1] = postfix
+	copy(o[1:], row[0:])
+	return o
+}
+
+const GpfdistPostfixTsFormat = "2006-01-02 15:04:05"
