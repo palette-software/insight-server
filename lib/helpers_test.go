@@ -2,6 +2,7 @@ package insight_server
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -41,4 +42,9 @@ func TestUnicodeUnescape(t *testing.T) {
 	}
 
 	assertString(t, `(\"CalQtrOffset\" <= 0) AND (\"CalQtrOffset\" >= -4)`, string(outStr.Bytes()), "Mismattched strign")
+}
+
+func TestSurroundWith(t *testing.T) {
+	row := surroundWith([]string{"a", "b", "c"}, "foo", "bar")
+	assert(t, reflect.DeepEqual(row, []string{"foo", "a", "b", "c", "bar"}), "mismatch")
 }
