@@ -252,7 +252,7 @@ func findUploadHandler(meta *UploadMeta, handlers []UploadHandler, fallback Uplo
 
 // Copies a file line-by-line, changes the line endings, prefixes each line with prefix
 // (if its not empty) and postfixes each line with postfix
-func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) (err error) {
+func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, prefix_header, postfix, postfix_header []byte) (err error) {
 
 	// create a buffered reader on top for line-reading
 	bufferedReader := bufio.NewReader(from)
@@ -276,6 +276,11 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) 
 	// Flag to mark the first line (where we dont need to write
 	// an EOL)
 	isFirstLine := true
+	originalPrefix := prefix
+	originalPostfix := postfix
+
+	prefix = prefix_header
+	postfix = postfix_header
 
 	// read the input line-by line.
 	// Since Readline() does not include the EOL chars, we can
@@ -300,7 +305,6 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) 
 		if !isFirstLine {
 			to.Write(unixEol)
 		}
-		isFirstLine = false
 
 		if hasPrefix {
 			// only write the filename if there is an actual line
@@ -340,6 +344,9 @@ func extendAndCopyByLines(from io.Reader, to io.Writer, prefix, postfix []byte) 
 		if err := writePostfix(); err != nil {
 			return err
 		}
+		isFirstLine = false
+		prefix = originalPrefix
+		postfix = originalPostfix
 	}
 
 	return fmt.Errorf("Unreadhable code reached")
@@ -376,7 +383,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader multipart.File, baseDir, tmpDir
 		postfixColumn = ""
 	}
 
-	if err := extendAndCopyByLines(md5HashedReader, outputWriter, []byte(prefixColumn), []byte(postfixColumn)); err != nil {
+	if err := extendAndCopyByLines(md5HashedReader, outputWriter, []byte(prefixColumn), []byte("p_filepath\v"), []byte(postfixColumn), []byte("\vp_cre_date")); err != nil {
 		return "", nil, fmt.Errorf("Error copying CSV content: %v", err)
 	}
 
