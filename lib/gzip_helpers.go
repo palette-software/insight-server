@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"crypto/rand"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -103,6 +105,18 @@ func (g *GzippedFileWriterWithTemp) Md5() []byte {
 func (g *GzippedFileWriterWithTemp) GetFileName() string {
 	// get the file hash
 	return g.GetFileNameForMd5(fmt.Sprintf("%032x", g.Md5()))
+}
+
+// Returns the output filename by using random bytes instead of a hash
+func (g *GzippedFileWriterWithTemp) GetRandomFileName() string {
+	buf := make([]byte, 16)
+	// Read some random bytes
+	if _, err := rand.Read(buf); err != nil {
+		// if there is an error, revert back to the less safe stuff
+		buf = RandStringBytes(16)
+	}
+	// generate a random 32 char string
+	return g.GetFileNameForMd5(fmt.Sprintf("%032x", buf))
 }
 
 // Returns the output filename by using the supplied md5 string and the original output filename

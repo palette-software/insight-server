@@ -5,6 +5,8 @@ import (
 	"io"
 	"path/filepath"
 
+	"time"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -30,20 +32,34 @@ type csvFileWriter struct {
 
 	headers []string
 
-	file   io.WriteCloser
+	file   *GzippedFileWriterWithTemp
 	writer *GpCsvWriter
 
 	isClosed bool
+
+	tsColumn    string
+	outFileName string
 }
 
-func NewPossibleFileWriter(tmpDir, baseFileName string, headers []string) *csvFileWriter {
+func NewCsvFileWriter(tmpDir, baseFileName string, headers []string) *csvFileWriter {
 	return &csvFileWriter{
 		tmpDir:       tmpDir,
 		baseFileName: baseFileName,
 		hasFile:      false,
 		headers:      headers,
 		isClosed:     false,
+		// the timestamp we'll be using
+		tsColumn:    time.Now().Format(GpfdistPostfixTsFormat),
+		outFileName: "",
 	}
+}
+
+func (w *csvFileWriter) extendHeaders(headers []string) []string {
+	return surroundWith(headers, "p_filepath", "p_cre_date")
+}
+
+func (w *csvFileWriter) extendRow(headers []string) []string {
+	return surroundWith(headers, w.outFileName, w.tsColumn)
 }
 
 // Creates the output file for this writer
@@ -59,17 +75,12 @@ func (w *csvFileWriter) CreateFile() error {
 	}
 
 	w.file = f
+	w.outFileName = f.GetRandomFileName()
 	w.writer = MakeCsvWriter(f)
 
-	// escape each header
-	escapedHeaders, err := EscapeRowForGreenPlum(w.headers)
-	if err != nil {
-		return fmt.Errorf("Error escaping header fields for greenplum >>%v<<: %v", w.headers, err)
-	}
-
-	// write the error header to the file
-	if err := w.writer.Write(escapedHeaders); err != nil {
-		return fmt.Errorf("Error writing parse error CSV file '%s' header: %v", w.baseFileName, err)
+	// write the headers
+	if err := w.writeInternal(w.extendHeaders(w.headers)); err != nil {
+		return err
 	}
 
 	// mark that we have the file created
@@ -83,6 +94,12 @@ func (w *csvFileWriter) WriteRow(row []string) error {
 		w.CreateFile()
 	}
 
+	return w.writeInternal(w.extendRow(row))
+
+}
+
+// code shared between CreateFile() and WriteRow()
+func (w *csvFileWriter) writeInternal(row []string) error {
 	// escape each field
 	escaped, err := EscapeRowForGreenPlum(row)
 	if err != nil {
@@ -91,7 +108,7 @@ func (w *csvFileWriter) WriteRow(row []string) error {
 
 	// write it out
 	if err := w.writer.Write(escaped); err != nil {
-		return fmt.Errorf("Error writing parse error row: %v", err)
+		return fmt.Errorf("Error writing CSV output row: %v", err)
 	}
 
 	return nil
@@ -110,7 +127,7 @@ func (w *csvFileWriter) Close() error {
 	}
 
 	// make sure we close (and move) the error file even if we have errors
-	defer w.file.Close()
+	defer w.file.CloseWithFileName(w.outFileName)
 
 	// flush the output
 	w.writer.Flush()
@@ -119,7 +136,7 @@ func (w *csvFileWriter) Close() error {
 	}
 
 	// try to close the output
-	if err := w.file.Close(); err != nil {
+	if err := w.file.CloseWithFileName(w.outFileName); err != nil {
 		return fmt.Errorf("Error closing CSV output: %v", err)
 	}
 
@@ -143,12 +160,12 @@ func NewServerlogsWriter(outputDir, tmpDir, fileBaseName string, parsedHeaders [
 	errorsOutputPath := filepath.Join(outputDir, fmt.Sprintf("errors_%s", fileBaseName))
 
 	return &serverlogsWriter{
-		parsedWriter: NewPossibleFileWriter(
+		parsedWriter: NewCsvFileWriter(
 			tmpDir,
 			parsedOutputPath,
 			append([]string{"filename", "host_name"}, parsedHeaders...),
 		),
-		errorsWriter: NewPossibleFileWriter(
+		errorsWriter: NewCsvFileWriter(
 			tmpDir,
 			errorsOutputPath,
 			[]string{"error", "hostname", "filename", "line"},
