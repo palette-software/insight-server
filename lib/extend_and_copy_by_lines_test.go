@@ -10,14 +10,14 @@ var extendAndCopyByLinesTest1In = `original_header
 hello world
 foo bar`
 
-var extendAndCopyByLinesTest1Out = "prefix_header,original_header,postfix_header\nprefix,hello world,postfix\nprefix,foo bar,postfix"
+var extendAndCopyByLinesTest1Out = "prefix_header,original_header,postfix_header\nprefix,hello world,postfix\nprefix,foo bar,postfix\n"
 
 var extendAndCopyByLinesTest2In = `original_header
 hello world
 foo bar
 `
 
-var extendAndCopyByLinesTest2Out = "prefix_header,original_header,postfix_header\nprefix,hello world,postfix\nprefix,foo bar,postfix"
+var extendAndCopyByLinesTest2Out = "prefix_header,original_header,postfix_header\nprefix,hello world,postfix\nprefix,foo bar,postfix\n"
 
 func runTestExtendAndCopyByLines(t *testing.T, in, out, prefix, postfix string) {
 	inR := strings.NewReader(in)
