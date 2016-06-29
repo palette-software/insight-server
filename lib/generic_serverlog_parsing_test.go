@@ -95,6 +95,7 @@ func (m MockWriter) ErrorRowCount() int {
 }
 
 func TestJsonParseElapsed_ShouldParseElapsedWhenAvailable(t *testing.T) {
+	parserState := MakeServerlogParserState()
 	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd", "elapsed":0.039}}`
 	tz := time.UTC
 	src := ServerlogsSource{Timezone: tz}
@@ -105,11 +106,12 @@ func TestJsonParseElapsed_ShouldParseElapsedWhenAvailable(t *testing.T) {
 		tassert.Equal(t, "39", fields[10])
 		tassert.Equal(t, "2016-03-25T00:59:10.56", fields[11])
 	})
-	err := p.Parse(&src, testLogLine, *w)
+	err := p.Parse(parserState, &src, testLogLine, *w)
 	tassert.Nil(t, err)
 }
 
 func TestJsonParseElapsed_ShouldParseElapsedMsWhenAvailable(t *testing.T) {
+	parserState := MakeServerlogParserState()
 	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd", "elapsed-ms":"2"}}`
 	tz := time.UTC
 	src := ServerlogsSource{Timezone: tz}
@@ -120,11 +122,12 @@ func TestJsonParseElapsed_ShouldParseElapsedMsWhenAvailable(t *testing.T) {
 		tassert.Equal(t, "2", fields[10])
 		tassert.Equal(t, "2016-03-25T00:59:10.597", fields[11])
 	})
-	err := p.Parse(&src, testLogLine, *w)
+	err := p.Parse(parserState, &src, testLogLine, *w)
 	tassert.Nil(t, err)
 }
 
 func TestJsonParseElapsed_ShouldInsertNullWhenUnAvailable(t *testing.T) {
+	parserState := MakeServerlogParserState()
 	testLogLine := `{"ts":"2016-03-25T00:59:10.599","pid":11540,"tid":"5640","sev":"info","req":"-","sess":"58F8C1074C3D496EB9B38B46ED14DCAE-1:0","site":"PGS","user":"pg_extractm","k":"end-query","v":{"query": "asd"}}`
 	tz := time.UTC
 	src := ServerlogsSource{Timezone: tz}
@@ -135,6 +138,6 @@ func TestJsonParseElapsed_ShouldInsertNullWhenUnAvailable(t *testing.T) {
 		tassert.Equal(t, "0", fields[10])
 		tassert.Equal(t, "2016-03-25T00:59:10.599", fields[11])
 	})
-	err := p.Parse(&src, testLogLine, w)
+	err := p.Parse(parserState, &src, testLogLine, w)
 	tassert.Nil(t, err)
 }

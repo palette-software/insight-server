@@ -22,12 +22,22 @@ type ServerlogsSource struct {
 	Timezone *time.Location
 }
 
+// The state for files (this state gets passed to
+// each call of ServerlogParser.Parse(), and is persistent
+// for a file)
+type ServerlogParserState map[string]string
+
+// Creates a new state for the parser
+func MakeServerlogParserState() *ServerlogParserState {
+	return &ServerlogParserState{}
+}
+
 // Reads serverlogs (the implementation determines the format)
 type ServerlogsParser interface {
 	// Gets the header for this parser
 	Header() []string
 	// Parses the lines in the reader
-	Parse(src *ServerlogsSource, line string, w ServerlogWriter) error
+	Parse(state *ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error
 }
 
 // A generic log parser that takes a reader and a timezone
@@ -37,6 +47,7 @@ func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter
 	csvReader := MakeCsvReader(r)
 
 	isHeader := true
+	parserState := MakeServerlogParserState()
 
 	for {
 		record, err := csvReader.Read()
@@ -87,7 +98,7 @@ func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter
 		}
 
 		// try to parse it and log errors
-		if err := parser.Parse(rowSrc, unescapedRow, w); err != nil {
+		if err := parser.Parse(parserState, rowSrc, unescapedRow, w); err != nil {
 			w.WriteError(rowSrc, err, unescapedRow)
 			continue
 		}
@@ -123,7 +134,11 @@ var plainLineElapsedRegexp = regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
 const plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
 const jsonDateFormat = "2006-01-02T15:04:05.999"
 
+const pidHeaderKey = "pid-header"
+
 type PlainLogParser struct {
+	// The DB housing our continuations
+	ContinuationDb LogContinuation
 }
 
 // Headers for the plain serverlog files
@@ -134,7 +149,7 @@ func (p *PlainLogParser) Header() []string {
 }
 
 // Parses a plaintext log line
-func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
+func (p *PlainLogParser) Parse(state *ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error {
 
 	// try to extract the timestamp
 	matches := plainLineParserRegexp.FindAllStringSubmatch(line, -1)
@@ -144,6 +159,8 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 
 	// get the parts
 	ts, pid, line := matches[0][1], matches[0][2], matches[0][3]
+
+	// ==================== TS + PID ====================
 
 	// parse the timestamp
 	tsUtc, err := convertTimestringToUTC(plainServerlogsTimestampFormat, ts, src.Timezone)
@@ -156,6 +173,9 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		return fmt.Errorf("Parsing pid '%s': %v", pid, err)
 	}
 
+	// ==================== Elapsed ====================
+
+	// Get the elapsed time
 	elapsedMs, err := getElapsedFromPlainlogs(line)
 	var elapsed, start_ts string
 	if err == nil {
@@ -165,6 +185,44 @@ func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWr
 		elapsed = "0"
 		start_ts = tsUtc
 	}
+
+	// ==================== Continuations ====================
+
+	switch {
+	// check if this line looks like a continuation
+	case IsLineContinuation(line):
+		// Create the continuation key from the line contents
+		continuationKey := MakeContinuationKey(tsUtc, pid)
+
+		//check if we have a header for this continuation key
+		if pidHeader, hasPidHeader := p.ContinuationDb.HeaderLineFor(continuationKey); hasPidHeader {
+			// if we have, emit it before the current line, and
+			// use pidHeader instead of line
+			w.WriteParsed(src, []string{tsUtc, pid, pidHeader, elapsed, start_ts})
+			// Store the looked up pid header for the file
+			// (so we can save it when the log file is rotated
+			state[pidHeaderKey] = pidHeader
+		}
+
+	// Check if this line looks like a log file end
+	case LineWillHaveContinuation(line):
+		continuationKey := MakeContinuationKey(tsUtc, pid)
+
+		// Try to get the pid header from the state
+		if pidHeader, hasPidHeader := state[pidHeaderKey]; hasPidHeader {
+			// if we have the pid header, store it in the DB for this
+			// continuation key
+			p.ContinuationDb.SetHeaderFor(continuationKey, pidHeader)
+		}
+
+	// Check if this line is a pid header
+	case LineHasPid(line):
+		// store the current line as the pid header in this case
+		state[pidHeaderKey] = line
+
+	}
+
+	// ==================== Emitting the line ====================
 
 	// Write the parsed line out (make sure its in the right order)
 	w.WriteParsed(src, []string{
@@ -269,7 +327,7 @@ func getStartTime(end string, elapsed int64) string {
 }
 
 // parses a server log in JSON format
-func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
+func (j *JsonLogParser) Parse(state *ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error {
 
 	// try to parse the log row
 	outerJson := ServerlogOuterJson{}
