@@ -22,29 +22,42 @@ type ServerlogsSource struct {
 	Timezone *time.Location
 }
 
+// ==================== Serverlog Parser State ====================
+
 // The state for files (this state gets passed to
 // each call of ServerlogParser.Parse(), and is persistent
 // for a file)
-type ServerlogParserState struct {
+
+type ServerlogParserState interface {
+	Get(key string) (string, bool)
+	Set(key, value string)
+}
+
+type baseServerlogParserState struct {
 	data map[string]string
 }
 
 // Creates a new state for the parser
-func MakeServerlogParserState() *ServerlogParserState {
-	return &ServerlogParserState{
+func MakeServerlogParserState() ServerlogParserState {
+	return &baseServerlogParserState{
 		data: map[string]string{},
 	}
 }
 
-func (p *ServerlogParserState) Get(key string) (string, bool) { v, hasV := p.data[key]; return v, hasV }
-func (p *ServerlogParserState) Set(key, value string)         { p.data[key] = value }
+func (p *baseServerlogParserState) Get(key string) (string, bool) {
+	v, hasV := p.data[key]
+	return v, hasV
+}
+func (p *baseServerlogParserState) Set(key, value string) { p.data[key] = value }
+
+// ==================== Serverlog Parser ====================
 
 // Reads serverlogs (the implementation determines the format)
 type ServerlogsParser interface {
 	// Gets the header for this parser
 	Header() []string
 	// Parses the lines in the reader
-	Parse(state *ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error
+	Parse(state ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error
 }
 
 // A generic log parser that takes a reader and a timezone
@@ -156,7 +169,7 @@ func (p *PlainLogParser) Header() []string {
 }
 
 // Parses a plaintext log line
-func (p *PlainLogParser) Parse(state *ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error {
+func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error {
 
 	// try to extract the timestamp
 	matches := plainLineParserRegexp.FindAllStringSubmatch(line, -1)
@@ -334,7 +347,7 @@ func getStartTime(end string, elapsed int64) string {
 }
 
 // parses a server log in JSON format
-func (j *JsonLogParser) Parse(state *ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error {
+func (j *JsonLogParser) Parse(state ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error {
 
 	// try to parse the log row
 	outerJson := ServerlogOuterJson{}
