@@ -48,6 +48,7 @@ func (p *baseServerlogParserState) Get(key string) (string, bool) {
 	v, hasV := p.data[key]
 	return v, hasV
 }
+
 func (p *baseServerlogParserState) Set(key, value string) { p.data[key] = value }
 
 // ==================== Serverlog Parser ====================
@@ -245,13 +246,7 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 	// ==================== Emitting the line ====================
 
 	// Write the parsed line out (make sure its in the right order)
-	w.WriteParsed(src, []string{
-		tsUtc,
-		pid,
-		line,
-		elapsed,
-		start_ts,
-	})
+	w.WriteParsed(src, []string{tsUtc, pid, line, elapsed, start_ts})
 
 	return nil
 }
@@ -452,8 +447,10 @@ type ServerlogInput struct {
 
 func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) chan ServerlogInput {
 	parserMap := map[LogFormat]ServerlogsParser{
-		LogFormatJson:  &JsonLogParser{},
-		LogFormatPlain: &PlainLogParser{},
+		LogFormatJson: &JsonLogParser{},
+		LogFormatPlain: &PlainLogParser{
+			ContinuationDb: MakeBoltDbLogContinuationDb(),
+		},
 	}
 
 	inputChan := make(chan ServerlogInput, bufferSize)

@@ -21,6 +21,16 @@ func MakeContinuationKey(tsUtc, pid string) string {
 	return fmt.Sprintf("%s||%s", tsUtc, pid)
 }
 
+// ==================== Log continuation DB implementation ====================
+
+// A BoltDB-based implementation for the log continuation
+type boltDbLogContinuation struct {
+}
+
+func MakeBoltDbLogContinuationDb() LogContinuation {
+	return nil
+}
+
 // ==================== Line type checks ====================
 
 var lineContinuationRx = regexp.MustCompile("logfile_rotation: opening new log")
