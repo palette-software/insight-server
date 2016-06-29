@@ -209,33 +209,32 @@ func (j *JsonLogParser) Header() []string {
 //
 // If the JSON value contains both keys, the value of the "elapsed"
 // key is returned.
-func getElapsed(line string) (int64, error) {
+func getElapsed(line string) (int64, bool, error) {
 	m := map[string]interface{}{}
 	err := json.Unmarshal([]byte(line), &m)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	if m["elapsed"] != nil {
 		value, ok := m["elapsed"].(float64)
 		if !ok {
-			logrus.Error("Can't parse elapsed to float64")
-			return 0, fmt.Errorf("Can't parse elapsed to float64")
+			return 0, false, fmt.Errorf("Can't parse elapsed to float64: '%v'", m["elapsed"])
 		}
-		return int64(value * 1000), nil
+		return int64(value * 1000), true, nil
 	}
 	if m["elapsed-ms"] != nil {
 		value, ok := m["elapsed-ms"].(string)
 		if !ok {
-			logrus.Error("Can't parse elapsed-ms to string")
-			return 0, fmt.Errorf("Can't parse elapsed-ms to string")
+			return 0, false, fmt.Errorf("Can't parse elapsed-ms to string '%v'", m["elapsed"])
 		}
 		intValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
-		return intValue, nil
+		return intValue, true, nil
 	}
-	return 0, fmt.Errorf("No elapsed or elapsed-ms in log line.")
+	// No elapsed or elapsed-ms in log line
+	return 0, false, nil
 }
 
 // Returns the elapsed time, if the incoming string value is from a plaintext log file
@@ -292,6 +291,8 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 	// Re-assign the converted timestamp
 	outerJson.Ts = tsUtc
 
+	// ==================== JSON ====================
+
 	// since the inner JSON can be anything, we unmarshal it into
 	// a string, so the json marshaler can do his thing and we
 	// dont have to care about what data is inside
@@ -307,10 +308,27 @@ func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWri
 		return fmt.Errorf("Error during unicode unescape: %v", err)
 	}
 
+	// ==================== Elapsed ====================
+
 	v := string(unicodeUnescapeJsonBuffer.Bytes())
-	elapsedMs, err := getElapsed(v)
+	elapsedMs, hasElapsed, err := getElapsed(v)
+
+	// Log any errors we may have had
+	if err != nil {
+		// As the logging has been moved from getElapsed to
+		// here, log the parse errors properly
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"component": "serverlogs",
+			"file":      src.Filename,
+			"host":      src.Host,
+		}).Errorf("Error parsing elapsed time")
+	}
+
+	// Get the elapsed values
 	var elapsed, start_ts string
-	if err == nil {
+
+	// if we have a value, use it
+	if hasElapsed {
 		elapsed = strconv.FormatInt(elapsedMs, 10)
 		start_ts = getStartTime(tsUtc, elapsedMs)
 	} else {
