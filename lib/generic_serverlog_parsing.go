@@ -25,12 +25,19 @@ type ServerlogsSource struct {
 // The state for files (this state gets passed to
 // each call of ServerlogParser.Parse(), and is persistent
 // for a file)
-type ServerlogParserState map[string]string
+type ServerlogParserState struct {
+	data map[string]string
+}
 
 // Creates a new state for the parser
 func MakeServerlogParserState() *ServerlogParserState {
-	return &ServerlogParserState{}
+	return &ServerlogParserState{
+		data: map[string]string{},
+	}
 }
+
+func (p *ServerlogParserState) Get(key string) (string, bool) { v, hasV := p.data[key]; return v, hasV }
+func (p *ServerlogParserState) Set(key, value string)         { p.data[key] = value }
 
 // Reads serverlogs (the implementation determines the format)
 type ServerlogsParser interface {
@@ -201,7 +208,7 @@ func (p *PlainLogParser) Parse(state *ServerlogParserState, src *ServerlogsSourc
 			w.WriteParsed(src, []string{tsUtc, pid, pidHeader, elapsed, start_ts})
 			// Store the looked up pid header for the file
 			// (so we can save it when the log file is rotated
-			state[pidHeaderKey] = pidHeader
+			state.Set(pidHeaderKey, pidHeader)
 		}
 
 	// Check if this line looks like a log file end
@@ -209,7 +216,7 @@ func (p *PlainLogParser) Parse(state *ServerlogParserState, src *ServerlogsSourc
 		continuationKey := MakeContinuationKey(tsUtc, pid)
 
 		// Try to get the pid header from the state
-		if pidHeader, hasPidHeader := state[pidHeaderKey]; hasPidHeader {
+		if pidHeader, hasPidHeader := state.Get(pidHeaderKey); hasPidHeader {
 			// if we have the pid header, store it in the DB for this
 			// continuation key
 			p.ContinuationDb.SetHeaderFor(continuationKey, pidHeader)
@@ -218,7 +225,7 @@ func (p *PlainLogParser) Parse(state *ServerlogParserState, src *ServerlogsSourc
 	// Check if this line is a pid header
 	case LineHasPid(line):
 		// store the current line as the pid header in this case
-		state[pidHeaderKey] = line
+		state.Set(pidHeaderKey, line)
 
 	}
 
