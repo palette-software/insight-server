@@ -112,13 +112,21 @@ const (
 )
 
 // Creates an http endpoint handler where
-func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string, useOldFormatFilename bool) HandlerFuncWithTenant {
+func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string, useOldFormatFilename bool) (HandlerFuncWithTenant, error) {
 	// the fallback handler to move files
 	fallbackHandler := &FallbackUploadHandler{tmpDir: tmpDir, baseDir: baseDir}
 
+	serverlogsParserHandler, err := NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir)
+
+	// handle errors during parser handler creation (boltDB errors most likely)
+	if err != nil {
+		return nil, err
+	}
+
 	// processing handlers
 	handlers := []UploadHandler{
-		NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir),
+		serverlogsParserHandler,
+		//NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir),
 		NewMetadataUploadHandler(tmpDir, baseDir, archivesDir),
 	}
 
@@ -157,7 +165,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 		}
 
 		writeResponse(w, http.StatusOK, "OK")
-	}
+	}, nil
 }
 
 // Soring callbacks
@@ -423,7 +431,7 @@ func copyUploadedFileTo(meta *UploadMeta, reader io.Reader, baseDir, tmpDir stri
 		// This assignment is safe, because the deferred Close() functions will still do their work properly.
 		inputReader = gz
 	default:
-	// Nothing needs to be done in this case, no compression is presumed
+		// Nothing needs to be done in this case, no compression is presumed
 	}
 
 	// Create the pre & postfixes
@@ -503,14 +511,19 @@ type JsonServerlogsUploadHandler struct {
 	parserChan chan ServerlogInput
 }
 
-func NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir string) UploadHandler {
-	serverlogParser := MakeServerlogsParser(tmpDir, baseDir, archivesDir, 256)
+func NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir string) (UploadHandler, error) {
+	serverlogParser, err := MakeServerlogsParser(tmpDir, baseDir, archivesDir, 256)
+	// handle errors
+	if err != nil {
+		return nil, err
+	}
+	// handle success
 	return &JsonServerlogsUploadHandler{
 		tmpDir:      tmpDir,
 		baseDir:     baseDir,
 		archivesDir: archivesDir,
 		parserChan:  serverlogParser,
-	}
+	}, nil
 }
 
 var isJsonServerlogRegexp = regexp.MustCompile("^(server|json)logs")

@@ -81,11 +81,20 @@ func main() {
 	// ENDPOINTS
 	// ---------
 
+	uploadHandler, err := insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath, config.UseOldFormatFilename)
+	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"component": "uploads",
+		}).Fatal("Error during upload handler creation")
+		// Fail with an error here
+		os.Exit(-1)
+	}
+
 	// create the upload endpoint
 	authenticatedUploadHandler := withRequestLog("upload",
 		insight_server.MakeUserAuthHandler(
-			authenticator,
-			insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath, config.UseOldFormatFilename),
+			authenticator, uploadHandler,
+			//insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath, config.UseOldFormatFilename),
 		),
 	)
 	// create the maxid handler

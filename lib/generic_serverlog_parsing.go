@@ -162,6 +162,17 @@ type PlainLogParser struct {
 	ContinuationDb LogContinuation
 }
 
+func MakePlainlogParser(dbDirectory string) (*PlainLogParser, error) {
+	logDb, err := MakeBoltDbLogContinuationDb(dbDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot open log continuation db: '%v'", err)
+	}
+
+	return &PlainLogParser{
+		ContinuationDb: logDb,
+	}, nil
+}
+
 // Headers for the plain serverlog files
 func (p *PlainLogParser) Header() []string {
 	return []string{
@@ -223,6 +234,11 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 			// Store the looked up pid header for the file
 			// (so we can save it when the log file is rotated
 			state.Set(pidHeaderKey, pidHeader)
+			logrus.WithFields(logrus.Fields{
+				"component": "serverlogs",
+				"line":      line,
+				"pidHeader": pidHeader,
+			}).Info("Emitted pid header for continuation, updated continuation pid in state")
 		}
 
 	// Check if this line looks like a log file end
@@ -234,6 +250,13 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 			// if we have the pid header, store it in the DB for this
 			// continuation key
 			p.ContinuationDb.SetHeaderFor(continuationKey, pidHeader)
+
+			logrus.WithFields(logrus.Fields{
+				"component":       "serverlogs",
+				"line":            line,
+				"continuationKey": continuationKey,
+				"pidHeader":       pidHeader,
+			}).Info("Storing continuation pid in db")
 		}
 
 	// Check if this line is a pid header
@@ -241,6 +264,10 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 		// store the current line as the pid header in this case
 		state.Set(pidHeaderKey, line)
 
+		logrus.WithFields(logrus.Fields{
+			"component": "serverlogs",
+			"line":      line,
+		}).Info("Saving pid header in state")
 	}
 
 	// ==================== Emitting the line ====================
@@ -445,12 +472,16 @@ type ServerlogInput struct {
 	Format LogFormat
 }
 
-func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) chan ServerlogInput {
+func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) (chan ServerlogInput, error) {
+	plainlogParser, err := MakePlainlogParser(tmpDir)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error creating plainlog parser: %v", err)
+	}
+
 	parserMap := map[LogFormat]ServerlogsParser{
-		LogFormatJson: &JsonLogParser{},
-		LogFormatPlain: &PlainLogParser{
-			ContinuationDb: MakeBoltDbLogContinuationDb(),
-		},
+		LogFormatJson:  &JsonLogParser{},
+		LogFormatPlain: plainlogParser,
 	}
 
 	inputChan := make(chan ServerlogInput, bufferSize)
@@ -474,7 +505,7 @@ func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) c
 		}
 	}()
 
-	return inputChan
+	return inputChan, nil
 }
 
 func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog ServerlogInput, parser ServerlogsParser) error {
