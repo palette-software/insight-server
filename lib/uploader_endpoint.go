@@ -126,7 +126,6 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 	// processing handlers
 	handlers := []UploadHandler{
 		serverlogsParserHandler,
-		//NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir),
 		NewMetadataUploadHandler(tmpDir, baseDir, archivesDir),
 	}
 
