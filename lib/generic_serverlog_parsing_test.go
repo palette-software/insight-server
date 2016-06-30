@@ -33,7 +33,8 @@ func TestGetElapsed_MissingElapsed(t *testing.T) {
 
 func TestGetElapsed_InvalidElapsed(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":"should_not_be_string", "this":66}`
-	_, _, err := getElapsed(testValue)
+	_, hasValue, err := getElapsed(testValue)
+	tassert.False(t, hasValue)
 	tassert.NotNil(t, err)
 }
 
