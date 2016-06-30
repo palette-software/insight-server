@@ -116,7 +116,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 	// the fallback handler to move files
 	fallbackHandler := &FallbackUploadHandler{tmpDir: tmpDir, baseDir: baseDir}
 
-	serverlogsParserHandler, err := NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir)
+	serverlogsParserHandler, err := NewServerlogsUploadHandler(tmpDir, baseDir, archivesDir)
 
 	// handle errors during parser handler creation (boltDB errors most likely)
 	if err != nil {
@@ -505,20 +505,20 @@ func (f *FallbackUploadHandler) HandleUpload(meta *UploadMeta, reader io.Reader)
 // Serverlog parsing handlers
 // ==========================
 
-type JsonServerlogsUploadHandler struct {
+type ServerlogsUploadHandler struct {
 	tmpDir, baseDir, archivesDir string
 
 	parserChan chan ServerlogInput
 }
 
-func NewJsonServerlogsUploadHandler(tmpDir, baseDir, archivesDir string) (UploadHandler, error) {
+func NewServerlogsUploadHandler(tmpDir, baseDir, archivesDir string) (UploadHandler, error) {
 	serverlogParser, err := MakeServerlogsParser(tmpDir, baseDir, archivesDir, 256)
 	// handle errors
 	if err != nil {
 		return nil, err
 	}
 	// handle success
-	return &JsonServerlogsUploadHandler{
+	return &ServerlogsUploadHandler{
 		tmpDir:      tmpDir,
 		baseDir:     baseDir,
 		archivesDir: archivesDir,
@@ -539,11 +539,11 @@ func isPlainLog(fn string) bool {
 	return isPlainServerlogRegexp.MatchString(fn)
 }
 
-func (j *JsonServerlogsUploadHandler) CanHandle(meta *UploadMeta) bool {
+func (j *ServerlogsUploadHandler) CanHandle(meta *UploadMeta) bool {
 	return isJsonLog(meta.TableName) || isPlainLog(meta.TableName)
 }
 
-func (j *JsonServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader io.Reader) error {
+func (j *ServerlogsUploadHandler) HandleUpload(meta *UploadMeta, reader io.Reader) error {
 	// copy the serverlog to the archives, dont add filenames and datetimes for
 	// the loader since we will be adding them later during serverlog parsing
 	archivedFile, err := copyUploadedFileAndCheckMd5(meta, reader, j.archivesDir, j.tmpDir, false)
