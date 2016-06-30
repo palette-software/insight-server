@@ -224,7 +224,7 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 	// check if this line looks like a continuation
 	case IsLineContinuation(line):
 		// Create the continuation key from the line contents
-		continuationKey := MakeContinuationKey(tsUtc, pid)
+		continuationKey := MakeContinuationKey(src.Host, tsUtc, pid)
 
 		//check if we have a header for this continuation key
 		if pidHeader, hasPidHeader := p.ContinuationDb.HeaderLineFor(continuationKey); hasPidHeader {
@@ -243,7 +243,7 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 
 	// Check if this line looks like a log file end
 	case LineWillHaveContinuation(line):
-		continuationKey := MakeContinuationKey(tsUtc, pid)
+		continuationKey := MakeContinuationKey(src.Host, tsUtc, pid)
 
 		// Try to get the pid header from the state
 		if pidHeader, hasPidHeader := state.Get(pidHeaderKey); hasPidHeader {

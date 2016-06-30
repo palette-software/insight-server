@@ -25,8 +25,8 @@ type LogContinuation interface {
 }
 
 // Helper that returns a continuation key
-func MakeContinuationKey(tsUtc, pid string) string {
-	return fmt.Sprintf("%s||%s", tsUtc, pid)
+func MakeContinuationKey(host, tsUtc, pid string) string {
+	return fmt.Sprintf("%s||%s||%s", host, tsUtc, pid)
 }
 
 // ==================== Log continuation DB implementation ====================
