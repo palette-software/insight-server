@@ -34,5 +34,6 @@ func TestLineHasPid(t *testing.T) {
 	tassert.False(t, LineHasPid("logfile_rotation: closing this log"))
 
 	tassert.True(t, LineHasPid("pid=9544"))
+	tassert.False(t, LineHasPid("we have the pid=9544"))
 
 }

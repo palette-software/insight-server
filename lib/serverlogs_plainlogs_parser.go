@@ -95,7 +95,18 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 		continuationKey := MakeContinuationKey(src.Host, tsUtc, pid)
 
 		//check if we have a header for this continuation key
-		if pidHeader, hasPidHeader := p.ContinuationDb.HeaderLineFor(continuationKey); hasPidHeader {
+		pidHeader, hasPidHeader, err := p.ContinuationDb.HeaderLineFor(continuationKey)
+
+		// handle errors
+		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"component": "serverlogs",
+				"key":       string(continuationKey),
+			}).Error("Error getting PID header from LogContinuationDb")
+		}
+
+		// handle good things (we have the pid header)
+		if hasPidHeader {
 			// if we have, emit it before the current line, and
 			// use pidHeader instead of line
 			w.WriteParsed(src, []string{tsUtc, pid, string(pidHeader), elapsed, start_ts})

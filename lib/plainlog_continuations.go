@@ -15,7 +15,7 @@ type LogContinuation interface {
 	// Returns the stored line to emit for a certain key.
 	// Returns the line and a boolean indicating if there
 	// was such a line in the DB
-	HeaderLineFor(key []byte) ([]byte, bool)
+	HeaderLineFor(key []byte) ([]byte, bool, error)
 
 	// Save the header for a certain key
 	SetHeaderFor(key, value []byte) error
@@ -95,11 +95,11 @@ func (l *boltDbLogContinuation) Close() error {
 	return l.db.Close()
 }
 
-func (l *boltDbLogContinuation) HeaderLineFor(key []byte) (value []byte, hasValue bool) {
+func (l *boltDbLogContinuation) HeaderLineFor(key []byte) (value []byte, hasValue bool, err error) {
 	value = nil
 	hasValue = false
 
-	err := l.db.View(func(tx *bolt.Tx) error {
+	err = l.db.View(func(tx *bolt.Tx) error {
 		v := l.getBucket(tx).Get([]byte(key))
 		// make a copy of the byte slice, as its deallocated
 		// after the transaction
@@ -112,21 +112,7 @@ func (l *boltDbLogContinuation) HeaderLineFor(key []byte) (value []byte, hasValu
 		return nil
 	})
 
-	// there might be errors here if bolt has some
-	// internal errors / IO errors, but generally we should
-	// be safe for read-only transactions
-	if err != nil {
-		// FIXME: dont log it here, but pass this error upwards
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"component": logContinuationComponentKey,
-			"key":       key,
-		}).Error("Error getting PID header from LogContinuationDb")
-
-		// Signal that we dont have the value
-		return nil, false
-	}
-
-	return value, hasValue
+	return
 }
 
 // Save the header for a certain key
