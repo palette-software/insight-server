@@ -23,27 +23,27 @@ type ServerlogsSource struct {
 // for a file)
 
 type ServerlogParserState interface {
-	Get(key string) (string, bool)
-	Set(key, value string)
+	Get(key string) ([]byte, bool)
+	Set(key string, value []byte)
 }
 
 type baseServerlogParserState struct {
-	data map[string]string
+	data map[string][]byte
 }
 
 // Creates a new state for the parser
 func MakeServerlogParserState() ServerlogParserState {
 	return &baseServerlogParserState{
-		data: map[string]string{},
+		data: map[string][]byte{},
 	}
 }
 
-func (p *baseServerlogParserState) Get(key string) (string, bool) {
-	v, hasV := p.data[key]
-	return v, hasV
+func (p *baseServerlogParserState) Get(key string) ([]byte, bool) {
+	v, hasValue := p.data[key]
+	return v, hasValue
 }
 
-func (p *baseServerlogParserState) Set(key, value string) { p.data[key] = value }
+func (p *baseServerlogParserState) Set(key string, value []byte) { p.data[key] = value }
 
 // ==================== Serverlog Parser ====================
 

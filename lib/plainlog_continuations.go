@@ -15,25 +15,28 @@ type LogContinuation interface {
 	// Returns the stored line to emit for a certain key.
 	// Returns the line and a boolean indicating if there
 	// was such a line in the DB
-	HeaderLineFor(key string) (string, bool)
+	HeaderLineFor(key []byte) ([]byte, bool)
 
 	// Save the header for a certain key
-	SetHeaderFor(key, value string) error
+	SetHeaderFor(key, value []byte) error
 
 	// we want to close this instance
 	io.Closer
 }
 
 // Helper that returns a continuation key
-func MakeContinuationKey(host, tsUtc, pid string) string {
-	return fmt.Sprintf("%s||%s||%s", host, tsUtc, pid)
+func MakeContinuationKey(host, tsUtc, pid string) []byte {
+	return []byte(fmt.Sprintf("%s||%s||%s", host, tsUtc, pid))
 }
 
 // ==================== Log continuation DB implementation ====================
 
-var logContinuationBucketName = []byte("log-continuations")
+var (
+	logContinuationBucketName = []byte("log-continuations")
+)
 
 const (
+	// The component name used during logging
 	logContinuationComponentKey = "log-continuation-db"
 	logContinuationDbFileName   = "log-continuation.db"
 )
@@ -92,9 +95,9 @@ func (l *boltDbLogContinuation) Close() error {
 	return l.db.Close()
 }
 
-func (l *boltDbLogContinuation) HeaderLineFor(key string) (string, bool) {
-	value := ""
-	hasValue := false
+func (l *boltDbLogContinuation) HeaderLineFor(key []byte) (value []byte, hasValue bool) {
+	value = nil
+	hasValue = false
 
 	err := l.db.View(func(tx *bolt.Tx) error {
 		v := l.getBucket(tx).Get([]byte(key))
@@ -104,7 +107,7 @@ func (l *boltDbLogContinuation) HeaderLineFor(key string) (string, bool) {
 			hasValue = true
 			buf := make([]byte, len(v))
 			copy(buf, v)
-			value = string(buf)
+			value = buf
 		}
 		return nil
 	})
@@ -120,25 +123,27 @@ func (l *boltDbLogContinuation) HeaderLineFor(key string) (string, bool) {
 		}).Error("Error getting PID header from LogContinuationDb")
 
 		// Signal that we dont have the value
-		return "", false
+		return nil, false
 	}
 
 	return value, hasValue
 }
 
 // Save the header for a certain key
-func (l *boltDbLogContinuation) SetHeaderFor(key, value string) error {
+func (l *boltDbLogContinuation) SetHeaderFor(key, value []byte) error {
 	// Store the user model in the user bucket using the username as the key.
 	return l.db.Update(func(tx *bolt.Tx) error {
-		return l.getBucket(tx).Put([]byte(key), []byte(value))
+		return l.getBucket(tx).Put(key, value)
 	})
 }
 
 // ==================== Line type checks ====================
 
-var lineContinuationRx = regexp.MustCompile("logfile_rotation: opening new log")
-var lineWillHaveContinuationRx = regexp.MustCompile("logfile_rotation: closing this log")
-var lineHasPidRx = regexp.MustCompile("^pid=([0-9]+)$")
+var (
+	lineContinuationRx         = regexp.MustCompile("logfile_rotation: opening new log")
+	lineWillHaveContinuationRx = regexp.MustCompile("logfile_rotation: closing this log")
+	lineHasPidRx               = regexp.MustCompile("^pid=([0-9]+)$")
+)
 
 // Returns true if the line string given looks like a continuation string
 func IsLineContinuation(line string) bool {

@@ -11,13 +11,19 @@ import (
 // Plain logs
 // ----------
 
-var plainLineParserRegexp = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}) \(([0-9]+)\): (.*)$`)
-var plainLineElapsedRegexp = regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
+var (
+	plainLineParserRegexp  = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}) \(([0-9]+)\): (.*)$`)
+	plainLineElapsedRegexp = regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
+)
 
-const plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
-const jsonDateFormat = "2006-01-02T15:04:05.999"
+const (
+	plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
+	jsonDateFormat                 = "2006-01-02T15:04:05.999"
 
-const pidHeaderKey = "pid-header"
+	pidHeaderKey = "pid-header"
+)
+
+// The key of the pid header in the parser state
 
 type PlainLogParser struct {
 	// The DB housing our continuations
@@ -92,7 +98,7 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 		if pidHeader, hasPidHeader := p.ContinuationDb.HeaderLineFor(continuationKey); hasPidHeader {
 			// if we have, emit it before the current line, and
 			// use pidHeader instead of line
-			w.WriteParsed(src, []string{tsUtc, pid, pidHeader, elapsed, start_ts})
+			w.WriteParsed(src, []string{tsUtc, pid, string(pidHeader), elapsed, start_ts})
 			// Store the looked up pid header for the file
 			// (so we can save it when the log file is rotated
 			state.Set(pidHeaderKey, pidHeader)
@@ -124,7 +130,7 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 	// Check if this line is a pid header
 	case LineHasPid(line):
 		// store the current line as the pid header in this case
-		state.Set(pidHeaderKey, line)
+		state.Set(pidHeaderKey, []byte(line))
 
 		logrus.WithFields(logrus.Fields{
 			"component": "serverlogs",
