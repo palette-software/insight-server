@@ -118,6 +118,15 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 				"line":      line,
 				"pidHeader": pidHeader,
 			}).Info("Emitted pid header for continuation, updated continuation pid in state")
+		} else {
+
+			// Log the fact that we could not find the continuation key.
+			// TODO: should this be 'WARN' or 'INFO'?
+			logrus.WithFields(logrus.Fields{
+				"component": "serverlogs",
+				"line":      line,
+				"key":       string(continuationKey),
+			}).Warn("Cannot find pid header for TDE log continuation")
 		}
 
 	// Check if this line looks like a log file end
@@ -128,14 +137,24 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 		if pidHeader, hasPidHeader := state.Get(pidHeaderKey); hasPidHeader {
 			// if we have the pid header, store it in the DB for this
 			// continuation key
-			p.ContinuationDb.SetHeaderFor(continuationKey, pidHeader)
+			err := p.ContinuationDb.SetHeaderFor(continuationKey, pidHeader)
+			if err != nil {
+				// Log any errors
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"component":       "serverlogs",
+					"line":            line,
+					"continuationKey": continuationKey,
+				}).Error("Error getting pid header from TDE log continuation DB")
+			} else {
+				// Log the fact we are storing the pid here
+				logrus.WithFields(logrus.Fields{
+					"component":       "serverlogs",
+					"line":            line,
+					"continuationKey": continuationKey,
+					"pidHeader":       pidHeader,
+				}).Info("Storing TDE server continuation pid in DB")
+			}
 
-			logrus.WithFields(logrus.Fields{
-				"component":       "serverlogs",
-				"line":            line,
-				"continuationKey": continuationKey,
-				"pidHeader":       pidHeader,
-			}).Info("Storing continuation pid in db")
 		}
 
 	// Check if this line is a pid header
@@ -146,7 +165,7 @@ func (p *PlainLogParser) Parse(state ServerlogParserState, src *ServerlogsSource
 		logrus.WithFields(logrus.Fields{
 			"component": "serverlogs",
 			"line":      line,
-		}).Info("Saving pid header in state")
+		}).Info("Saving TDE server pid header in state")
 	}
 
 	// ==================== Emitting the line ====================
