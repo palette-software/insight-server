@@ -1,16 +1,10 @@
 package insight_server
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
 	"time"
-
-	"bytes"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -22,12 +16,43 @@ type ServerlogsSource struct {
 	Timezone *time.Location
 }
 
+// ==================== Serverlog Parser State ====================
+
+// The state for files (this state gets passed to
+// each call of ServerlogParser.Parse(), and is persistent
+// for a file)
+
+type ServerlogParserState interface {
+	Get(key string) ([]byte, bool)
+	Set(key string, value []byte)
+}
+
+type baseServerlogParserState struct {
+	data map[string][]byte
+}
+
+// Creates a new state for the parser
+func MakeServerlogParserState() ServerlogParserState {
+	return &baseServerlogParserState{
+		data: map[string][]byte{},
+	}
+}
+
+func (p *baseServerlogParserState) Get(key string) ([]byte, bool) {
+	v, hasValue := p.data[key]
+	return v, hasValue
+}
+
+func (p *baseServerlogParserState) Set(key string, value []byte) { p.data[key] = value }
+
+// ==================== Serverlog Parser ====================
+
 // Reads serverlogs (the implementation determines the format)
 type ServerlogsParser interface {
 	// Gets the header for this parser
 	Header() []string
 	// Parses the lines in the reader
-	Parse(src *ServerlogsSource, line string, w ServerlogWriter) error
+	Parse(state ServerlogParserState, src *ServerlogsSource, line string, w ServerlogWriter) error
 }
 
 // A generic log parser that takes a reader and a timezone
@@ -37,6 +62,7 @@ func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter
 	csvReader := MakeCsvReader(r)
 
 	isHeader := true
+	parserState := MakeServerlogParserState()
 
 	for {
 		record, err := csvReader.Read()
@@ -87,7 +113,7 @@ func ParseServerlogsWith(r io.Reader, parser ServerlogsParser, w ServerlogWriter
 		}
 
 		// try to parse it and log errors
-		if err := parser.Parse(rowSrc, unescapedRow, w); err != nil {
+		if err := parser.Parse(parserState, rowSrc, unescapedRow, w); err != nil {
 			w.WriteError(rowSrc, err, unescapedRow)
 			continue
 		}
@@ -114,225 +140,6 @@ func convertTimestringToUTC(format, timeString string, tz *time.Location) (strin
 	return tsParsed.UTC().Format(jsonDateFormat), nil
 }
 
-// Plain logs
-// ----------
-
-var plainLineParserRegexp = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}) \(([0-9]+)\): (.*)$`)
-var plainLineElapsedRegexp = regexp.MustCompile(`^.*Elapsed time:(\d+\.\d+)s.*`)
-
-const plainServerlogsTimestampFormat = "2006-01-02 15:04:05.999"
-const jsonDateFormat = "2006-01-02T15:04:05.999"
-
-type PlainLogParser struct {
-}
-
-// Headers for the plain serverlog files
-func (p *PlainLogParser) Header() []string {
-	return []string{
-		"ts", "pid", "line", "elapsed_ms", "start_ts",
-	}
-}
-
-// Parses a plaintext log line
-func (p *PlainLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
-
-	// try to extract the timestamp
-	matches := plainLineParserRegexp.FindAllStringSubmatch(line, -1)
-	if len(matches) != 1 {
-		return fmt.Errorf("Error in regex matching log line: got %d row instead of 1", len(matches))
-	}
-
-	// get the parts
-	ts, pid, line := matches[0][1], matches[0][2], matches[0][3]
-
-	// parse the timestamp
-	tsUtc, err := convertTimestringToUTC(plainServerlogsTimestampFormat, ts, src.Timezone)
-	if err != nil {
-		return fmt.Errorf("Parsing log timestamp: %v", err)
-	}
-
-	// parse the pid (so we can check if is a valid number)
-	if _, err := strconv.Atoi(pid); err != nil {
-		return fmt.Errorf("Parsing pid '%s': %v", pid, err)
-	}
-
-	elapsedMs, err := getElapsedFromPlainlogs(line)
-	var elapsed, start_ts string
-	if err == nil {
-		elapsed = strconv.FormatInt(elapsedMs, 10)
-		start_ts = getStartTime(tsUtc, elapsedMs)
-	} else {
-		elapsed = "0"
-		start_ts = tsUtc
-	}
-
-	// Write the parsed line out (make sure its in the right order)
-	w.WriteParsed(src, []string{
-		tsUtc,
-		pid,
-		line,
-		elapsed,
-		start_ts,
-	})
-
-	return nil
-}
-
-// JSON Logs
-// ---------
-
-// The outer Json wrapper
-type ServerlogOuterJson struct {
-	Ts, Sev, Req, Sess, Site, User, K string
-	V                                 interface{}
-	Pid                               int
-	Tid                               string
-}
-
-type JsonLogParser struct{}
-
-func (j *JsonLogParser) Header() []string {
-	return []string{
-		"ts",
-		"pid", "tid",
-		"sev", "req", "sess", "site", "user",
-		"k", "v", "elapsed_ms", "start_ts",
-	}
-}
-
-// Returns the elapsed time, if the incoming string value is a JSON
-// value and it contains an "elapsed" or an "elapsed-ms" key. The
-// returned value is always given back in milliseconds.
-//
-// NOTE: "elapsed" key has its value in seconds, but "elapsed-ms"
-// key has its in milliseconds.
-//
-// If the JSON value contains both keys, the value of the "elapsed"
-// key is returned.
-func getElapsed(line string) (int64, error) {
-	m := map[string]interface{}{}
-	err := json.Unmarshal([]byte(line), &m)
-	if err != nil {
-		return 0, err
-	}
-	if m["elapsed"] != nil {
-		value, ok := m["elapsed"].(float64)
-		if !ok {
-			logrus.Error("Can't parse elapsed to float64")
-			return 0, fmt.Errorf("Can't parse elapsed to float64")
-		}
-		return int64(value * 1000), nil
-	}
-	if m["elapsed-ms"] != nil {
-		value, ok := m["elapsed-ms"].(string)
-		if !ok {
-			logrus.Error("Can't parse elapsed-ms to string")
-			return 0, fmt.Errorf("Can't parse elapsed-ms to string")
-		}
-		intValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		return intValue, nil
-	}
-	return 0, fmt.Errorf("No elapsed or elapsed-ms in log line.")
-}
-
-// Returns the elapsed time, if the incoming string value is from a plaintext log file
-// and it contains an "Elapsed time:x.xxxs" section. The
-// returned value is given back in milliseconds.
-func getElapsedFromPlainlogs(line string) (int64, error) {
-	m := plainLineElapsedRegexp.FindStringSubmatch(line)
-	if m == nil || len(m) < 2 {
-		return 0, fmt.Errorf("No elapsed in log line.")
-	}
-
-	value, err := strconv.ParseFloat(m[1], 64)
-	if err != nil {
-		return 0, fmt.Errorf("Can't parse elapsed time value to float")
-	}
-	return int64(value * 1000), nil
-}
-
-func getStartTime(end string, elapsed int64) string {
-	end_ts, err := time.Parse(jsonDateFormat, end)
-	if err != nil {
-		logrus.Error("Unable to parse ts while calculating startTime")
-		return end
-	}
-	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
-	start := start_ts.Format(jsonDateFormat)
-	if err != nil {
-		logrus.Error("Unable to format start_ts while calculating it")
-		return end
-	}
-	return start
-}
-
-// parses a server log in JSON format
-func (j *JsonLogParser) Parse(src *ServerlogsSource, line string, w ServerlogWriter) error {
-
-	// try to parse the log row
-	outerJson := ServerlogOuterJson{}
-	err := json.NewDecoder(strings.NewReader(line)).Decode(&outerJson)
-	if err != nil {
-		return fmt.Errorf("JSON parse error in '%s': %v", line, err)
-	}
-
-	// convert the tid
-	if outerJson.Tid, err = hexToDecimal(outerJson.Tid); err != nil {
-		return fmt.Errorf("Tid Parse error: %v", err)
-	}
-
-	tsUtc, err := convertTimestringToUTC(jsonDateFormat, outerJson.Ts, src.Timezone)
-	if err != nil {
-		return fmt.Errorf("Parsing log timestamp: %v", err)
-	}
-
-	// Re-assign the converted timestamp
-	outerJson.Ts = tsUtc
-
-	// since the inner JSON can be anything, we unmarshal it into
-	// a string, so the json marshaler can do his thing and we
-	// dont have to care about what data is inside
-	innerJsonStr, err := json.Marshal(outerJson.V)
-	if err != nil {
-		return fmt.Errorf("Inner JSON remarshaling error: %v", err)
-	}
-
-	unicodeUnescapeJsonBuffer := &bytes.Buffer{}
-	// we need to do the unicode unescaping here in the inner JSON string
-	// as '>' and  '<' appear frequently in their unicode escaped form
-	if err := unescapeUnicodePoints(bytes.NewReader(innerJsonStr), unicodeUnescapeJsonBuffer); err != nil {
-		return fmt.Errorf("Error during unicode unescape: %v", err)
-	}
-
-	v := string(unicodeUnescapeJsonBuffer.Bytes())
-	elapsedMs, err := getElapsed(v)
-	var elapsed, start_ts string
-	if err == nil {
-		elapsed = strconv.FormatInt(elapsedMs, 10)
-		start_ts = getStartTime(tsUtc, elapsedMs)
-	} else {
-		elapsed = "0"
-		start_ts = tsUtc
-	}
-
-	// "ts"
-	//"pid", "tid",
-	//"sev", "req", "sess", "site", "user",
-	//"k", "v", "elapsed_ms", "start_ts"
-	w.WriteParsed(src, []string{
-		outerJson.Ts,
-		strconv.Itoa(outerJson.Pid), outerJson.Tid, // the tid is already a string
-		outerJson.Sev, outerJson.Req, outerJson.Sess, outerJson.Site, outerJson.User,
-		outerJson.K, v, elapsed, start_ts,
-	})
-
-	return nil
-
-}
-
 // Checker channel
 // ---------------
 
@@ -354,10 +161,16 @@ type ServerlogInput struct {
 	Format LogFormat
 }
 
-func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) chan ServerlogInput {
+func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) (chan ServerlogInput, error) {
+	plainlogParser, err := MakePlainlogParser(tmpDir)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error creating plainlog parser: %v", err)
+	}
+
 	parserMap := map[LogFormat]ServerlogsParser{
 		LogFormatJson:  &JsonLogParser{},
-		LogFormatPlain: &PlainLogParser{},
+		LogFormatPlain: plainlogParser,
 	}
 
 	inputChan := make(chan ServerlogInput, bufferSize)
@@ -381,7 +194,7 @@ func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) c
 		}
 	}()
 
-	return inputChan
+	return inputChan, nil
 }
 
 func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog ServerlogInput, parser ServerlogsParser) error {
