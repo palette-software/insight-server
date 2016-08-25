@@ -267,10 +267,10 @@ sudo rpm -ivh epel-release-7-5.noarch.rpm
 
 
 # Add the repo
-sudo yum-config-manager --add-repo=http://rpm.palette-software.net/redhat/
+sudo yum-config-manager --add-repo=https://rpm.palette-software.com/redhat/
 
 # Now we need to disable GPG checks for this repo. Edit the repo file with:
-sudo vi /etc/yum.repos.d/rpm.palette.software.net_redhat_.repo_
+sudo vi /etc/yum.repos.d/rpm.palette.software.com_redhat_.repo_
 
 # Add this line to the end of the repo file (without the comment)
 # gpgcheck=0
