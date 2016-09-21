@@ -42,7 +42,7 @@ func (j *JsonLogParser) Header() []string {
 //
 // If the JSON value contains both keys, the value of the "elapsed"
 // key is returned.
-func getElapsed(line string) (int64, bool, error) {
+func getElapsed(key, line string) (int64, bool, error) {
 	m := map[string]interface{}{}
 	err := json.Unmarshal([]byte(line), &m)
 	if err != nil {
@@ -52,6 +52,14 @@ func getElapsed(line string) (int64, bool, error) {
 		value, ok := m["elapsed"].(float64)
 		if !ok {
 			return 0, false, fmt.Errorf("Can't parse elapsed to float64: '%v'", m["elapsed"])
+		}
+		// Tableau is not consistent and logs ms instead of seconds with elapsed key for some keys
+		switch key {
+		case
+			"read-foreign-keys",
+			"read-statistics",
+			"read-primary-keys":
+			return int64(value), true, nil
 		}
 		return int64(value * 1000), true, nil
 	}
@@ -144,7 +152,7 @@ func (j *JsonLogParser) Parse(state ServerlogParserState, src *ServerlogsSource,
 	// ==================== Elapsed ====================
 
 	v := string(unicodeUnescapeJsonBuffer.Bytes())
-	elapsedMs, hasElapsed, err := getElapsed(v)
+	elapsedMs, hasElapsed, err := getElapsed(outerJson.K, v)
 
 	// Log any errors we may have had
 	if err != nil {

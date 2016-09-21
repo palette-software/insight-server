@@ -10,7 +10,7 @@ import (
 
 func TestGetElapsed(t *testing.T) {
 	testValue := `{"elapsed":0.215}`
-	elapsedTime, hasValue, err := getElapsed(testValue)
+	elapsedTime, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.True(t, hasValue)
 	tassert.Nil(t, err)
 	tassert.Equal(t, int64(215), elapsedTime)
@@ -18,7 +18,7 @@ func TestGetElapsed(t *testing.T) {
 
 func TestGetElapsed_WithIgnoredValues(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":0.215, "this":66}`
-	elapsedTime, hasValue, err := getElapsed(testValue)
+	elapsedTime, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.True(t, hasValue)
 	tassert.Nil(t, err)
 	tassert.Equal(t, int64(215), elapsedTime)
@@ -26,21 +26,29 @@ func TestGetElapsed_WithIgnoredValues(t *testing.T) {
 
 func TestGetElapsed_MissingElapsed(t *testing.T) {
 	testValue := `{"just":"ignore", "this":66}`
-	_, hasValue, err := getElapsed(testValue)
+	_, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.False(t, hasValue)
 	tassert.Nil(t, err)
 }
 
 func TestGetElapsed_InvalidElapsed(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":"should_not_be_string", "this":66}`
-	_, hasValue, err := getElapsed(testValue)
+	_, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.False(t, hasValue)
 	tassert.NotNil(t, err)
 }
 
+func TestGetElapsedSpecialCaseWithMs(t *testing.T) {
+	testValue := `{"elapsed":2}`
+	elapsedTime, hasValue, err := getElapsed("read-primary-keys", testValue)
+	tassert.True(t, hasValue)
+	tassert.Nil(t, err)
+	tassert.Equal(t, int64(2), elapsedTime)
+}
+
 func TestGetElapsedMs(t *testing.T) {
 	testValue := `{"elapsed-ms":"44"}`
-	elapsedTime, hasValue, err := getElapsed(testValue)
+	elapsedTime, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.Nil(t, err)
 	tassert.True(t, hasValue)
 	tassert.Equal(t, int64(44), elapsedTime)
@@ -48,21 +56,21 @@ func TestGetElapsedMs(t *testing.T) {
 
 func TestGetElapsedMs_InsertNullForInsaneValue(t *testing.T) {
 	testValue := `{"elapsed-ms":"asd"}`
-	_, hasValue, err := getElapsed(testValue)
+	_, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.False(t, hasValue)
 	tassert.NotNil(t, err)
 }
 
 func TestGetElapsedMs_HandleInvalidValue(t *testing.T) {
 	testValue := `{"elapsed-ms":true}`
-	_, hasValue, err := getElapsed(testValue)
+	_, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.False(t, hasValue)
 	tassert.NotNil(t, err)
 }
 
 func TestGetElapsed_BothElapsedAndElapsedMs(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":4.876, "elapsed-ms":3, "this":66}`
-	elapsedTime, hasValue, err := getElapsed(testValue)
+	elapsedTime, hasValue, err := getElapsed("ordinary", testValue)
 	tassert.Nil(t, err)
 	tassert.True(t, hasValue)
 	tassert.Equal(t, int64(4876), elapsedTime, "In such situations we currently expect 'elapsed' to win.")
