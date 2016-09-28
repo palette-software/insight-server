@@ -60,6 +60,10 @@ func MakeUserAuthHandler(authenticator Authenticator, internalHandler HandlerFun
 	})
 }
 
+func PingUserHandler(w http.ResponseWriter, req *http.Request, user User) {
+	writeResponse(w, http.StatusOK, "PONG")
+}
+
 // LICENSES
 // ========
 

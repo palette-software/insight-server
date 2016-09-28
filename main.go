@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/gorilla/mux"
 )
 
 // Returns the current working directory
@@ -54,6 +55,16 @@ func main() {
 		"version":   insight_server.GetVersion(),
 		"path":      getCurrentPath(),
 	}).Info("Starting palette insight-server")
+
+	licenseOK, _ := insight_server.CheckLicense(config.LicenseKey)
+	if !licenseOK {
+		logrus.WithFields(logrus.Fields{
+			"version": insight_server.GetVersion(),
+			"license": config.LicenseKey,
+		}).Error("Invalid or expired license, exiting.")
+
+		os.Exit(1)
+	}
 
 	// BACKENDS
 	// --------
@@ -131,15 +142,27 @@ func main() {
 	http.HandleFunc("/commands/recent", getCommandHandler)
 	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
 
-	// License check
-	http.HandleFunc("/license-check", licenseCheckHandler)
-
 	// auto-update distribution: The updates should be publicly accessable
 	logrus.WithFields(logrus.Fields{
 		"component": "http",
 		"directory": config.UpdatesDirectory,
 	}).Info("Serving static content for updates")
 	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(config.UpdatesDirectory))))
+
+	// BRICKLESS
+	mainRouter := mux.NewRouter()
+	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
+	apiRouter.HandleFunc("/ping", insight_server.PingHandler)
+	apiRouter.HandleFunc("/license", insight_server.LicenseHandler(config.LicenseKey))
+
+	http.Handle("/", mainRouter)
+
+	// DEPRECATING IN NEW VERSION
+	// License check
+	http.HandleFunc("/license-check", licenseCheckHandler)
+
+	// TEST
+	http.HandleFunc("/pingtest", insight_server.MakeUserAuthHandler(authenticator, insight_server.PingUserHandler))
 
 	// STARTING THE SERVER
 	// ===================
