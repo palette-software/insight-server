@@ -46,7 +46,9 @@ func getElapsed(key, line string) (int64, bool, error) {
 	m := map[string]interface{}{}
 	err := json.Unmarshal([]byte(line), &m)
 	if err != nil {
-		return 0, false, err
+		// If the incoming line is not a JSON, it does not
+		// have elapsed key for sure. It is not an error.
+		return 0, false, nil
 	}
 	if m["elapsed"] != nil {
 		value, ok := m["elapsed"].(float64)
@@ -162,6 +164,8 @@ func (j *JsonLogParser) Parse(state ServerlogParserState, src *ServerlogsSource,
 			"component": "serverlogs",
 			"file":      src.Filename,
 			"host":      src.Host,
+			"k":		 outerJson.K,
+			"v":		 v,
 		}).Errorf("Error parsing elapsed time")
 	}
 

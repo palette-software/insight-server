@@ -38,7 +38,7 @@ func TestGetElapsed_InvalidElapsed(t *testing.T) {
 	tassert.NotNil(t, err)
 }
 
-func TestGetElapsedSpecialCaseWithMs(t *testing.T) {
+func TestGetElapsed_SpecialCaseWithMs(t *testing.T) {
 	testValue := `{"elapsed":2}`
 	elapsedTime, hasValue, err := getElapsed("read-primary-keys", testValue)
 	tassert.True(t, hasValue)
@@ -74,6 +74,22 @@ func TestGetElapsed_BothElapsedAndElapsedMs(t *testing.T) {
 	tassert.Nil(t, err)
 	tassert.True(t, hasValue)
 	tassert.Equal(t, int64(4876), elapsedTime, "In such situations we currently expect 'elapsed' to win.")
+}
+
+func TestGetElapsed_NonJsonValue(t *testing.T) {
+	testValue := `Resource Manager: Memory info: 588533760 bytes (current process); 931028992 bytes (Tableau total)`
+	elapsedTime, hasValue, err := getElapsed("ordinary", testValue)
+	tassert.Nil(t, err)
+	tassert.False(t, hasValue)
+	tassert.Equal(t, int64(0), elapsedTime, "Non-JSON lines are considered as 0 'elapsed' values.")
+}
+
+func TestGetElapsed_NonJsonValue_SpecialCase(t *testing.T) {
+	testValue := `Resource Manager: Memory info: 588533760 bytes (current process); 931028992 bytes (Tableau total)`
+	elapsedTime, hasValue, err := getElapsed("read-primary-keys", testValue)
+	tassert.Nil(t, err)
+	tassert.False(t, hasValue)
+	tassert.Equal(t, int64(0), elapsedTime, "Non-JSON lines are considered as 0 'elapsed' values.")
 }
 
 // Fake writer, something that we can set expectations on.
