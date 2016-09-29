@@ -14,6 +14,9 @@ import (
 const licensingUrl = "https://licensing.palette-software.com/license"
 const serverForm = "2006-01-02 15:04:05.000000"
 
+var lastUpdatedAt = time.Now().AddDate(-1, 0, 0)
+var cachedLicense *LicenseData
+
 type LicenseData struct {
 	Trial          bool   `json:"trial"`
 	ExpirationTime string `json:"expiration-time"`
@@ -23,7 +26,7 @@ type LicenseData struct {
 	Valid          bool   `json:"valid"`
 }
 
-func CheckLicense(licenseKey string) (bool, string) {
+func UpdateLicense(licenseKey string) *LicenseData {
 	data := url.Values{}
 	// System-id is a required but not used parameter in licensing server
 	data.Add("system-id", "1")
@@ -33,7 +36,7 @@ func CheckLicense(licenseKey string) (bool, string) {
 	if err != nil || response.StatusCode != http.StatusOK {
 		fmt.Printf("Err: %s\n", err)
 		fmt.Printf("StatusCode: %s\n", response.StatusCode)
-		return false, ""
+		return nil
 	}
 
 	buf := new(bytes.Buffer)
@@ -42,10 +45,13 @@ func CheckLicense(licenseKey string) (bool, string) {
 	var license LicenseData
 	err = json.Unmarshal(buf.Bytes(), &license)
 	if err != nil {
-		fmt.Printf("Err: %s\n", err)
-		return false, ""
+		return nil
 	}
 
+	return &license
+}
+
+func CheckLicense(licenseKey string, license *LicenseData) (bool, string) {
 	expirationTime, err := time.Parse(serverForm, license.ExpirationTime)
 	if err != nil {
 		fmt.Printf("Err: %s\n", err)
@@ -73,16 +79,21 @@ func LicenseHandler(licenseKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		agentKey, err := getUrlParam(req.URL, "key")
 		if err != nil || licenseKey != strings.ToLower(agentKey) {
-			writeResponse(w, http.StatusNotFound, "")
+			WriteResponse(w, http.StatusNotFound, "")
 			return
 		}
 
-		valid, license := CheckLicense(licenseKey)
+		if cachedLicense == nil || time.Now().After(lastUpdatedAt.AddDate(0, 0, 1)) {
+			cachedLicense = UpdateLicense(licenseKey)
+			lastUpdatedAt = time.Now()
+		}
+
+		valid, license := CheckLicense(licenseKey, cachedLicense)
 		if !valid {
-			writeResponse(w, http.StatusNotFound, "")
+			WriteResponse(w, http.StatusNotFound, "")
 			return
 		}
 
-		writeResponse(w, http.StatusOK, license)
+		WriteResponse(w, http.StatusOK, license)
 	}
 }

@@ -160,13 +160,13 @@ func NewAddCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenant, err := getUrlParam(r.URL, "tenant")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "No 'tenant' parameter given")
+			WriteResponse(w, http.StatusBadRequest, "No 'tenant' parameter given")
 			return
 		}
 
 		command, err := getUrlParam(r.URL, "command")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "No 'command' parameter given")
+			WriteResponse(w, http.StatusBadRequest, "No 'command' parameter given")
 			return
 		}
 
@@ -179,7 +179,7 @@ func NewAddCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 				"component": "commands",
 			}).WithError(err).Error("Error encoding commands for json")
 			// but hide this fact from the outside world
-			writeResponse(w, http.StatusInternalServerError, "")
+			WriteResponse(w, http.StatusInternalServerError, "")
 			return
 		}
 
@@ -192,7 +192,7 @@ func NewGetCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 
 		tenant, err := getUrlParam(r.URL, "tenant")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "No 'tenant' parameter given")
+			WriteResponse(w, http.StatusBadRequest, "No 'tenant' parameter given")
 			return
 		}
 		// add the command to the backend
@@ -200,7 +200,7 @@ func NewGetCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 
 		// if we dont have the command
 		if cmd == nil {
-			writeResponse(w, http.StatusNoContent, "")
+			WriteResponse(w, http.StatusNoContent, "")
 			return
 		}
 
@@ -212,7 +212,7 @@ func NewGetCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 				"component": "commands",
 			}).WithError(err).Error("Error encoding command json for http")
 			// but hide this fact from the outside world
-			writeResponse(w, http.StatusInternalServerError, "")
+			WriteResponse(w, http.StatusInternalServerError, "")
 			return
 		}
 

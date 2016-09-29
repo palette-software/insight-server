@@ -36,7 +36,7 @@ func SanitizeName(name string) string {
 }
 
 // Writes the error message to the log then responds with an error message
-func writeResponse(w http.ResponseWriter, status int, err string) {
+func WriteResponse(w http.ResponseWriter, status int, err string) {
 	logLine := logrus.WithFields(logrus.Fields{
 		"component": "http",
 		"status":    status,

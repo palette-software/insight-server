@@ -385,13 +385,13 @@ func AutoupdateLatestVersionHandler(a AutoUpdater) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		productName, err := getUrlParam(r.URL, "product")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "Missing 'product' parameter")
+			WriteResponse(w, http.StatusBadRequest, "Missing 'product' parameter")
 			return
 		}
 
 		latestVersion, err := a.LatestVersion(productName)
 		if err != nil {
-			writeResponse(w, http.StatusNotFound, fmt.Sprintf("Cannot find product '%s': %v", productName, err))
+			WriteResponse(w, http.StatusNotFound, fmt.Sprintf("Cannot find product '%s': %v", productName, err))
 			return
 		}
 
@@ -407,33 +407,33 @@ func NewAutoupdateHttpHandler(u AutoUpdater) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseMultipartForm(multipartMaxSize)
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while parsing multipart form: %v", err))
+			WriteResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while parsing multipart form: %v", err))
 			return
 		}
 
 		// parse the product name and version information
 		productName, err := getMultipartParam(r.MultipartForm, "product")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "Missing 'product' parameter!")
+			WriteResponse(w, http.StatusBadRequest, "Missing 'product' parameter!")
 			return
 		}
 
 		versionName, err := getMultipartParam(r.MultipartForm, "version")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "Missing 'version' parameter")
+			WriteResponse(w, http.StatusBadRequest, "Missing 'version' parameter")
 			return
 		}
 
 		version, err := StringToVersion(versionName)
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot parse version '%s': %v", versionName, err))
+			WriteResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot parse version '%s': %v", versionName, err))
 			return
 		}
 
 		// get the request file
 		sentFile, _, err := getMultipartFile(r.MultipartForm, "file")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while extracting file: %v", err))
+			WriteResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while extracting file: %v", err))
 		}
 
 		// delay closing the file body
@@ -441,7 +441,7 @@ func NewAutoupdateHttpHandler(u AutoUpdater) http.HandlerFunc {
 
 		newVersion, err := u.AddNewVersion(productName, version, sentFile)
 		if err != nil {
-			writeResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while saving new version: %v", err))
+			WriteResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while saving new version: %v", err))
 			return
 		}
 

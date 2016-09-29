@@ -56,7 +56,8 @@ func main() {
 		"path":      getCurrentPath(),
 	}).Info("Starting palette insight-server")
 
-	licenseOK, _ := insight_server.CheckLicense(config.LicenseKey)
+	license := insight_server.UpdateLicense(config.LicenseKey)
+	licenseOK, _ := insight_server.CheckLicense(config.LicenseKey, license)
 	if !licenseOK {
 		logrus.WithFields(logrus.Fields{
 			"version": insight_server.GetVersion(),
@@ -76,9 +77,6 @@ func main() {
 
 	// create the maxid backend
 	maxIdBackend := insight_server.MakeFileMaxIdBackend(config.MaxIdDirectory)
-
-	// create the authenticator
-	authenticator := insight_server.NewLicenseAuthenticator(config.LicensesDirectory)
 
 	// create the autoupdater backend
 	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
@@ -103,12 +101,11 @@ func main() {
 
 	// create the upload endpoint
 	authenticatedUploadHandler := withRequestLog("upload",
-		insight_server.MakeUserAuthHandler(authenticator, uploadHandler),
+		insight_server.MakeUserAuthHandler(uploadHandler),
 	)
 	// create the maxid handler
 	maxIdHandler := withRequestLog("maxid",
 		insight_server.MakeUserAuthHandler(
-			authenticator,
 			insight_server.MakeMaxIdHandler(maxIdBackend),
 		),
 	)
@@ -119,8 +116,6 @@ func main() {
 
 	newCommandHandler := withRequestLog("commands-new", insight_server.NewAddCommandHandler(commandBackend))
 	getCommandHandler := withRequestLog("commands-get", insight_server.NewGetCommandHandler(commandBackend))
-
-	licenseCheckHandler := withRequestLog("license-check", insight_server.LicenseCheckHandler())
 
 	// HANDLERS
 	// ========
@@ -149,7 +144,7 @@ func main() {
 	}).Info("Serving static content for updates")
 	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(config.UpdatesDirectory))))
 
-	// BRICKLESS
+	// v1
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/ping", insight_server.PingHandler)
@@ -157,12 +152,13 @@ func main() {
 
 	http.Handle("/", mainRouter)
 
-	// DEPRECATING IN NEW VERSION
+	// DEPRECATING IN v2
 	// License check
-	http.HandleFunc("/license-check", licenseCheckHandler)
-
-	// TEST
-	http.HandleFunc("/pingtest", insight_server.MakeUserAuthHandler(authenticator, insight_server.PingUserHandler))
+	http.HandleFunc("/license-check", func(w http.ResponseWriter, req *http.Request) {
+		hostname, _ := os.Hostname()
+		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", hostname)
+		insight_server.WriteResponse(w, http.StatusOK, response)
+	})
 
 	// STARTING THE SERVER
 	// ===================

@@ -16,27 +16,27 @@ import (
 // =============
 
 func MakeMaxIdHandler(backend MaxIdBackend) HandlerFuncWithTenant {
-	return func(w http.ResponseWriter, r *http.Request, tenant User) {
+	return func(w http.ResponseWriter, r *http.Request, tenant string) {
 		tableName, err := getUrlParam(r.URL, "table")
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "No 'table' parameter provided")
+			WriteResponse(w, http.StatusBadRequest, "No 'table' parameter provided")
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
-		maxId, err := backend.GetMaxId(tenant.GetUsername(), tableName)
+		maxId, err := backend.GetMaxId(tenant, tableName)
 		if err != nil {
 			if os.IsNotExist(err) {
-				writeResponse(w, http.StatusNoContent, "")
+				WriteResponse(w, http.StatusNoContent, "")
 				return
 			}
 
-			writeResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while reading: %v", err))
+			WriteResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while reading: %v", err))
 			return
 		}
 
 		// signal that everything went ok
-		writeResponse(w, http.StatusOK, maxId)
+		WriteResponse(w, http.StatusOK, maxId)
 	}
 }
 
