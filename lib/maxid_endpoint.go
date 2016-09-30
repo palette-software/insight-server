@@ -15,8 +15,8 @@ import (
 // HTTP HANDLERS
 // =============
 
-func MakeMaxIdHandler(backend MaxIdBackend) HandlerFuncWithTenant {
-	return func(w http.ResponseWriter, r *http.Request, tenant string) {
+func MakeMaxIdHandler(backend MaxIdBackend) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		tableName, err := getUrlParam(r.URL, "table")
 		if err != nil {
 			WriteResponse(w, http.StatusBadRequest, "No 'table' parameter provided")
@@ -24,7 +24,7 @@ func MakeMaxIdHandler(backend MaxIdBackend) HandlerFuncWithTenant {
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
-		maxId, err := backend.GetMaxId(tenant, tableName)
+		maxId, err := backend.GetMaxId("palette", tableName)
 		if err != nil {
 			if os.IsNotExist(err) {
 				WriteResponse(w, http.StatusNoContent, "")

@@ -101,27 +101,28 @@ func (a *baseAutoUpdater) LatestVersion() (*UpdateVersion, error) {
 	return latestVersion, nil
 }
 
+var versionRegExp = regexp.MustCompile("v(\\d+)\\.(\\d+)\\.(\\d+)")
+
 // Tries to load all valid versions from a product directory
 func getLatestAgentVersion() (*UpdateVersion, error) {
-	version, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
-	// version, err := exec.Command("echo", "v1.0.96\n").Output()
+	versionString, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
+	// versionString, err := exec.Command("echo", "v1.0.96\n").Output()
 	if err != nil {
 		return nil, err
 	}
-	re := regexp.MustCompile("v(\\d+)\\.(\\d+)\\.(\\d+)")
-	r2 := re.FindStringSubmatch(string(version))
-	if len(r2) < 4 {
-		return nil, fmt.Errorf("Invalid version received from RPM: %s", version)
+	version := versionRegExp.FindStringSubmatch(string(versionString))
+	if len(version) < 4 {
+		return nil, fmt.Errorf("Invalid version received from RPM: %s", versionString)
 	}
-	major, err := strconv.ParseInt(r2[1], 10, 32)
+	major, err := strconv.ParseInt(version[1], 10, 32)
 	if err != nil {
 		return nil, err
 	}
-	minor, err := strconv.ParseInt(r2[2], 10, 32)
+	minor, err := strconv.ParseInt(version[2], 10, 32)
 	if err != nil {
 		return nil, err
 	}
-	patch, err := strconv.ParseInt(r2[3], 10, 32)
+	patch, err := strconv.ParseInt(version[3], 10, 32)
 	if err != nil {
 		return nil, err
 	}

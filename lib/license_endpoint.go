@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -77,12 +76,6 @@ func CheckLicense(licenseKey string, license *LicenseData) (bool, string) {
 
 func LicenseHandler(licenseKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		agentKey, err := getUrlParam(req.URL, "key")
-		if err != nil || licenseKey != strings.ToLower(agentKey) {
-			WriteResponse(w, http.StatusNotFound, "")
-			return
-		}
-
 		if cachedLicense == nil || time.Now().After(lastUpdatedAt.AddDate(0, 0, 1)) {
 			cachedLicense = UpdateLicense(licenseKey)
 			lastUpdatedAt = time.Now()

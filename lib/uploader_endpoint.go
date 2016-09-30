@@ -112,7 +112,7 @@ const (
 )
 
 // Creates an http endpoint handler where
-func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string, useOldFormatFilename bool) (HandlerFuncWithTenant, error) {
+func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir string, useOldFormatFilename bool) (http.HandlerFunc, error) {
 	// the fallback handler to move files
 	fallbackHandler := &FallbackUploadHandler{tmpDir: tmpDir, baseDir: baseDir}
 
@@ -129,12 +129,12 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 		NewMetadataUploadHandler(tmpDir, baseDir, archivesDir),
 	}
 
-	return func(w http.ResponseWriter, r *http.Request, tenant string) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		//uploadHandlerInner(w, r, tenant, uploader, maxidBackend)
 
 		// Convert the request to metadata for handling
-		meta, mainFile, err := makeMetaFromRequest(r, tenant)
+		meta, mainFile, err := makeMetaFromRequest(r, "palette")
 		if err != nil {
 			WriteResponse(w, http.StatusBadRequest, fmt.Sprint(err))
 			return

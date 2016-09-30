@@ -7,10 +7,27 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
+
+var authHeaderRegExp = regexp.MustCompile("Token (.*)")
+
+// Auth middleware
+func AuthMiddleware(licenseKey string, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		token := authHeaderRegExp.FindStringSubmatch(string(authHeader))
+		if len(token) < 2 || strings.ToLower(token[1]) != licenseKey {
+			insight_server.WriteResponse(w, http.StatusForbidden, "Not authorized")
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
 
 // Returns the current working directory
 func getCurrentPath() string {
@@ -97,14 +114,11 @@ func main() {
 	}
 
 	// create the upload endpoint
-	authenticatedUploadHandler := withRequestLog("upload",
-		insight_server.MakeUserAuthHandler(uploadHandler),
-	)
+	authenticatedUploadHandler := withRequestLog("upload", uploadHandler)
+
 	// create the maxid handler
 	maxIdHandler := withRequestLog("maxid",
-		insight_server.MakeUserAuthHandler(
-			insight_server.MakeMaxIdHandler(maxIdBackend),
-		),
+		insight_server.MakeMaxIdHandler(maxIdBackend),
 	)
 
 	newCommandHandler := withRequestLog("commands-new", insight_server.NewAddCommandHandler(commandBackend))
@@ -115,9 +129,8 @@ func main() {
 
 	// CSV upload
 	// declare both endpoints for now. /upload-with-meta is deprecated
-	http.HandleFunc("/upload-with-meta", authenticatedUploadHandler)
-	http.HandleFunc("/upload", authenticatedUploadHandler)
-	http.HandleFunc("/maxid", maxIdHandler)
+	http.Handle("/upload", AuthMiddleware(config.LicenseKey, authenticatedUploadHandler))
+	http.Handle("/maxid", AuthMiddleware(config.LicenseKey, maxIdHandler))
 
 	// Commands
 	http.HandleFunc("/commands/new", newCommandHandler)
@@ -134,13 +147,14 @@ func main() {
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/ping", insight_server.PingHandler).Methods("GET")
-	apiRouter.HandleFunc("/license", insight_server.LicenseHandler(config.LicenseKey))
+	apiRouter.Handle("/license", AuthMiddleware(config.LicenseKey, insight_server.LicenseHandler(config.LicenseKey)))
 	apiRouter.HandleFunc("/agent/version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater))).Methods("GET")
 	apiRouter.Handle("/agent", http.StripPrefix("/api/v1/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 
 	// DEPRECATING IN v2
 	mainRouter.Handle("/updates/products/agent/{version}/{rest}", http.StripPrefix("/updates/products/agent/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 
+	// http.Handle("/", AuthMiddleware(config.LicenseKey, mainRouter))
 	http.Handle("/", mainRouter)
 
 	// DEPRECATING IN v2
