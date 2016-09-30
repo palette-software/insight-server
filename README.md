@@ -122,12 +122,6 @@ To allow the service to listen to port 443 without sudo privileges an IpTables f
 iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 9443
 ```
 
-## User authentication
-
-On startup, the server tries to load all licenses from the ```licenses_path``` directory (or the equivalent env/config option).
-
-The usernames are the ```licenseId``` field of the license, the authentication token is the ```token``` field of the license.
-
 ## MaxIds
 
 For streaming tables, the webservice provides an endpoint and upload integration:
@@ -157,69 +151,11 @@ $ curl http://localhost:9000/
 PONG
 ```
 
-## Uploading a file
-
-See the openAPI documentation inside the docs/generated folder
-
 --
 
 ## Autoupdate service endpoints
 
-The service provides support for sending updated installers to the agents. All updates are based on two
-parts: the __PRODUCT__ (like ```agent```) and the __VERSION__ (like ```v1.3.2```).
-
-### Adding a new version of a product
-
-Navigate your browser to:
-
-```
-http://SERVER/updates/new-version
-```
-
-This should present an HTML form where you can select the product name and the new version and upload a new
-file for this version.
-
-### Getting the latest verion of a product
-
-Send a GET request to:
-
-```
-GET http://SERVER/updates/latest-version?product=PRODUCT_NAME
- => 200: {"Major":1,"Minor":9,"Patch":3,"Product":"agent","Md5":"6a6d0cc56d7186ba54fccca2ae7fcda8","Url":"/updates/products/agent/v1.9.3/agent-v1.9.3"}
-```
-
-The JSON response contains the
-* Major version
-* Minor version
-* Patch version
-* The Md5 of the file
-* The download path on the server (currently its only a path as the server address may be different for the agent and the server)
-
-
-If the given product has no versions (most likely because of an invalid product name) then the server returns a 404 response:
-
-```
-GET http://localhost:9000/updates/latest-version?product=agenr
- => 404: Cannot find product 'agenr': Cannot find product 'agenr'
-```
-
-
-### Getting the update files
-
-After the agent has the latest version information from the ```/uploads/latest-version?product=...``` endpoint, it can download
-the file by issuing a request to the file path in the response:
-
-```
-GET http://localhost:9000/updates/products/agent/v1.9.3/agent-v1.9.3
- => 200 CONTENTS_OF_THE_FILE
-```
-
---
-
-## API Documentation
-
-A basic documentation using OpenAPI is available in the docs folder, or
-a HTML-ized version is available in the docs/generated folder.
+Insight Agent installer package is put to the updates folder by it's RPM and Insight Server serves the Insight Agent file through its update endpoint.
 
 ## Assets
 
@@ -309,66 +245,6 @@ sudo /sbin/chkconfig nginx on
 sudo /sbin/chkconfig supervisord on
 ```
 
-
-### Update
-
-
-```bash
-# Get the server status
-sudo supervisorctl status
-# => palette-insight-server           RUNNING   pid 11799, uptime 0:04:05
-
-
-# Update the server
-sudo yum update palette-insight-server
-
-
-# Restart supervisord
-sudo supervisorctl restart palette-insight-server
-
-
-# Check if its running correctly (wait 10 seconds)
-sudo supervisorctl status
-# => palette-insight-server           RUNNING   pid 11799, uptime 0:04:05
-
-```
-
-## Installing from rpms
-
-The service requires two rpm-s to install:
-
-```
-palette-insight-certs-1.0.0-1.noarch.rpm
-```
-
-which contains the HTTPS certificates to use (it does not change often,
-and requires more delicate handling then the server package), and
-
-```
-palette-insight-server-v1.8.2-1.x86_64.rpm
-```
-
-which has the server, Nginx and Supervisord as dependencies and some
-configuration files to run it the following way:
-
-* Nginx serves port 443 with the certificates from ```palette-insight-certs```
-* It forwards the https requests to port 9443 where the service is
-  listening.
-* The service itself is ran through supervisord which should restart it
-  on failiures and should handle the logrotation.
-
-So to install the service from these two RPMs (add EPEL before as a repo):
-
-```bash
-sudo yum install -y ./palette-insight-server-v1.8.2-1.x86_64.rpm ./palette-insight-certs-1.0.0-1.noarch.rpm
-```
-
-and to remove:
-
-```bash
-sudo yum remove -y palette-insight-server palette-insight-certs nginx supervisor
-```
-
 ## Building the RPMs
 
 (A working CentOS/RedHat installation is recommended, but not required).
@@ -448,6 +324,5 @@ done
 exit 1
 ```
 
-TODO: add this check to travis
 
 

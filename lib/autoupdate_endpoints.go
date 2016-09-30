@@ -1,17 +1,12 @@
 package insight_server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
-	"os"
+	"os/exec"
 	"path"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
@@ -43,65 +38,9 @@ func (v *Version) String() string {
 	return fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
-// Combines a version with an actual product and a file
-type UpdateVersion struct {
-	Version
-	// The name of the product
-	Product string
-	// The Md5 checksum of this update
-	Md5 string
-	// The url where this update can be downloaded from
-	Url string
-}
-
-// The regexp we'll use for parsing version strings
-var versionCompiler *regexp.Regexp = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9a-zA-Z]+).*$`)
-
-// Parses a string to a Version struct or returns an error if it cannot
-func StringToVersion(verStr string) (*Version, error) {
-	if versionCompiler.MatchString(verStr) {
-		matches := versionCompiler.FindStringSubmatch(verStr)
-
-		// parse only the relevant part (so the last version string is ignored and does
-		// not return any errors)
-		versionParts, err := parseAllInts(matches[1:4])
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing version string '%s': %v", verStr, err)
-		}
-
-		return &Version{
-			Major: versionParts[0],
-			Minor: versionParts[1],
-			Patch: versionParts[2],
-		}, nil
-
-	}
-	return nil, fmt.Errorf("Cannot parse version string: %s", verStr)
-}
-
-// Returns true if version a is newer then version b
-func IsNewerVersion(a, b *Version) bool {
-	if a.Major == b.Major {
-		if a.Minor == b.Minor {
-			if a.Patch == b.Patch {
-				return false
-			}
-			return a.Patch > b.Patch
-		}
-		return a.Minor > b.Minor
-	}
-	return a.Major > b.Major
-}
-
-// Define a versionlist type for sorting by version
-type VersionList []*Version
-
 type AutoUpdater interface {
 	// Returns the latest version of a product
-	LatestVersion(product string) (*UpdateVersion, error)
-
-	// Adds a new version to the stored versions
-	AddNewVersion(product string, version *Version, src io.Reader) (*UpdateVersion, error)
+	LatestVersion() (*UpdateVersion, error)
 }
 
 // Implementation
@@ -127,255 +66,74 @@ func parseAllInts(strs []string) ([]int, error) {
 // --------------------------
 
 type baseAutoUpdater struct {
-	// The base path where updates are stored
-	basePath string
-
-	latestVersions map[string]*UpdateVersion
 }
 
 // Creates a new autoupdater implementation
-func NewBaseAutoUpdater(basePath string) (AutoUpdater, error) {
-	// create the versions directory
-	if err := CreateDirectoryIfNotExists(basePath); err != nil {
-		return nil, err
-	}
-
-	// update the latest version list
-	latestVersions, err := loadLatestVersions(basePath)
-	if err != nil {
-		return nil, err
-	}
-
-	return &baseAutoUpdater{
-		basePath:       basePath,
-		latestVersions: latestVersions,
-	}, nil
+func NewBaseAutoUpdater() AutoUpdater {
+	return &baseAutoUpdater{}
 }
 
 // The file name we use to store a verison inside its own folder
 const CONTENTS_FILE_NAME = "contents.bin"
 
-// Gets the path where an update binary is stored
 func (a *baseAutoUpdater) updatePath(product, versionStr string) string {
-	return path.Join(a.basePath, SanitizeName(product), versionStr, fmt.Sprintf("%s-%s", product, versionStr))
+	return path.Join("/tmp", SanitizeName(product), versionStr, fmt.Sprintf("%s-%s", product, versionStr))
 }
 
-// Adds a new version to the list of available versions
-func (a *baseAutoUpdater) AddNewVersion(product string, version *Version, src io.Reader) (*UpdateVersion, error) {
-	// get the storage path
-	storagePath := a.updatePath(product, version.String())
-
-	// Check if we already have this version
-	versionExists, err := fileExists(storagePath)
-	if err != nil {
-		return nil, err
-	}
-	if versionExists {
-		return nil, fmt.Errorf("Version '%s' of product '%s' already exists", version, product)
-	}
-
-	// save the update binary
-	// ----------------------
-
-	// Create the directory of the update
-	if err := CreateDirectoryIfNotExists(filepath.Dir(storagePath)); err != nil {
-		return nil, fmt.Errorf("Error while creating update directory for '%s': %v", storagePath, err)
-	}
-
-	// Put the update there
-	f, err := os.Create(storagePath)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot create file '%s': %s", storagePath, err)
-	}
-	defer f.Close()
-
-	// create an md5 teereader
-	md5Hasher := makeMd5Hasher(src)
-
-	// copy the contents
-	if _, err := io.Copy(f, md5Hasher.Reader); err != nil {
-		return nil, fmt.Errorf("Error while saving update: %v", err)
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"component":   "autoupdate",
-		"version":     version,
-		"product":     product,
-		"storagePath": storagePath,
-	}).Info("Copied new version of product")
-
-	// save the metadata
-	// ------------------
-	metaData := &UpdateVersion{
-		Version: *version,
-		Product: product,
-		Md5:     fmt.Sprintf("%32x", md5Hasher.Md5.Sum(nil)),
-		Url:     fmt.Sprintf("/updates/products/%s/%s/%s-%s", product, version, product, version),
-	}
-
-	metaFileName := fmt.Sprintf("%s.meta.json", storagePath)
-	metaFile, err := os.Create(metaFileName)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot create metadata file '%s': %s", metaFileName, err)
-	}
-	defer metaFile.Close()
-
-	// encode the metadata as json
-	if err := json.NewEncoder(metaFile).Encode(metaData); err != nil {
-		return nil, fmt.Errorf("Error while saving metadata: %v", err)
-	}
-
-	// Update the products latest version with the new metadata
-	if err := a.updateExistingVersions(); err != nil {
-		return nil, fmt.Errorf("Error while updating version list: %v", err)
-	}
-
-	return metaData, nil
+// Combines a version with an actual product and a file
+type UpdateVersion struct {
+	Version
+	// The name of the product
+	Product string
+	// The Md5 checksum of this update
+	Md5 string
+	// The url where this update can be downloaded from
+	Url string
 }
 
 // Returns the latest version of a product
-func (a *baseAutoUpdater) LatestVersion(product string) (*UpdateVersion, error) {
-	latestsVersion, hasProduct := a.latestVersions[product]
-	if !hasProduct {
-		return nil, fmt.Errorf("Cannot find product '%s'", product)
-	}
-	return latestsVersion, nil
-}
-
-// updates the versions list from the file system
-func (a *baseAutoUpdater) updateExistingVersions() error {
-	// Update the products latest version with the new metadata
-	latestVersions, err := loadLatestVersions(a.basePath)
+func (a *baseAutoUpdater) LatestVersion() (*UpdateVersion, error) {
+	latestVersion, err := getLatestAgentVersion()
 	if err != nil {
-		return fmt.Errorf("Error while updating version list: %v", err)
+		logrus.WithError(err).Error("Error querying Agent version")
+		return nil, fmt.Errorf("No latest version found yet")
 	}
-
-	a.latestVersions = latestVersions
-	return nil
-}
-
-// Loads the metadata for the given file
-func loadMetadata(basePath, product, version string) (*UpdateVersion, error) {
-	// find the latest version
-	metaFilePath := path.Join(basePath, product, version, fmt.Sprintf("%s-%s.meta.json", product, version))
-	metafile, err := os.Open(metaFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("Error while opening metadata file '%s': %v", metaFilePath, err)
-	}
-	defer metafile.Close()
-
-	// deserialize the meta and update the latest version
-	u := &UpdateVersion{}
-	if err := json.NewDecoder(metafile).Decode(u); err != nil {
-		return nil, fmt.Errorf("Error while deserializing metadata '%s': %v", metaFilePath, err)
-	}
-	return u, nil
+	return latestVersion, nil
 }
 
 // Tries to load all valid versions from a product directory
-func loadVersionsFromProductDir(productDirPath string) ([]string, error) {
-	// check if this is actually a product
-	if !isDirectoryNoFail(productDirPath) {
-		return nil, fmt.Errorf("Not a directory: '%s'", productDirPath)
-	}
-
-	// try to read all subdirectories
-	versionDirs, err := ioutil.ReadDir(productDirPath)
+func getLatestAgentVersion() (*UpdateVersion, error) {
+	version, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
+	// version, err := exec.Command("echo", "v1.0.96\n").Output()
 	if err != nil {
-		return nil, fmt.Errorf("Error while loading product versions from '%s': %v", productDirPath, err)
+		return nil, err
 	}
-
-	// go through each subdirectory and check if their names can be parsed as a version
-	versionNames := make([]string, len(versionDirs))
-	for i, version := range versionDirs {
-		// check if this is an acual version
-		versionPath := path.Join(productDirPath, version.Name())
-		if !isDirectoryNoFail(versionPath) {
-			continue
-		}
-
-		// check for version format by trying to parse it
-		_, err := StringToVersion(version.Name())
-		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"component": "autoupdate",
-				"version":   versionPath,
-			}).WithError(err).Info("Skipping non-product version")
-			continue
-		}
-
-		// add each version
-		versionNames[i] = version.Name()
+	re := regexp.MustCompile("v(\\d+)\\.(\\d+)\\.(\\d+)")
+	r2 := re.FindStringSubmatch(string(version))
+	if len(r2) < 4 {
+		return nil, fmt.Errorf("Invalid version received from RPM: %s", version)
 	}
-	// sort the versions by name (this way we dont have to iplement sort.Interface on the Version lists
-	sort.StringSlice(versionNames).Sort()
-
-	return versionNames, nil
-}
-
-// Returns a map of PRODUCT_NAME -> LATEST_VERSION for all products (subdirectories) in basePath
-func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
-	// load all products
-	products, err := ioutil.ReadDir(basePath)
+	major, err := strconv.ParseInt(r2[1], 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("Error while loading product names: %v", err)
+		return nil, err
 	}
-
-	productVersions := make(map[string]*UpdateVersion)
-
-	// go through each product
-	for _, productDir := range products {
-		product := productDir.Name()
-
-		// load the versions inside this product directory
-		productDirPath := path.Join(basePath, product)
-		versionNames, err := loadVersionsFromProductDir(productDirPath)
-		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"component": "autoupdate",
-				"directory": productDirPath,
-			}).WithError(err).Info("Cannot parse directory for versions")
-		}
-
-		// check all versions in descending order
-		validVersionIdx := len(versionNames) - 1
-
-		for {
-			// do we have more versions to check?
-			if validVersionIdx < 0 {
-				break
-			}
-
-			// find the latest version
-			newest := versionNames[validVersionIdx]
-
-			// try to load its metadata and skip this product if we cannot
-			updateVersion, err := loadMetadata(basePath, product, newest)
-			if err == nil {
-				logrus.WithFields(logrus.Fields{
-					"component":       "autoupdate",
-					"product":         product,
-					"versionNames":    versionNames,
-					"selectedVersion": updateVersion,
-				}).Info("Found product")
-				productVersions[product] = updateVersion
-				break
-			} else {
-				// if we havent found our proper version, skip this one
-				logrus.WithFields(logrus.Fields{
-					"component": "autoupdate",
-					"product":   product,
-					"version":   newest,
-				}).WithError(err).Info("Cannot load metadata - skipping")
-				validVersionIdx--
-			}
-
-		}
-
+	minor, err := strconv.ParseInt(r2[2], 10, 32)
+	if err != nil {
+		return nil, err
 	}
-
-	return productVersions, nil
-
+	patch, err := strconv.ParseInt(r2[3], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	return &UpdateVersion{
+		Version: Version{
+			Major: int(major),
+			Minor: int(minor),
+			Patch: int(patch),
+		},
+		Product: "Agent",
+		Url:     "/api/v1/agent",
+	}, nil
 }
 
 // HTTP Handler
@@ -383,15 +141,9 @@ func loadLatestVersions(basePath string) (map[string]*UpdateVersion, error) {
 
 func AutoupdateLatestVersionHandler(a AutoUpdater) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		productName, err := getUrlParam(r.URL, "product")
+		latestVersion, err := a.LatestVersion()
 		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, "Missing 'product' parameter")
-			return
-		}
-
-		latestVersion, err := a.LatestVersion(productName)
-		if err != nil {
-			WriteResponse(w, http.StatusNotFound, fmt.Sprintf("Cannot find product '%s': %v", productName, err))
+			WriteResponse(w, http.StatusNotFound, fmt.Sprintf("%v", err))
 			return
 		}
 
@@ -400,56 +152,5 @@ func AutoupdateLatestVersionHandler(a AutoUpdater) http.HandlerFunc {
 			return
 		}
 
-	}
-}
-
-func NewAutoupdateHttpHandler(u AutoUpdater) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		err := r.ParseMultipartForm(multipartMaxSize)
-		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while parsing multipart form: %v", err))
-			return
-		}
-
-		// parse the product name and version information
-		productName, err := getMultipartParam(r.MultipartForm, "product")
-		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, "Missing 'product' parameter!")
-			return
-		}
-
-		versionName, err := getMultipartParam(r.MultipartForm, "version")
-		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, "Missing 'version' parameter")
-			return
-		}
-
-		version, err := StringToVersion(versionName)
-		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot parse version '%s': %v", versionName, err))
-			return
-		}
-
-		// get the request file
-		sentFile, _, err := getMultipartFile(r.MultipartForm, "file")
-		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, fmt.Sprintf("Error while extracting file: %v", err))
-		}
-
-		// delay closing the file body
-		defer sentFile.Close()
-
-		newVersion, err := u.AddNewVersion(productName, version, sentFile)
-		if err != nil {
-			WriteResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while saving new version: %v", err))
-			return
-		}
-
-		wb := &bytes.Buffer{}
-		if err := json.NewEncoder(wb).Encode(newVersion); err != nil {
-
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(wb.Bytes())
 	}
 }

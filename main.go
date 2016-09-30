@@ -79,10 +79,7 @@ func main() {
 	maxIdBackend := insight_server.MakeFileMaxIdBackend(config.MaxIdDirectory)
 
 	// create the autoupdater backend
-	autoUpdater, err := insight_server.NewBaseAutoUpdater(config.UpdatesDirectory)
-	if err != nil {
-		logrus.Fatalf("Error during creation of Autoupdater: %v", err)
-	}
+	autoUpdater := insight_server.NewBaseAutoUpdater()
 
 	// for now, put the commands file in the updates directory (should be skipped by the updater)
 	commandBackend := insight_server.NewFileCommandsEndpoint(config.UpdatesDirectory)
@@ -110,10 +107,6 @@ func main() {
 		),
 	)
 
-	autoUpdatesAddHandler := withRequestLog("autoupdate-add",
-		insight_server.NewAutoupdateHttpHandler(autoUpdater),
-	)
-
 	newCommandHandler := withRequestLog("commands-new", insight_server.NewAddCommandHandler(commandBackend))
 	getCommandHandler := withRequestLog("commands-get", insight_server.NewGetCommandHandler(commandBackend))
 
@@ -126,12 +119,6 @@ func main() {
 	http.HandleFunc("/upload", authenticatedUploadHandler)
 	http.HandleFunc("/maxid", maxIdHandler)
 
-	// auto-updates
-	//http.HandleFunc("/updates/new-version", withRequestLog("new-version", insight_server.AssetPageHandler("assets/upload-new-version.html")))
-	http.HandleFunc("/updates/new-version", staticHandler("new-version", "assets/upload-new-version.html"))
-	http.HandleFunc("/updates/add-version", autoUpdatesAddHandler)
-	http.HandleFunc("/updates/latest-version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater)))
-
 	// Commands
 	http.HandleFunc("/commands/new", newCommandHandler)
 	http.HandleFunc("/commands/recent", getCommandHandler)
@@ -142,13 +129,17 @@ func main() {
 		"component": "http",
 		"directory": config.UpdatesDirectory,
 	}).Info("Serving static content for updates")
-	http.Handle("/updates/products/", http.StripPrefix("/updates/products/", http.FileServer(http.Dir(config.UpdatesDirectory))))
 
 	// v1
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
-	apiRouter.HandleFunc("/ping", insight_server.PingHandler)
+	apiRouter.HandleFunc("/ping", insight_server.PingHandler).Methods("GET")
 	apiRouter.HandleFunc("/license", insight_server.LicenseHandler(config.LicenseKey))
+	apiRouter.HandleFunc("/agent/version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater))).Methods("GET")
+	apiRouter.Handle("/agent", http.StripPrefix("/api/v1/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
+
+	// DEPRECATING IN v2
+	mainRouter.Handle("/updates/products/agent/{version}/{rest}", http.StripPrefix("/updates/products/agent/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 
 	http.Handle("/", mainRouter)
 
@@ -159,6 +150,7 @@ func main() {
 		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", hostname)
 		insight_server.WriteResponse(w, http.StatusOK, response)
 	})
+	http.HandleFunc("/updates/latest-version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater)))
 
 	// STARTING THE SERVER
 	// ===================
