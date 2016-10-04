@@ -46,6 +46,16 @@ func RequestLogMiddleware(h http.Handler) http.Handler {
 	})
 }
 
+// Middleware to maintain agent list
+func HeartbeatMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hostname := r.FormValue("hostname"); hostname != "" {
+			insight_server.AgentHeartbeat(hostname)
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 // Returns the current working directory
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -117,8 +127,6 @@ func main() {
 	http.Handle("/maxid", AuthMiddleware(config.LicenseKey, insight_server.MakeMaxIdHandler(maxIdBackend)))
 
 	// Commands
-	http.HandleFunc("/commands/new", insight_server.NewAddCommandHandler())
-	http.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())
 	http.HandleFunc("/commands", insight_server.AssetPageHandler("assets/agent-commands.html"))
 
 	// v1
@@ -132,12 +140,15 @@ func main() {
 	apiRouter.Handle("/config", AuthMiddleware(config.LicenseKey, insight_server.UploadConfig())).Methods("PUT")
 	apiRouter.Handle("/command", insight_server.NewAddCommandHandler()).Methods("PUT")
 	apiRouter.Handle("/command", AuthMiddleware(config.LicenseKey, insight_server.NewGetCommandHandler())).Methods("GET")
+	apiRouter.HandleFunc("/agents", insight_server.AgentListHandler).Methods("GET")
 
-	// DEPRECATING IN v2
+	// DEPRECATING
 	mainRouter.Handle("/updates/products/agent/{version}/{rest}", http.StripPrefix("/updates/products/agent/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 
 	// http.Handle("/", AuthMiddleware(config.LicenseKey, mainRouter))
-	http.Handle("/", RequestLogMiddleware(mainRouter))
+	handlerWithHeartbeat := HeartbeatMiddleware(mainRouter)
+	handlerWithLogging := RequestLogMiddleware(handlerWithHeartbeat)
+	http.Handle("/", handlerWithLogging)
 
 	// DEPRECATING IN v2
 	// License check
@@ -147,6 +158,9 @@ func main() {
 		insight_server.WriteResponse(w, http.StatusOK, response)
 	})
 	http.HandleFunc("/updates/latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater))
+
+	http.HandleFunc("/commands/new", insight_server.NewAddCommandHandler())
+	http.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())
 
 	// STARTING THE SERVER
 	// ===================
