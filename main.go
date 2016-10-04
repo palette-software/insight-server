@@ -29,6 +29,23 @@ func AuthMiddleware(licenseKey string, h http.Handler) http.Handler {
 	})
 }
 
+// Middleware to log all incoming requests in a common format
+func RequestLogMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logrus.WithFields(logrus.Fields{
+			"component":     "http",
+			"method":        r.Method,
+			"remoteAddress": r.RemoteAddr,
+			"url":           r.URL.RequestURI(),
+		}).Info("==> Request")
+		// also write all header we care about for proxies here
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Pragma", "no-cache")
+		w.Header().Add("Expires", "0")
+		h.ServeHTTP(w, r)
+	})
+}
+
 // Returns the current working directory
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -38,28 +55,6 @@ func getCurrentPath() string {
 	}
 	return dir
 
-}
-
-// Adds basic request logging to the wrapped handler
-func withRequestLog(name string, innerHandler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logrus.WithFields(logrus.Fields{
-			"component":     "http",
-			"method":        r.Method,
-			"remoteAddress": r.RemoteAddr,
-			"url":           r.URL.RequestURI(),
-			"handler":       name,
-		}).Info("==> Request")
-		// also write all header we care about for proxies here
-		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
-		w.Header().Add("Pragma", "no-cache")
-		w.Header().Add("Expires", "0")
-		innerHandler(w, r)
-	}
-}
-
-func staticHandler(name, assetPath string) http.HandlerFunc {
-	return withRequestLog(name, insight_server.AssetPageHandler(assetPath))
 }
 
 func main() {
@@ -72,7 +67,7 @@ func main() {
 		"version":   insight_server.GetVersion(),
 		"path":      getCurrentPath(),
 	}).Info("Starting palette insight-server")
-
+	//
 	license := insight_server.UpdateLicense(config.LicenseKey)
 	licenseOK, _ := insight_server.CheckLicense(config.LicenseKey, license)
 	if !licenseOK {
@@ -80,10 +75,13 @@ func main() {
 			"version": insight_server.GetVersion(),
 			"license": config.LicenseKey,
 		}).Error("Invalid or expired license, exiting.")
-
+		//
 		os.Exit(1)
 	}
 
+	insight_server.InitCommandEndpoints()
+
+	//
 	// BACKENDS
 	// --------
 	// the temporary files are stored here so moving them wont result in errors
@@ -98,9 +96,6 @@ func main() {
 	// create the autoupdater backend
 	autoUpdater := insight_server.NewBaseAutoUpdater()
 
-	// for now, put the commands file in the updates directory (should be skipped by the updater)
-	commandBackend := insight_server.NewFileCommandsEndpoint(config.UpdatesDirectory)
-
 	// ENDPOINTS
 	// ---------
 
@@ -113,49 +108,36 @@ func main() {
 		os.Exit(-1)
 	}
 
-	// create the upload endpoint
-	authenticatedUploadHandler := withRequestLog("upload", uploadHandler)
-
-	// create the maxid handler
-	maxIdHandler := withRequestLog("maxid",
-		insight_server.MakeMaxIdHandler(maxIdBackend),
-	)
-
-	newCommandHandler := withRequestLog("commands-new", insight_server.NewAddCommandHandler(commandBackend))
-	getCommandHandler := withRequestLog("commands-get", insight_server.NewGetCommandHandler(commandBackend))
-
 	// HANDLERS
 	// ========
 
 	// CSV upload
 	// declare both endpoints for now. /upload-with-meta is deprecated
-	http.Handle("/upload", AuthMiddleware(config.LicenseKey, authenticatedUploadHandler))
-	http.Handle("/maxid", AuthMiddleware(config.LicenseKey, maxIdHandler))
+	http.Handle("/upload", AuthMiddleware(config.LicenseKey, uploadHandler))
+	http.Handle("/maxid", AuthMiddleware(config.LicenseKey, insight_server.MakeMaxIdHandler(maxIdBackend)))
 
 	// Commands
-	http.HandleFunc("/commands/new", newCommandHandler)
-	http.HandleFunc("/commands/recent", getCommandHandler)
-	http.HandleFunc("/commands", staticHandler("new-command", "assets/agent-commands.html"))
-
-	// auto-update distribution: The updates should be publicly accessable
-	logrus.WithFields(logrus.Fields{
-		"component": "http",
-		"directory": config.UpdatesDirectory,
-	}).Info("Serving static content for updates")
+	http.HandleFunc("/commands/new", insight_server.NewAddCommandHandler())
+	http.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())
+	http.HandleFunc("/commands", insight_server.AssetPageHandler("assets/agent-commands.html"))
 
 	// v1
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/ping", insight_server.PingHandler).Methods("GET")
 	apiRouter.Handle("/license", AuthMiddleware(config.LicenseKey, insight_server.LicenseHandler(config.LicenseKey)))
-	apiRouter.HandleFunc("/agent/version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater))).Methods("GET")
+	apiRouter.HandleFunc("/agent/version", insight_server.AutoupdateLatestVersionHandler(autoUpdater)).Methods("GET")
 	apiRouter.Handle("/agent", http.StripPrefix("/api/v1/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
+	apiRouter.Handle("/config", AuthMiddleware(config.LicenseKey, insight_server.ServeConfig())).Methods("GET")
+	apiRouter.Handle("/config", AuthMiddleware(config.LicenseKey, insight_server.UploadConfig())).Methods("PUT")
+	apiRouter.Handle("/command", insight_server.NewAddCommandHandler()).Methods("PUT")
+	apiRouter.Handle("/command", AuthMiddleware(config.LicenseKey, insight_server.NewGetCommandHandler())).Methods("GET")
 
 	// DEPRECATING IN v2
 	mainRouter.Handle("/updates/products/agent/{version}/{rest}", http.StripPrefix("/updates/products/agent/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 
 	// http.Handle("/", AuthMiddleware(config.LicenseKey, mainRouter))
-	http.Handle("/", mainRouter)
+	http.Handle("/", RequestLogMiddleware(mainRouter))
 
 	// DEPRECATING IN v2
 	// License check
@@ -164,7 +146,7 @@ func main() {
 		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", hostname)
 		insight_server.WriteResponse(w, http.StatusOK, response)
 	})
-	http.HandleFunc("/updates/latest-version", withRequestLog("update-latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater)))
+	http.HandleFunc("/updates/latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater))
 
 	// STARTING THE SERVER
 	// ===================

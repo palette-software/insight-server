@@ -33,8 +33,6 @@ func UpdateLicense(licenseKey string) *LicenseData {
 
 	response, err := http.PostForm(licensingUrl, data)
 	if err != nil || response.StatusCode != http.StatusOK {
-		fmt.Printf("Err: %s\n", err)
-		fmt.Printf("StatusCode: %s\n", response.StatusCode)
 		return nil
 	}
 
