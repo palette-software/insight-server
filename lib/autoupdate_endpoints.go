@@ -5,27 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
-	"path"
 	"regexp"
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
 )
-
-// ENDPOINTS
-// =========
-//
-// GET: /updates/agent/latest-version => 200 OK
-// {version: "v1.3.2", major: 1, minor: 3, patch: 2, url: "https://.../updates/agent/versions/v1.3.2", md5: "....."}
-
-//
-// GET: /updates/agent/versions/v1.3.2 => 200 OK
-// palette-insight-v1.3.2.msi
-//
-//=> 404 NOT FOUND
-
-// Public API
-// ==========
 
 // The base structure for a SemVer like version
 type Version struct {
@@ -36,11 +20,6 @@ type Version struct {
 // Converts a version to its string equivalent
 func (v *Version) String() string {
 	return fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
-}
-
-type AutoUpdater interface {
-	// Returns the latest version of a product
-	LatestVersion() (*UpdateVersion, error)
 }
 
 // Implementation
@@ -62,23 +41,8 @@ func parseAllInts(strs []string) ([]int, error) {
 	return o, nil
 }
 
-// Autoupdater implementation
-// --------------------------
-
-type baseAutoUpdater struct {
-}
-
-// Creates a new autoupdater implementation
-func NewBaseAutoUpdater() AutoUpdater {
-	return &baseAutoUpdater{}
-}
-
 // The file name we use to store a verison inside its own folder
 const CONTENTS_FILE_NAME = "contents.bin"
-
-func (a *baseAutoUpdater) updatePath(product, versionStr string) string {
-	return path.Join("/tmp", SanitizeName(product), versionStr, fmt.Sprintf("%s-%s", product, versionStr))
-}
 
 // Combines a version with an actual product and a file
 type UpdateVersion struct {
@@ -92,7 +56,7 @@ type UpdateVersion struct {
 }
 
 // Returns the latest version of a product
-func (a *baseAutoUpdater) LatestVersion() (*UpdateVersion, error) {
+func LatestVersion() (*UpdateVersion, error) {
 	latestVersion, err := getLatestAgentVersion()
 	if err != nil {
 		logrus.WithError(err).Error("Error querying Agent version")
@@ -151,21 +115,16 @@ func getLatestAgentVersion() (*UpdateVersion, error) {
 	}, nil
 }
 
-// HTTP Handler
-// ------------
-
-func AutoupdateLatestVersionHandler(a AutoUpdater) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		latestVersion, err := a.LatestVersion()
-		if err != nil {
-			WriteResponse(w, http.StatusNotFound, fmt.Sprintf("%v", err))
-			return
-		}
-
-		if err := json.NewEncoder(w).Encode(latestVersion); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
+func AutoupdateLatestVersionHandler(w http.ResponseWriter, r *http.Request) {
+	latestVersion, err := LatestVersion()
+	if err != nil {
+		WriteResponse(w, http.StatusNotFound, fmt.Sprintf("%v", err))
+		return
 	}
+
+	if err := json.NewEncoder(w).Encode(latestVersion); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 }

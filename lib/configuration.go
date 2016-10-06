@@ -15,7 +15,6 @@ type InsightWebServiceConfig struct {
 	LicenseKey                          string
 	UploadBasePath, MaxIdDirectory      string
 	LicensesDirectory, UpdatesDirectory string
-	AgentConfigsDirectory               string
 	BindAddress                         string
 	BindPort                            int
 	TlsKey, TlsCert                     string
@@ -47,7 +46,7 @@ func getCurrentPath() string {
 
 func ParseOptions() InsightWebServiceConfig {
 
-	var licenseKey, uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, agentConfigsDirectory string
+	var licenseKey, uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory string
 	var bindAddress, archivePath, logFormat, logLevel string
 	var bindPort int
 
@@ -78,11 +77,6 @@ func ParseOptions() InsightWebServiceConfig {
 	flag.StringVar(&updatesDirectory, "updates_path",
 		filepath.Join(getCurrentPath(), "updates"),
 		"The directory where the update files for the agent are stored.",
-	)
-
-	flag.StringVar(&agentConfigsDirectory, "agent_configs_path",
-		filepath.Join(getCurrentPath(), "agent_configs"),
-		"The base directory where the agent configuration files are stored.",
 	)
 
 	flag.StringVar(&logFormat, "logformat", "text", "The log format to use ('json' or 'text' or 'color')")
@@ -122,12 +116,11 @@ func ParseOptions() InsightWebServiceConfig {
 
 	// after parse, return the results
 	return InsightWebServiceConfig{
-		LicenseKey:            strings.ToLower(licenseKey),
-		UploadBasePath:        uploadBasePath,
-		MaxIdDirectory:        maxIdDirectory,
-		LicensesDirectory:     licensesDirectory,
-		UpdatesDirectory:      updatesDirectory,
-		AgentConfigsDirectory: agentConfigsDirectory,
+		LicenseKey:        strings.ToLower(licenseKey),
+		UploadBasePath:    uploadBasePath,
+		MaxIdDirectory:    maxIdDirectory,
+		LicensesDirectory: licensesDirectory,
+		UpdatesDirectory:  updatesDirectory,
 
 		BindAddress: bindAddress,
 		BindPort:    bindPort,
