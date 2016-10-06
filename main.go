@@ -104,9 +104,6 @@ func main() {
 	// create the maxid backend
 	maxIdBackend := insight_server.MakeFileMaxIdBackend(config.MaxIdDirectory)
 
-	// create the autoupdater backend
-	autoUpdater := insight_server.NewBaseAutoUpdater()
-
 	// ENDPOINTS
 	// ---------
 
@@ -135,11 +132,11 @@ func main() {
 	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/ping", insight_server.PingHandler).Methods("GET")
 	apiRouter.Handle("/license", AuthMiddleware(config.LicenseKey, insight_server.LicenseHandler(config.LicenseKey)))
-	apiRouter.HandleFunc("/agent/version", insight_server.AutoupdateLatestVersionHandler(autoUpdater)).Methods("GET")
+	apiRouter.HandleFunc("/agent/version", insight_server.AutoupdateLatestVersionHandler).Methods("GET")
 	apiRouter.Handle("/agent", http.StripPrefix("/api/v1/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
-	apiRouter.Handle("/config", insight_server.ServeConfig(config.AgentConfigsDirectory)).Methods("GET")
-	apiRouter.Handle("/config", insight_server.UploadConfig(config.AgentConfigsDirectory)).Methods("PUT")
-	apiRouter.Handle("/command", insight_server.NewAddCommandHandler()).Methods("PUT")
+	apiRouter.HandleFunc("/config", insight_server.ServeConfig).Methods("GET")
+	apiRouter.HandleFunc("/config", insight_server.UploadConfig).Methods("PUT")
+	apiRouter.HandleFunc("/command", insight_server.AddCommandHandler).Methods("PUT")
 	apiRouter.Handle("/command", AuthMiddleware(config.LicenseKey, insight_server.NewGetCommandHandler())).Methods("GET")
 	apiRouter.HandleFunc("/agents", insight_server.AgentListHandler).Methods("GET")
 
@@ -158,9 +155,9 @@ func main() {
 		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", hostname)
 		insight_server.WriteResponse(w, http.StatusOK, response)
 	})
-	http.HandleFunc("/updates/latest-version", insight_server.AutoupdateLatestVersionHandler(autoUpdater))
+	http.HandleFunc("/updates/latest-version", insight_server.AutoupdateLatestVersionHandler)
 
-	http.HandleFunc("/commands/new", insight_server.NewAddCommandHandler())
+	http.HandleFunc("/commands/new", insight_server.AddCommandHandler)
 	http.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())
 
 	// STARTING THE SERVER

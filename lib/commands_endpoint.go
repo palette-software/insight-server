@@ -68,41 +68,42 @@ func InitCommandEndpoints() {
 	}
 }
 
-func NewAddCommandHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		command := r.PostFormValue("command")
-		if command == "" {
-			WriteResponse(w, http.StatusBadRequest, "No 'command' parameter given")
-			return
-		}
-
-		// add the command to the backend
-		cmd := AgentCommand{
-			Ts:  time.Now().UTC().Format(time.RFC3339),
-			Cmd: command,
-		}
-		// store it
-		lastCommand = cmd
-
-		if err := saveLastCommands(); err != nil {
-			logrus.WithFields(logrus.Fields{
-				"component": "commands",
-			}).WithError(err).Error("Error while saving commands list")
-		}
-
-		if err := json.NewEncoder(w).Encode(cmd); err != nil {
-			// log the error
-			// log some status
-			logrus.WithFields(logrus.Fields{
-				"component": "commands",
-			}).WithError(err).Error("Error encoding commands for json")
-			// but hide this fact from the outside world
-			WriteResponse(w, http.StatusInternalServerError, "")
-			return
-		}
-
-		// the json should have been rendered at this point
+func AddCommand(command string) (*AgentCommand, error) {
+	cmd := AgentCommand{
+		Ts:  time.Now().UTC().Format(time.RFC3339),
+		Cmd: command,
 	}
+	lastCommand = cmd
+	if err := saveLastCommands(); err != nil {
+		return nil, err
+	}
+	return &lastCommand, nil
+}
+
+func AddCommandHandler(w http.ResponseWriter, r *http.Request) {
+	command := r.PostFormValue("command")
+	if command == "" {
+		WriteResponse(w, http.StatusBadRequest, "No 'command' parameter given")
+		return
+	}
+
+	cmd, err := AddCommand(command)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"component": "commands",
+		}).WithError(err).Error("Error while saving commands list")
+		WriteResponse(w, http.StatusInternalServerError, "")
+	}
+
+	if err := json.NewEncoder(w).Encode(cmd); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"component": "commands",
+		}).WithError(err).Error("Error encoding commands for json")
+		WriteResponse(w, http.StatusInternalServerError, "")
+		return
+	}
+
+	// the json should have been rendered at this point
 }
 
 func NewGetCommandHandler() http.HandlerFunc {
