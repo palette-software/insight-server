@@ -38,6 +38,7 @@ func ServeConfig(configDirectory string) http.HandlerFunc {
 		}
 
 		sourcePath := path.Join(configDirectory, hostname, AgentConfigFileName)
+		// FIXME Try FileServer instead!
 		http.ServeFile(w, req, sourcePath)
 	}
 }
