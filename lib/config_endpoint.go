@@ -39,14 +39,14 @@ func UploadConfig(configDirectory string) http.HandlerFunc {
 
 		// Make sure that the destination folder exists
 		destinationPath := path.Join(configDirectory, hostname, "Config.yml")
-		err = os.MkdirAll(path.Dir(destinationPath), 777)
+		err = os.MkdirAll(path.Dir(destinationPath), 0777)
 		if err != nil {
 			WriteResponse(w, http.StatusInternalServerError,
 				fmt.Sprintf("Failed to store uploaded config file! Error: %v", err))
 			return
 		}
 
-		localFile, err := os.OpenFile(destinationPath, os.O_WRONLY|os.O_CREATE, 0666)
+		localFile, err := os.OpenFile(destinationPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			WriteResponse(w, http.StatusInternalServerError,
 				fmt.Sprintf("Failed to create destination file! Error: %v", err))

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -178,10 +179,16 @@ func main() {
 			"key":       config.TlsKey,
 		}).Info("Using TLS cert")
 
-		err := http.ListenAndServeTLS(bindAddressWithPort, config.TlsCert, config.TlsKey, nil)
+		err := http.ListenAndServeTLS(bindAddressWithPort, config.TlsCert, config.TlsKey, handlers.CORS(
+			handlers.AllowedOrigins([]string{"*"}),
+			handlers.AllowedMethods([]string{"GET", "PUT"}),
+		)(handlerWithLogging))
 		logrus.Fatal(err)
 	} else {
-		err := http.ListenAndServe(bindAddressWithPort, nil)
+		err := http.ListenAndServe(bindAddressWithPort, handlers.CORS(
+			handlers.AllowedOrigins([]string{"*"}),
+			handlers.AllowedMethods([]string{"GET", "PUT"}),
+		)(handlerWithLogging))
 		logrus.Fatal(err)
 	}
 

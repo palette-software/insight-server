@@ -3,7 +3,6 @@ package insight_server
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -51,19 +50,15 @@ func UpdateLicense(licenseKey string) *LicenseData {
 func CheckLicense(licenseKey string, license *LicenseData) (bool, string) {
 	expirationTime, err := time.Parse(serverForm, license.ExpirationTime)
 	if err != nil {
-		fmt.Printf("Err: %s\n", err)
 		return false, ""
 	}
 
 	license.Owner, err = os.Hostname()
-	fmt.Printf("Hostname: %s\n", license.Owner)
 	if err != nil {
-		fmt.Printf("Err: %s\n", err)
 		return false, ""
 	}
 
 	license.Valid = time.Now().Before(expirationTime)
-	fmt.Printf("Expiration time: %s\n", expirationTime)
 	jsonResponse, err := json.Marshal(license)
 	if err != nil {
 		return false, ""

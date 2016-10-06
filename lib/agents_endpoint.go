@@ -15,7 +15,7 @@ func removeExpiredAgents() {
 	for hostname, lastContactString := range agents {
 		lastContact, err := time.Parse(time.RFC3339, lastContactString)
 		if err == nil {
-			if time.Now().Sub(lastContact) > 24 * time.Hour {
+			if time.Now().Sub(lastContact) > 24*time.Hour {
 				delete(agents, hostname)
 			}
 		}
