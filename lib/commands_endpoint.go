@@ -113,7 +113,7 @@ func NewGetCommandHandler() http.HandlerFunc {
 		cmd := &lastCommand
 
 		// if we dont have the command
-		if cmd == nil {
+		if cmd.Cmd == "" || cmd.Ts == "" {
 			WriteResponse(w, http.StatusNoContent, "")
 			return
 		}
