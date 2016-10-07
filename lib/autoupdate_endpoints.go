@@ -79,12 +79,12 @@ func IsNewerVersion(a, b Version) bool {
 	return a.Major > b.Major
 }
 
-var versionRegExp = regexp.MustCompile("v(\\d+)\\.(\\d+)\\.(\\d+)")
+var versionRegExp = regexp.MustCompile("(\\d+)\\.(\\d+)\\.(\\d+)")
 
 // Tries to load all valid versions from a product directory
 func getLatestAgentVersion() (*UpdateVersion, error) {
 	versionString, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
-	// versionString, err := exec.Command("echo", "v1.0.96\n").Output()
+	// versionString, err := exec.Command("echo", "1.0.96\n").Output()
 	if err != nil {
 		return nil, err
 	}
