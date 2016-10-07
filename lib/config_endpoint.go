@@ -13,7 +13,7 @@ import (
 const UploadFileParam = "uploadfile"
 const AgentConfigFileName = "Config.yml"
 
-var AgentConfigsFolder = filepath.Join(getCurrentPath(), "agent_configs")
+var AgentConfigsFolder = filepath.Join("/data/insight-server/agent_configs")
 
 // Make sure that 'hostname' URL parameter is specified in the request.
 func checkHostnameParam(w http.ResponseWriter, req *http.Request) (string, error) {
