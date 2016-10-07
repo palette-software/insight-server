@@ -18,189 +18,103 @@ type AgentCommand struct {
 	Cmd string `json:"command"`
 }
 
-type CommandsEndpoint interface {
-	AddCommand(tenant, command string) *AgentCommand
-	// Returns the last command for a tenants agents or nil
-	// if we cannot find a command for it
-	GetCommand(tenant string) *AgentCommand
-}
-
-// IMPLEMENTATION
-// ==============
-
-////////////////////////////////////////////////
-
-type fileCommandsEndpoint struct {
-	baseDir string
-
-	// The last commands issued by tenant name
-	lastCommands map[string]AgentCommand
-}
-
-func NewFileCommandsEndpoint(baseDir string) CommandsEndpoint {
-	ep := &fileCommandsEndpoint{
-		baseDir:      baseDir,
-		lastCommands: map[string]AgentCommand{},
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"component": "commands",
-		"file":      ep.saveFileName(),
-	}).Info("Using commands file")
-
-	if err := ep.loadLastCommands(); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"component": "commands",
-			"file":      ep.saveFileName(),
-		}).WithError(err).Warn("Error while loading back commands list")
-	}
-
-	return ep
-}
-
-// the name we override the tenants name with
-const TenantNameOverride = "default"
-
-func (f *fileCommandsEndpoint) AddCommand(tenant, command string) *AgentCommand {
-	// TODO: I'm only here until the watchdog gets some actual brains
-	tenant = TenantNameOverride
-
-	// create the command
-	cmd := AgentCommand{
-		Ts:  time.Now().UTC().Format(time.RFC3339),
-		Cmd: command,
-	}
-	// store it
-	f.lastCommands[tenant] = cmd
-
-	if err := f.saveLastCommands(); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"component": "commands",
-		}).WithError(err).Error("Error while saving commands list")
-	}
-
-	// return the address of the command, but dont touch lastCommands
-	return &cmd
-}
-
-func (f *fileCommandsEndpoint) GetCommand(tenant string) *AgentCommand {
-
-	// TODO: I'm only here until the watchdog gets some actual brains
-	cmd, hasCmd := f.lastCommands[TenantNameOverride]
-	//cmd, hasCmd := f.lastCommands[tenant]
-	// if no commands available, return an empty one
-	if !hasCmd {
-		return nil
-	}
-	return &cmd
-}
+var baseDir string
+var lastCommand AgentCommand
 
 ////////////////////////////////////////////////
 
 // the name of the commands file we serialize to
 const CommandsFileName = "commands.json"
 
-func (f *fileCommandsEndpoint) saveFileName() string {
-	return path.Join(f.baseDir, CommandsFileName)
+func saveFileName() string {
+	return path.Join(baseDir, CommandsFileName)
 }
 
 // Saves the list of current commands with timestamps
-func (f *fileCommandsEndpoint) saveLastCommands() error {
-	tmpFile, err := ioutil.TempFile(f.baseDir, "commands-list")
+func saveLastCommands() error {
+	tmpFile, err := ioutil.TempFile(baseDir, "commands-list")
 	if err != nil {
 		return fmt.Errorf("Error opening temp file: %v", err)
 	}
 	defer tmpFile.Close()
 
 	// try to save as json
-	if err := json.NewEncoder(tmpFile).Encode(&f.lastCommands); err != nil {
-		return fmt.Errorf("Error while serialzing commands list to JSON: %v", err)
+	if err := json.NewEncoder(tmpFile).Encode(lastCommand); err != nil {
+		return fmt.Errorf("Error while serializing commands list to JSON: %v", err)
 	}
 
 	// close the temp file so we flush
 	tmpFile.Close()
 
 	// move to its final destination
-	if err := os.Rename(tmpFile.Name(), f.saveFileName()); err != nil {
-		return fmt.Errorf("Error while moving commands file '%s' to '%s': %v", tmpFile.Name(), f.saveFileName(), err)
+	if err := os.Rename(tmpFile.Name(), saveFileName()); err != nil {
+		return fmt.Errorf("Error while moving commands file '%s' to '%s': %v", tmpFile.Name(), saveFileName(), err)
 	}
 
 	return nil
 }
 
-// Loads the list of commands back from the serialized form
-func (f *fileCommandsEndpoint) loadLastCommands() error {
-	// open the commands file
-	cmdFile, err := os.Open(f.saveFileName())
+func InitCommandEndpoints() {
+	cmdFile, err := os.Open(saveFileName())
 	if err != nil {
-		return fmt.Errorf("Error opening command file '%s': %v", f.saveFileName(), err)
+		return
 	}
 	defer cmdFile.Close()
 
 	// decode the commands list
-	if err := json.NewDecoder(cmdFile).Decode(&f.lastCommands); err != nil {
+	if err := json.NewDecoder(cmdFile).Decode(&lastCommand); err != nil {
 		// clean the commands list if load failed
-		f.lastCommands = map[string]AgentCommand{}
-		return fmt.Errorf("Error deserializing commands json: %v", err)
-	}
-
-	// log some status
-	logrus.WithFields(logrus.Fields{
-		"component": "commands",
-		"file":      f.saveFileName(),
-		"commands":  f.lastCommands,
-	}).Info("Loaded commands")
-
-	return nil
-}
-
-////////////////////////////////////////////////
-
-func NewAddCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tenant, err := getUrlParam(r.URL, "tenant")
-		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "No 'tenant' parameter given")
-			return
-		}
-
-		command, err := getUrlParam(r.URL, "command")
-		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "No 'command' parameter given")
-			return
-		}
-
-		// add the command to the backend
-		cmd := cep.AddCommand(tenant, command)
-		if err := json.NewEncoder(w).Encode(cmd); err != nil {
-			// log the error
-			// log some status
-			logrus.WithFields(logrus.Fields{
-				"component": "commands",
-			}).WithError(err).Error("Error encoding commands for json")
-			// but hide this fact from the outside world
-			writeResponse(w, http.StatusInternalServerError, "")
-			return
-		}
-
-		// the json should have been rendered at this point
+		lastCommand = AgentCommand{}
 	}
 }
 
-func NewGetCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
+func AddCommand(command string) (*AgentCommand, error) {
+	cmd := AgentCommand{
+		Ts:  time.Now().UTC().Format(time.RFC3339),
+		Cmd: command,
+	}
+	lastCommand = cmd
+	if err := saveLastCommands(); err != nil {
+		return nil, err
+	}
+	return &lastCommand, nil
+}
+
+func AddCommandHandler(w http.ResponseWriter, r *http.Request) {
+	command := r.PostFormValue("command")
+	if command == "" {
+		WriteResponse(w, http.StatusBadRequest, "No 'command' parameter given")
+		return
+	}
+
+	cmd, err := AddCommand(command)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"component": "commands",
+		}).WithError(err).Error("Error while saving commands list")
+		WriteResponse(w, http.StatusInternalServerError, "")
+	}
+
+	if err := json.NewEncoder(w).Encode(cmd); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"component": "commands",
+		}).WithError(err).Error("Error encoding commands for json")
+		WriteResponse(w, http.StatusInternalServerError, "")
+		return
+	}
+
+	// the json should have been rendered at this point
+}
+
+func NewGetCommandHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		tenant, err := getUrlParam(r.URL, "tenant")
-		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "No 'tenant' parameter given")
-			return
-		}
 		// add the command to the backend
-		cmd := cep.GetCommand(tenant)
+		cmd := &lastCommand
 
 		// if we dont have the command
-		if cmd == nil {
-			writeResponse(w, http.StatusNoContent, "")
+		if cmd.Cmd == "" || cmd.Ts == "" {
+			WriteResponse(w, http.StatusNoContent, "")
 			return
 		}
 
@@ -212,10 +126,9 @@ func NewGetCommandHandler(cep CommandsEndpoint) http.HandlerFunc {
 				"component": "commands",
 			}).WithError(err).Error("Error encoding command json for http")
 			// but hide this fact from the outside world
-			writeResponse(w, http.StatusInternalServerError, "")
+			WriteResponse(w, http.StatusInternalServerError, "")
 			return
 		}
-
 		// the json should have been rendered at this point
 	}
 }

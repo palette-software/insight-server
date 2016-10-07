@@ -36,7 +36,7 @@ func SanitizeName(name string) string {
 }
 
 // Writes the error message to the log then responds with an error message
-func writeResponse(w http.ResponseWriter, status int, err string) {
+func WriteResponse(w http.ResponseWriter, status int, err string) {
 	logLine := logrus.WithFields(logrus.Fields{
 		"component": "http",
 		"status":    status,
@@ -69,21 +69,6 @@ func fileExists(path string) (bool, error) {
 	return true, err
 }
 
-// Returns true if path is a directory. If it does not exist err is returned
-func isDirectory(path string) (bool, error) {
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-	return fileInfo.IsDir(), nil
-}
-
-// Returns true if path is a directory. Otherwise (even if there was an error) returns false.
-func isDirectoryNoFail(path string) bool {
-	isDir, err := isDirectory(path)
-	return (err == nil && isDir)
-}
-
 // / Helper that creates a directory if it does not exist
 func CreateDirectoryIfNotExists(path string) error {
 	exists, err := fileExists(path)
@@ -106,24 +91,6 @@ func CreateDirectoryIfNotExists(path string) error {
 		return err
 	}
 
-	return nil
-}
-
-func CopyFileRaw(src, dst string) error {
-	inf, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("Error opening source '%s': %v", src, err)
-	}
-	defer inf.Close()
-
-	outf, err := os.Create(dst)
-	if err != nil {
-		return fmt.Errorf("Error opening destination '%s' for copy: %v", dst, err)
-	}
-
-	if _, err := io.Copy(outf, inf); err != nil {
-		return fmt.Errorf("Error copying '%s' to '%s': %v", src, dst, err)
-	}
 	return nil
 }
 
@@ -155,19 +122,6 @@ func getMultipartFile(form *multipart.Form, fieldName string) (file multipart.Fi
 	return
 }
 
-// Helper to get a part from a multipart message
-func getMultipartParam(form *multipart.Form, fieldName string) (value string, err error) {
-
-	// get the file from the form
-	fn := form.Value[fieldName]
-	if len(fn) != 1 {
-		err = fmt.Errorf("The request must have exactly 1 '%v' field (has %v).", fieldName, len(fn))
-		return "", err
-	}
-
-	return fn[0], nil
-}
-
 // Returns an url param, or an error if no such param is available
 func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 
@@ -184,20 +138,6 @@ func getUrlParam(reqUrl *url.URL, paramName string) (string, error) {
 	}
 
 	return paramVals[0], nil
-}
-
-// Tries to get a list of parameters from the URL.
-// Will return an error describing the problematic parameter
-func getUrlParams(reqUrl *url.URL, paramNames ...string) ([]string, error) {
-	o := make([]string, len(paramNames))
-	for i, paramName := range paramNames {
-		paramVal, err := getUrlParam(reqUrl, paramName)
-		if err != nil {
-			return nil, err
-		}
-		o[i] = paramVal
-	}
-	return o, nil
 }
 
 // Returns a new handler that simply responds with an asset from the precompiled assets

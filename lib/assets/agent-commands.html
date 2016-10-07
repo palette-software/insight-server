@@ -39,8 +39,8 @@
                 </h1>
             </div>
 
-            <a href="/commands/new?tenant=palette&command=start" class="btn btn-primary btn-xl" target="_blank">Start</a>
-            <a href="/commands/new?tenant=palette&command=stop" class="btn btn-primary btn-xl" target="_blank">Stop</a>
+            <a href="#" onclick="sendCommand('start')" class="btn btn-primary btn-xl">Start</a>
+            <a href="#" onclick="sendCommand('stop')" class="btn btn-primary btn-xl">Stop</a>
         </div>
     </div>
 </div>
@@ -51,6 +51,17 @@
 <script src="js/bootstrap.min.js"></script>
 
 <script>
+    var sendCommand = function(command) {
+        $.ajax({
+            url: '/api/v1/command',
+            type: 'PUT',
+            data: "command=" + command,
+            success: function(data) {
+                reloadStatus()
+            }
+        });
+    }
+
     var reloadStatus = function(){
 
         $.getJSON( "/commands/recent?tenant=palette", function( data ) {

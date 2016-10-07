@@ -7,10 +7,12 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/namsral/flag"
+	"strings"
 )
 
 // The configuration of the web service
 type InsightWebServiceConfig struct {
+	LicenseKey                          string
 	UploadBasePath, MaxIdDirectory      string
 	LicensesDirectory, UpdatesDirectory string
 	BindAddress                         string
@@ -44,8 +46,14 @@ func getCurrentPath() string {
 
 func ParseOptions() InsightWebServiceConfig {
 
-	var uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory, bindAddress, archivePath, logFormat, logLevel string
+	var licenseKey, uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory string
+	var bindAddress, archivePath, logFormat, logLevel string
 	var bindPort int
+
+	// License info
+	// ==========
+
+	flag.StringVar(&licenseKey, "license_key", "", "License key for Palette Insight")
 
 	// Path setup
 	// ==========
@@ -108,6 +116,7 @@ func ParseOptions() InsightWebServiceConfig {
 
 	// after parse, return the results
 	return InsightWebServiceConfig{
+		LicenseKey:        strings.ToLower(licenseKey),
 		UploadBasePath:    uploadBasePath,
 		MaxIdDirectory:    maxIdDirectory,
 		LicensesDirectory: licensesDirectory,
