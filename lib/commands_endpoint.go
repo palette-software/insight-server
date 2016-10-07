@@ -40,7 +40,7 @@ func saveLastCommands() error {
 
 	// try to save as json
 	if err := json.NewEncoder(tmpFile).Encode(lastCommand); err != nil {
-		return fmt.Errorf("Error while serialzing commands list to JSON: %v", err)
+		return fmt.Errorf("Error while serializing commands list to JSON: %v", err)
 	}
 
 	// close the temp file so we flush

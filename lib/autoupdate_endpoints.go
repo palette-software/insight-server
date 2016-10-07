@@ -18,7 +18,7 @@ type Version struct {
 }
 
 // Converts a version to its string equivalent
-func (v *Version) String() string {
+func (v Version) String() string {
 	return fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
