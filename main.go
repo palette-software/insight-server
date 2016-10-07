@@ -137,7 +137,7 @@ func main() {
 	apiRouter.HandleFunc("/config", insight_server.ServeConfig).Methods("GET")
 	apiRouter.HandleFunc("/config", insight_server.UploadConfig).Methods("PUT")
 	apiRouter.HandleFunc("/command", insight_server.AddCommandHandler).Methods("PUT")
-	apiRouter.Handle("/command", AuthMiddleware(config.LicenseKey, insight_server.NewGetCommandHandler())).Methods("GET")
+	apiRouter.Handle("/command", insight_server.NewGetCommandHandler()).Methods("GET")
 	apiRouter.HandleFunc("/agents", insight_server.AgentListHandler).Methods("GET")
 
 	// DEPRECATING
