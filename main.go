@@ -121,14 +121,14 @@ func main() {
 
 	// CSV upload
 	// declare both endpoints for now. /upload-with-meta is deprecated
-	http.Handle("/upload", AuthMiddleware(config.LicenseKey, uploadHandler))
-	http.Handle("/maxid", AuthMiddleware(config.LicenseKey, insight_server.MakeMaxIdHandler(maxIdBackend)))
+	mainRouter := mux.NewRouter()
+	mainRouter.Handle("/upload", AuthMiddleware(config.LicenseKey, uploadHandler))
+	mainRouter.Handle("/maxid", AuthMiddleware(config.LicenseKey, insight_server.MakeMaxIdHandler(maxIdBackend)))
 
 	// Commands
-	http.HandleFunc("/commands", insight_server.AssetPageHandler("assets/agent-commands.html"))
+	mainRouter.HandleFunc("/commands", insight_server.AssetPageHandler("assets/agent-commands.html"))
 
 	// v1
-	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/ping", insight_server.PingHandler).Methods("GET")
 	apiRouter.Handle("/license", AuthMiddleware(config.LicenseKey, insight_server.LicenseHandler(config.LicenseKey)))
@@ -143,25 +143,24 @@ func main() {
 	// DEPRECATING
 	mainRouter.Handle("/updates/products/agent/{version}/{rest}", http.StripPrefix("/updates/products/agent/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 
-	// http.Handle("/", AuthMiddleware(config.LicenseKey, mainRouter))
-	handlerWithHeartbeat := HeartbeatMiddleware(mainRouter)
-	handlerWithLogging := RequestLogMiddleware(handlerWithHeartbeat)
-	http.Handle("/", handlerWithLogging)
-
 	// DEPRECATING IN v2
 	// License check
-	http.HandleFunc("/license-check", func(w http.ResponseWriter, req *http.Request) {
+	mainRouter.HandleFunc("/license-check", func(w http.ResponseWriter, req *http.Request) {
 		hostname, _ := os.Hostname()
 		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", hostname)
 		insight_server.WriteResponse(w, http.StatusOK, response)
 	})
-	http.HandleFunc("/updates/latest-version", insight_server.AutoupdateLatestVersionHandler)
+	mainRouter.HandleFunc("/updates/latest-version", insight_server.AutoupdateLatestVersionHandler)
 
-	http.HandleFunc("/commands/new", insight_server.AddCommandHandler)
-	http.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())
+	mainRouter.HandleFunc("/commands/new", insight_server.AddCommandHandler)
+	mainRouter.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())
 
 	// STARTING THE SERVER
 	// ===================
+	// http.Handle("/", AuthMiddleware(config.LicenseKey, mainRouter))
+	handlerWithHeartbeat := HeartbeatMiddleware(mainRouter)
+	handlerWithLogging := RequestLogMiddleware(handlerWithHeartbeat)
+	// http.Handle("/", handlerWithLogging)
 
 	bindAddressWithPort := fmt.Sprintf("%s:%v", config.BindAddress, config.BindPort)
 	logrus.WithFields(logrus.Fields{
