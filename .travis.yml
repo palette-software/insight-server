@@ -1,3 +1,5 @@
+sudo: required
+
 language: go
 go:
 - 1.6.3
@@ -7,9 +9,14 @@ env:
       - DEPLOY_HOST=rpm.palette-software.com
       - DEPLOY_PATH=/var/palette-rpm-repo
       - DEPLOY_USER=palette-rpm
+      - PRODUCT_VERSION=v2.0.$TRAVIS_BUILD_NUMBER
+      - OWNER=palette-software
+      - PACKAGE=palette-insight-server
 
       # travis encrypt DEPLOY_PASSWORD=...
       - secure: "bpiG25h8I+BgpswIFjvADbHfrZygMFvsge/FhIw4eCbmFFCE1o/02gWJoDmG411IRehjbNjqpTIhulUWHrv43AKWxMUTSMNybfQlZ8v6vp9N8bTI4ShI/DMgK2oHZgKXicZo5eUpreC+y+NhmMgDfcF45bW924ru52WVYueWDpQrlXYmqbFM2Au7mHR0XR2qlf2stFeSs6pGVm/s4QXKXTw0qIV9xjgealCf5Gxt69I3IVdNw7Tqt6NCKbd+hmZI4SWDG5eFYMr6fzNymzjvqoArURlPvkZxNfTeeJn+DL94pjxCJMXV1PXqQWYwg6iPdZoJzoO+jjzUf1egoU3jZvUTVqmCGWGBvR9s9e1e8tVOt6HKZsoXesv8sS1Dbny3SJ1TSB66qFD8qR2qTqenRr3EllInq5KK4mp6yj+YtuXyNxGklDM7sQaIv95LTR9qy5I0sZTJFoJIiEMSZ2R1aO/IVRBCY/3nesKRAByGi1hjhreGArUvWtD+mw13oSs2kFK7P0mWmWv3/XVeWWqODCa4hgsfAmr4evDbGwyPH2XzkIxOXxzLmuNfHAEZvCQ23ciBMpaq9tdNh10ln2zKWR7wPai2KpqNYw/VdG52KjJwvm+aue7p3mdblJzXoPLnx1G0UWG9fh+pun8cvclUFrz1u84GOf4eHeKRpDCDP9I="
+      # travis encrypt GITHUB_TOKEN=...
+      - secure: "QAVW/0nzx8P4HUi/FvYyFqwXJgrehzGLz+2zCO9vVhR5jIqZW7MlTezKw0IUmol+ZlbQeIc+BtU9+F9hj+ybpzBZx9DL+0rIHtoAIn7AMCF8serYJ/m/k1O1KyENm1z6WhL0dBtQzUToEB78WrAUO4dg1kl7k49npiJaOCpTOtEOu6+188WmghdXCBJ2wfHaoXz6FLIzxQg0UkW9H69yPhGPQmopPOeunZeohD1SiwFBuZBsL82SBii0ra1RXVu3j8kigfwa2SvOV2FeYTGoU6OpWIbseE/yVbSA3kMkWyZFL5a46gbC77WnjAtDJzx6bHftgCp7sxmMC5LDUnetOtjfOs2ehjlyuso3zMBQ9kDf/I6xWn2RQ/QhkuQFnBZXMLOjdwSnH2tjZfXdMmnXqhTOu6uKQWoHNoxzcJaMbduVdXqY5FwYWgMlj4CUgcC5iX8IfWgquSpDG125OMkUMnDzKb/USYfzZVspGE/q8OCknM13BJBSrLJ2Pyf8jyIgPyRoLfhW3EsDu3vYvBKJhhjQvEVJKwaQySjJCJc90ERv9oclzOEgIQv4cqQZmhEHquAJI34VeJXqAOE0dIrF8k76bA5mga4r1xnlOgSEHlfPIzIN12uPxuZfvVr6xWzD3ks8/3YPqS6HglI9DrKMhPIinwlWOvSpBQSVI5leFNs="
 
 # install the RPM package
 addons:
@@ -26,9 +33,8 @@ before_install:
 
 # Put a proper version string into the version file
 before_script:
-  - export BUILD_TAG="$TRAVIS_BRANCH-$(date -u "+%Y-%m-%d").$TRAVIS_BUILD_NUMBER"
-  - echo "==== Setting ${BUILD_TAG} as version ===="
-  - echo ${BUILD_TAG} > lib/assets/VERSION
+  - echo "==== Setting ${PRODUCT_VERSION} as version ===="
+  - echo ${PRODUCT_VERSION} > lib/assets/VERSION
 
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server/lib
@@ -38,8 +44,7 @@ before_script:
 
 
 before_deploy:
-  - export VERSION=$(echo $TRAVIS_TAG | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
-  - cd rpm-build
+  - pushd rpm-build
 
   # Create directories
   - mkdir -p etc/palette-insight-server
@@ -48,36 +53,25 @@ before_deploy:
   # Copy the binary
   - cp -v $GOPATH/bin/insight-server usr/local/bin/palette-insight-server
   - cp -v ../sample.config etc/palette-insight-server/server.config
-  - echo "BUILDING VERSION:$VERSION"
+  - echo "BUILDING VERSION:$PRODUCT_VERSION"
 
   # build the rpm
-  - rpmbuild -bb --buildroot $(pwd) --define "version $VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
-  - cd ..
+  - rpmbuild -bb --buildroot $(pwd) --define "version $PRODUCT_VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
+  - popd
+
+  # Create the zip file for github upload. The following environment variables
+  # are required for release-to-github.sh
+  - export PCKG_DIR=`pwd`
+  - export PCKG_FILE=$PACKAGE-$PRODUCT_VERSION.zip
   - zip palette-insight-server-$(cat assets/VERSION).zip -j $GOPATH/bin/insight-server
 
-  # Upload the RPM to the RPM repository
-  # by exportin it to SSHPASS, sshpass wont log the command line and the password
-  - export SSHPASS=$DEPLOY_PASS
-  - sshpass -e scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r rpm-build/_build/* $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH
-
-  # Update the RPM repository
-  - export DEPLOY_CMD="createrepo ${DEPLOY_PATH}/"
-  - sshpass -e ssh  -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST $DEPLOY_CMD
-
 deploy:
-  provider: releases
-  api_key:
-    secure: SsFDMxXEMPWGfF/STq6Ik2XbVBI4bZHt9UbjRSN2Id8St5pdTSowSTCcGIHC42JTXfSPVUSSex4D4f/c5avISpqz5m3MWug6wR5da6QTJ16phlRWUlcFHIkwJGqtlkWXwGDBO1GGN1tpknmM9Q41p2QLkTM2ycq1TFCFSIs0J8HanBoYqjfl/JgVaYcZuUkP/XuB/PIS3HNgbwLit2zKBK/mxSNhb1D0GKKoHQXGKxC1OPjXa4z7AjwowqWLWH+3lMl3xtmIMjXg8xJRkWrw4Q6EH+iY9zqvAnOGqUrEtAN3KCVjV7c2+JBc/7ObRk4Zk9L4lJxZxAR5ZFbP8EwwlXiYF0Wxtpa9OxeaLpkHAxFGjeDZS6HzRKa0pU+Coc0ERll3ibZf5jehdLzQ7Q7N7AzXxtLSwChE+WYzEdGTLT7avar3ZieUy5t38+WPEEhPryDoh6GAAWCPctsnvoqeLUs+EO2qvxLqLfEXNth1tMx8tiNkB8KQtknCpUftmuvsJNXQtz8Qe4CDMfasfeecYTz3XauwtbjeDH65Xzc2UwBt6uRNdk3fuG4tnLyuVoTGCCM+uNk2AC/d1EXGJKzEU/bz/fTfim4/nD2jtDANN8Z7m/aHSJTIPoK60mL/OdyVtZT80Pq1Mo2XGBT90sS/Z45txiRAdK+u9KCJww/c9jo=
-  file_glob: true
-  file:
-    - palette-insight-server-*.zip
-    - rpm-build/_build/x86_64/*.rpm
-
-  on:
-    repo: palette-software/insight-server
+  provider: script
+  script: "./deploy.sh"
   skip_cleanup: true
   on:
-      tags: true
+    branch: master
+    tags: false
 
 notifications:
   email:
