@@ -132,7 +132,7 @@ func main() {
 	apiRouter := mainRouter.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/ping", insight_server.PingHandler).Methods("GET")
 	apiRouter.Handle("/license", AuthMiddleware(config.LicenseKey, insight_server.LicenseHandler(config.LicenseKey)))
-	apiRouter.HandleFunc("/agent/version", insight_server.AutoupdateLatestVersionHandler).Methods("GET")
+	apiRouter.Handle("/agent/version", insight_server.GetAutoupdateLatestVersionHandler(config.UpdatesDirectory)).Methods("GET")
 	apiRouter.Handle("/agent", http.StripPrefix("/api/v1/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 	apiRouter.HandleFunc("/config", insight_server.ServeConfig).Methods("GET")
 	apiRouter.HandleFunc("/config", insight_server.UploadConfig).Methods("PUT")
@@ -150,7 +150,7 @@ func main() {
 		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", hostname)
 		insight_server.WriteResponse(w, http.StatusOK, response)
 	})
-	mainRouter.HandleFunc("/updates/latest-version", insight_server.AutoupdateLatestVersionHandler)
+	mainRouter.Handle("/updates/latest-version", insight_server.GetAutoupdateLatestVersionHandler(config.UpdatesDirectory))
 
 	mainRouter.HandleFunc("/commands/new", insight_server.AddCommandHandler)
 	mainRouter.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())

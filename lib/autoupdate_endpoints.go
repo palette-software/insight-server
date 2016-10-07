@@ -1,10 +1,14 @@
 package insight_server
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 
@@ -56,8 +60,8 @@ type UpdateVersion struct {
 }
 
 // Returns the latest version of a product
-func LatestVersion() (*UpdateVersion, error) {
-	latestVersion, err := getLatestAgentVersion()
+func LatestVersion(updateDirectory string) (*UpdateVersion, error) {
+	latestVersion, err := getLatestAgentVersion(updateDirectory)
 	if err != nil {
 		logrus.WithError(err).Error("Error querying Agent version")
 		return nil, fmt.Errorf("No latest version found yet")
@@ -81,10 +85,26 @@ func IsNewerVersion(a, b Version) bool {
 
 var versionRegExp = regexp.MustCompile("(\\d+)\\.(\\d+)\\.(\\d+)")
 
+func computeMd5(filePath string) ([]byte, error) {
+	var result []byte
+	file, err := os.Open(filePath)
+	if err != nil {
+		return result, err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return result, err
+	}
+
+	return hash.Sum(result), nil
+}
+
 // Tries to load all valid versions from a product directory
-func getLatestAgentVersion() (*UpdateVersion, error) {
-	versionString, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
-	// versionString, err := exec.Command("echo", "1.0.96\n").Output()
+func getLatestAgentVersion(updatePath string) (*UpdateVersion, error) {
+	// versionString, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
+	versionString, err := exec.Command("echo", "2.0.1\n").Output()
 	if err != nil {
 		return nil, err
 	}
@@ -104,27 +124,35 @@ func getLatestAgentVersion() (*UpdateVersion, error) {
 	if err != nil {
 		return nil, err
 	}
+	packageMd5, err := computeMd5(path.Join(updatePath, "agent"))
+	if err != nil {
+		return nil, err
+	}
+
 	return &UpdateVersion{
 		Version: Version{
 			Major: int(major),
 			Minor: int(minor),
 			Patch: int(patch),
 		},
+		Md5:     fmt.Sprintf("%32x", packageMd5),
 		Product: "Agent",
 		Url:     "/api/v1/agent",
 	}, nil
 }
 
-func AutoupdateLatestVersionHandler(w http.ResponseWriter, r *http.Request) {
-	latestVersion, err := LatestVersion()
-	if err != nil {
-		WriteResponse(w, http.StatusNotFound, fmt.Sprintf("%v", err))
-		return
-	}
+func GetAutoupdateLatestVersionHandler(updateDirectory string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		latestVersion, err := LatestVersion(updateDirectory)
+		if err != nil {
+			WriteResponse(w, http.StatusNotFound, fmt.Sprintf("%v", err))
+			return
+		}
 
-	if err := json.NewEncoder(w).Encode(latestVersion); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+		if err := json.NewEncoder(w).Encode(latestVersion); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
+	}
 }
