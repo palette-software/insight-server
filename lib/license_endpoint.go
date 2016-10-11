@@ -3,6 +3,7 @@ package insight_server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"os"
@@ -48,7 +49,7 @@ func UpdateLicense(licenseKey string) *LicenseData {
 	return &license
 }
 
-func CheckLicense(licenseKey string, license *LicenseData) (string, error) {
+func CheckLicense(license *LicenseData) (string, error) {
 	expirationTime, err := time.Parse(serverForm, license.ExpirationTime)
 	if err != nil {
 		expirationTime, err = time.Parse(otherServerForm, license.ExpirationTime)
@@ -78,8 +79,13 @@ func LicenseHandler(licenseKey string) http.HandlerFunc {
 			lastUpdatedAt = time.Now()
 		}
 
-		license, err := CheckLicense(licenseKey, cachedLicense)
+		license, err := CheckLicense(cachedLicense)
 		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"version": GetVersion(),
+				"license": licenseKey,
+			}).Error("Invalid or expired license, exiting.")
+
 			WriteResponse(w, http.StatusNotFound, "")
 			return
 		}

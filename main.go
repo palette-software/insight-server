@@ -80,13 +80,12 @@ func main() {
 	}).Info("Starting palette insight-server")
 	//
 	license := insight_server.UpdateLicense(config.LicenseKey)
-	_, err := insight_server.CheckLicense(config.LicenseKey, license)
+	_, err := insight_server.CheckLicense(license)
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"version": insight_server.GetVersion(),
 			"license": config.LicenseKey,
 		}).Error("Invalid or expired license, exiting.")
-		//
 		os.Exit(1)
 	}
 
