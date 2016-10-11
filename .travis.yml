@@ -9,7 +9,7 @@ env:
       - DEPLOY_HOST=rpm.palette-software.com
       - DEPLOY_PATH=/var/palette-rpm-repo
       - DEPLOY_USER=palette-rpm
-      - PRODUCT_VERSION=v2.0.$TRAVIS_BUILD_NUMBER
+      - PRODUCT_VERSION=2.0.$TRAVIS_BUILD_NUMBER
 
       # travis encrypt DEPLOY_PASSWORD=...
       - secure: "bpiG25h8I+BgpswIFjvADbHfrZygMFvsge/FhIw4eCbmFFCE1o/02gWJoDmG411IRehjbNjqpTIhulUWHrv43AKWxMUTSMNybfQlZ8v6vp9N8bTI4ShI/DMgK2oHZgKXicZo5eUpreC+y+NhmMgDfcF45bW924ru52WVYueWDpQrlXYmqbFM2Au7mHR0XR2qlf2stFeSs6pGVm/s4QXKXTw0qIV9xjgealCf5Gxt69I3IVdNw7Tqt6NCKbd+hmZI4SWDG5eFYMr6fzNymzjvqoArURlPvkZxNfTeeJn+DL94pjxCJMXV1PXqQWYwg6iPdZoJzoO+jjzUf1egoU3jZvUTVqmCGWGBvR9s9e1e8tVOt6HKZsoXesv8sS1Dbny3SJ1TSB66qFD8qR2qTqenRr3EllInq5KK4mp6yj+YtuXyNxGklDM7sQaIv95LTR9qy5I0sZTJFoJIiEMSZ2R1aO/IVRBCY/3nesKRAByGi1hjhreGArUvWtD+mw13oSs2kFK7P0mWmWv3/XVeWWqODCa4hgsfAmr4evDbGwyPH2XzkIxOXxzLmuNfHAEZvCQ23ciBMpaq9tdNh10ln2zKWR7wPai2KpqNYw/VdG52KjJwvm+aue7p3mdblJzXoPLnx1G0UWG9fh+pun8cvclUFrz1u84GOf4eHeKRpDCDP9I="
