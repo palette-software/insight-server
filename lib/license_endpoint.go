@@ -11,7 +11,7 @@ import (
 )
 
 const licensingUrl = "https://licensing.palette-software.com/license"
-const otherServerForm = "2006-01-02 15:04:05"
+const milliseclessServerForm = "2006-01-02 15:04:05"
 const serverForm = "2006-01-02 15:04:05.000000"
 
 var lastUpdatedAt = time.Now().AddDate(-1, 0, 0)
@@ -52,7 +52,7 @@ func UpdateLicense(licenseKey string) *LicenseData {
 func CheckLicense(license *LicenseData) (string, error) {
 	expirationTime, err := time.Parse(serverForm, license.ExpirationTime)
 	if err != nil {
-		expirationTime, err = time.Parse(otherServerForm, license.ExpirationTime)
+		expirationTime, err = time.Parse(milliseclessServerForm, license.ExpirationTime)
 		if err != nil {
 			return "", err
 		}
