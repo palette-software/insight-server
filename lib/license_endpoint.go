@@ -3,6 +3,7 @@ package insight_server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,6 +11,7 @@ import (
 )
 
 const licensingUrl = "https://licensing.palette-software.com/license"
+const milliseclessServerForm = "2006-01-02 15:04:05"
 const serverForm = "2006-01-02 15:04:05.000000"
 
 var lastUpdatedAt = time.Now().AddDate(-1, 0, 0)
@@ -47,24 +49,27 @@ func UpdateLicense(licenseKey string) *LicenseData {
 	return &license
 }
 
-func CheckLicense(licenseKey string, license *LicenseData) (bool, string) {
+func CheckLicense(license *LicenseData) (string, error) {
 	expirationTime, err := time.Parse(serverForm, license.ExpirationTime)
 	if err != nil {
-		return false, ""
+		expirationTime, err = time.Parse(milliseclessServerForm, license.ExpirationTime)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	license.Owner, err = os.Hostname()
 	if err != nil {
-		return false, ""
+		return "", err
 	}
 
 	license.Valid = time.Now().Before(expirationTime)
 	jsonResponse, err := json.Marshal(license)
 	if err != nil {
-		return false, ""
+		return "", err
 	}
 
-	return license.Valid, string(jsonResponse)
+	return string(jsonResponse), nil
 }
 
 func LicenseHandler(licenseKey string) http.HandlerFunc {
@@ -74,8 +79,13 @@ func LicenseHandler(licenseKey string) http.HandlerFunc {
 			lastUpdatedAt = time.Now()
 		}
 
-		valid, license := CheckLicense(licenseKey, cachedLicense)
-		if !valid {
+		license, err := CheckLicense(cachedLicense)
+		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"version": GetVersion(),
+				"license": licenseKey,
+			}).Error("Invalid or expired license, exiting.")
+
 			WriteResponse(w, http.StatusNotFound, "")
 			return
 		}
