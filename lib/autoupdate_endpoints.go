@@ -103,8 +103,8 @@ func computeMd5(filePath string) ([]byte, error) {
 
 // Tries to load all valid versions from a product directory
 func getLatestAgentVersion(updatePath string) (*UpdateVersion, error) {
-	// versionString, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
-	versionString, err := exec.Command("echo", "2.0.1\n").Output()
+	versionString, err := exec.Command("rpm", "-qa", "--queryformat", "'%{version}\n'", "palette-insight-agent").Output()
+	// versionString, err := exec.Command("echo", "2.0.1\n").Output()
 	if err != nil {
 		return nil, err
 	}
