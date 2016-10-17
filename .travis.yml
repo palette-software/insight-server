@@ -41,7 +41,6 @@ before_script:
   - go install
 
 
-
 before_deploy:
   # Make the repository related environment variables. TRAVIS_REPO_SLUG is in the <owner_name/repo_name> format
   - IFS='/' read -ra REPOINFO <<< "$TRAVIS_REPO_SLUG"

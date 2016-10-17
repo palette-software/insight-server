@@ -54,6 +54,8 @@ func ParseOptions() InsightWebServiceConfig {
 	// ==========
 
 	flag.StringVar(&licenseKey, "license_key", "", "License key for Palette Insight")
+	// Trim leading and trailing white spaces, as they are supposed to be there accidentally
+	licenseKey = strings.TrimSpace(licenseKey)
 
 	// Path setup
 	// ==========
