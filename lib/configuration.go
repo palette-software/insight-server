@@ -3,11 +3,11 @@ package insight_server
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 
 	"github.com/namsral/flag"
-	"strings"
 )
 
 // The configuration of the web service
@@ -54,8 +54,6 @@ func ParseOptions() InsightWebServiceConfig {
 	// ==========
 
 	flag.StringVar(&licenseKey, "license_key", "", "License key for Palette Insight")
-	// Trim leading and trailing white spaces, as they are supposed to be there accidentally
-	licenseKey = strings.TrimSpace(licenseKey)
 
 	// Path setup
 	// ==========
@@ -111,6 +109,10 @@ func ParseOptions() InsightWebServiceConfig {
 
 	flag.Parse()
 
+	// Trim leading and trailing white spaces, as they are supposed to be there accidentally,
+	// and use lower case
+	licenseKey = strings.ToLower(strings.TrimSpace(licenseKey))
+
 	// Set the archive path if its unset
 	if archivePath == "" {
 		archivePath = filepath.Join(uploadBasePath, "..", "serverlogs-archives")
@@ -118,7 +120,7 @@ func ParseOptions() InsightWebServiceConfig {
 
 	// after parse, return the results
 	return InsightWebServiceConfig{
-		LicenseKey:        strings.ToLower(licenseKey),
+		LicenseKey:        licenseKey,
 		UploadBasePath:    uploadBasePath,
 		MaxIdDirectory:    maxIdDirectory,
 		LicensesDirectory: licensesDirectory,
