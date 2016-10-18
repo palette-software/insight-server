@@ -99,7 +99,7 @@ func LicenseHandler(licenseKey string) http.HandlerFunc {
 func GetLicenseOwner() (string, error) {
 	owner, err := os.Hostname()
 	if err != nil {
-		return "", fmt.Sprintf("Failed to get hostname to prepare license owner name! Error: %v", err)
+		return "", fmt.Errorf("Failed to get hostname to prepare license owner name! Error: %v", err)
 	}
 
 	owner = strings.TrimSuffix(owner, "-insight")
