@@ -145,8 +145,8 @@ func main() {
 	// DEPRECATING IN v2
 	// License check
 	mainRouter.HandleFunc("/license-check", func(w http.ResponseWriter, req *http.Request) {
-		hostname, _ := os.Hostname()
-		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", hostname)
+		owner, _ := insight_server.GetLicenseOwner()
+		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", owner)
 		insight_server.WriteResponse(w, http.StatusOK, response)
 	})
 	mainRouter.Handle("/updates/latest-version", insight_server.GetAutoupdateLatestVersionHandler(config.UpdatesDirectory))

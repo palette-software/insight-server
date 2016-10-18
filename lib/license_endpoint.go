@@ -3,10 +3,12 @@ package insight_server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -58,7 +60,7 @@ func CheckLicense(license *LicenseData) (string, error) {
 		}
 	}
 
-	license.Owner, err = os.Hostname()
+	license.Owner, err = GetLicenseOwner()
 	if err != nil {
 		return "", err
 	}
@@ -92,4 +94,14 @@ func LicenseHandler(licenseKey string) http.HandlerFunc {
 
 		WriteResponse(w, http.StatusOK, license)
 	}
+}
+
+func GetLicenseOwner() (string, error) {
+	owner, err := os.Hostname()
+	if err != nil {
+		return "", fmt.Sprintf("Failed to get hostname to prepare license owner name! Error: %v", err)
+	}
+
+	owner = strings.TrimSuffix(owner, "-insight")
+	return strings.ToUpper(owner), nil
 }
