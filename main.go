@@ -133,6 +133,7 @@ func main() {
 	apiRouter.Handle("/license", AuthMiddleware(config.LicenseKey, insight_server.LicenseHandler(config.LicenseKey)))
 	apiRouter.Handle("/agent/version", insight_server.GetAutoupdateLatestVersionHandler(config.UpdatesDirectory)).Methods("GET")
 	apiRouter.Handle("/agent", http.StripPrefix("/api/v1/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
+	apiRouter.Handle("/api/v1/agent", http.StripPrefix("/api/v1/api/v1/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
 	apiRouter.HandleFunc("/config", insight_server.ServeConfig).Methods("GET")
 	apiRouter.HandleFunc("/config", insight_server.UploadConfig).Methods("PUT")
 	apiRouter.HandleFunc("/command", insight_server.AddCommandHandler).Methods("PUT")
