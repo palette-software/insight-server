@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 
@@ -124,7 +124,7 @@ func getLatestAgentVersion(updatePath string) (*UpdateVersion, error) {
 	if err != nil {
 		return nil, err
 	}
-	packageMd5, err := computeMd5(path.Join(updatePath, "agent"))
+	packageMd5, err := computeMd5(filepath.Join(updatePath, "agent"))
 	if err != nil {
 		return nil, err
 	}
