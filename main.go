@@ -23,7 +23,7 @@ func AuthMiddleware(licenseKey string, h http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		token := authHeaderRegExp.FindStringSubmatch(string(authHeader))
 		if len(token) < 2 || strings.ToLower(token[1]) != licenseKey {
-			insight_server.WriteResponse(w, http.StatusForbidden, "Not authorized")
+			insight_server.WriteResponse(w, http.StatusUnauthorized, "Not authorized")
 			return
 		}
 		h.ServeHTTP(w, r)
