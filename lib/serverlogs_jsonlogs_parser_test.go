@@ -16,6 +16,14 @@ func TestGetElapsed(t *testing.T) {
 	tassert.Equal(t, int64(215), elapsedTime)
 }
 
+func TestElapsedAsString(t *testing.T) {
+	testValue := `{"elapsed":"1.254","new-session":"false"}`
+	elapsedTime, hasValue, err := getElapsed("ordinary", testValue)
+	tassert.True(t, hasValue)
+	tassert.Nil(t, err)
+	tassert.Equal(t, int64(1254), elapsedTime)
+}
+
 func TestGetElapsed_WithIgnoredValues(t *testing.T) {
 	testValue := `{"just":"ignore", "elapsed":0.215, "this":66}`
 	elapsedTime, hasValue, err := getElapsed("ordinary", testValue)

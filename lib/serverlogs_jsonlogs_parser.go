@@ -51,9 +51,18 @@ func getElapsed(key, line string) (int64, bool, error) {
 		return 0, false, nil
 	}
 	if m["elapsed"] != nil {
-		value, ok := m["elapsed"].(float64)
-		if !ok {
-			return 0, false, fmt.Errorf("Can't parse elapsed to float64: '%v'", m["elapsed"])
+		var floatValue float64
+		value, ok := m["elapsed"].(string)
+		if ok {
+			floatValue, err = strconv.ParseFloat(value, 64)
+			if err != nil {
+				return 0, false, err
+			}
+		} else {
+			floatValue, ok = m["elapsed"].(float64)
+			if !ok {
+				return 0, false, fmt.Errorf("Can't parse elapsed to float64: '%v'", m["elapsed"])
+			}
 		}
 		// Tableau is not consistent and logs ms instead of seconds with elapsed key for some keys
 		switch key {
@@ -61,9 +70,9 @@ func getElapsed(key, line string) (int64, bool, error) {
 			"read-foreign-keys",
 			"read-statistics",
 			"read-primary-keys":
-			return int64(value), true, nil
+			return int64(floatValue), true, nil
 		}
-		return int64(value * 1000), true, nil
+		return int64(floatValue * 1000), true, nil
 	}
 	if m["elapsed-ms"] != nil {
 		value, ok := m["elapsed-ms"].(string)
@@ -163,9 +172,9 @@ func (j *JsonLogParser) Parse(state ServerlogParserState, src *ServerlogsSource,
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"component": "serverlogs",
 			"file":      src.Filename,
-			"machine":      src.Host,
-			"k":		 outerJson.K,
-			"v":		 v,
+			"machine":   src.Host,
+			"k":         outerJson.K,
+			"v":         v,
 		}).Errorf("Error parsing elapsed time")
 	}
 
