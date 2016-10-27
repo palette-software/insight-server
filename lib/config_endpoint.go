@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 )
 
@@ -32,7 +31,7 @@ func checkHostnameParam(w http.ResponseWriter, req *http.Request) (string, error
 }
 
 func DoesConfigExist(hostname string) bool {
-	destinationPath := path.Join(AgentConfigsFolder, hostname, AgentConfigFileName)
+	destinationPath := filepath.Join(AgentConfigsFolder, hostname, AgentConfigFileName)
 	if _, err := os.Stat(destinationPath); os.IsNotExist(err) {
 		return false
 	}
@@ -47,7 +46,7 @@ func ServeConfig(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	sourcePath := path.Join(AgentConfigsFolder, hostname, AgentConfigFileName)
+	sourcePath := filepath.Join(AgentConfigsFolder, hostname, AgentConfigFileName)
 	http.ServeFile(w, req, sourcePath)
 }
 
@@ -68,8 +67,8 @@ func UploadConfig(w http.ResponseWriter, req *http.Request) {
 	defer uploadFile.Close()
 
 	// Make sure that the destination folder exists
-	destinationPath := path.Join(AgentConfigsFolder, hostname, AgentConfigFileName)
-	err = os.MkdirAll(path.Dir(destinationPath), 0777)
+	destinationPath := filepath.Join(AgentConfigsFolder, hostname, AgentConfigFileName)
+	err = os.MkdirAll(filepath.Dir(destinationPath), 0777)
 	if err != nil {
 		WriteResponse(w, http.StatusInternalServerError,
 			fmt.Sprintf("Failed to store uploaded config file! Error: %v", err))

@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -27,7 +27,7 @@ var lastCommand AgentCommand
 const CommandsFileName = "commands.json"
 
 func saveFileName() string {
-	return path.Join(baseDir, CommandsFileName)
+	return filepath.Join(baseDir, CommandsFileName)
 }
 
 // Saves the list of current commands with timestamps

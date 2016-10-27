@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 
@@ -83,7 +82,7 @@ type fileMaxIdBackend struct {
 
 // gets the file name of a tables maxid file
 func (m *fileMaxIdBackend) getFileName(username, tableName string) string {
-	return path.Join(m.basePath, SanitizeName(username), SanitizeName(tableName))
+	return filepath.Join(m.basePath, SanitizeName(username), SanitizeName(tableName))
 }
 
 func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {

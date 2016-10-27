@@ -8,10 +8,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
-
 	"crypto/rand"
 
 	"github.com/Sirupsen/logrus"
@@ -127,7 +125,7 @@ func (g *GzippedFileWriterWithTemp) GetFileNameForMd5(fileMd5 string) string {
 
 	// the output is in the originally intended directory,
 	// but with our new filename containing the hash of the file
-	return filepath.ToSlash(path.Join(
+	return filepath.ToSlash(filepath.Join(
 		filepath.Dir(g.filePath),
 		fmt.Sprintf("%s.%s.gz",
 			SanitizeName(strings.TrimSuffix(baseFilename, baseFileExt)),
