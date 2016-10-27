@@ -163,7 +163,7 @@ func (j *JsonLogParser) Parse(state ServerlogParserState, src *ServerlogsSource,
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"component": "serverlogs",
 			"file":      src.Filename,
-			"host":      src.Host,
+			"machine":      src.Host,
 			"k":		 outerJson.K,
 			"v":		 v,
 		}).Errorf("Error parsing elapsed time")
