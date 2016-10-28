@@ -56,7 +56,7 @@ func getElapsed(key, line string) (int64, bool, error) {
 		if ok {
 			floatValue, err = strconv.ParseFloat(value, 64)
 			if err != nil {
-				return 0, false, fmt.Errorf("Error while parsing elapsed value: %v", err)
+				return 0, false, fmt.Errorf("Error while parsing elapsed value: '%v'. Error: %v", value, err)
 			}
 		} else {
 			floatValue, ok = m["elapsed"].(float64)
