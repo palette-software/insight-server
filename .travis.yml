@@ -46,7 +46,7 @@ script:
 
     # Freeze the dependencies of requirements
   - export SPEC_FILE=palette-insight-server.spec
-  - ./freeze-requirement.sh palette-greenplum-agent noarch ${SPEC_FILE}
+  - ./freeze-requirement.sh palette-insight-agent noarch ${SPEC_FILE}
   # Show the contents of the modified (frozen versions) spec file
   - cat ${SPEC_FILE}
 
