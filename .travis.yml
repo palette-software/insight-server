@@ -41,13 +41,16 @@ before_script:
   - go install
 
 
-before_deploy:
-  # Make the repository related environment variables. TRAVIS_REPO_SLUG is in the <owner_name/repo_name> format
-  - IFS='/' read -ra REPOINFO <<< "$TRAVIS_REPO_SLUG"
-  - export OWNER=${REPOINFO[0]}
-  - export PACKAGE=${REPOINFO[1]}
 
+before_deploy:
+  - export VERSION=$(echo $TRAVIS_TAG | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
   - pushd rpm-build
+
+    # Freeze the dependencies of requirements
+  - export SPEC_FILE=palette-insight-server.spec
+  - ./freeze-requirement.sh palette-greenplum-agent noarch ${SPEC_FILE}
+  # Show the contents of the modified (frozen versions) spec file
+  - cat ${SPEC_FILE}
 
   # Create directories
   - mkdir -p etc/palette-insight-server
@@ -59,7 +62,7 @@ before_deploy:
   - echo "BUILDING VERSION:$RPM_VERSION"
 
   # build the rpm
-  - rpmbuild -bb --buildroot $(pwd) --define "version $RPM_VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" palette-insight-server.spec
+  - rpmbuild -bb --buildroot $(pwd) --define "version $RPM_VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" ${SPEC_FILE}
   - popd
 
   # Create the zip file for github upload. The following environment variables
