@@ -40,9 +40,7 @@ before_script:
   # re-compile the server so the version is updated
   - go install
 
-
-
-before_deploy:
+script:
   - export VERSION=$(echo $TRAVIS_TAG | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
   - pushd rpm-build
 
@@ -60,7 +58,10 @@ before_deploy:
   - cp -v $GOPATH/bin/insight-server usr/local/bin/palette-insight-server
   - cp -v ../sample.config etc/palette-insight-server/server.config
   - echo "BUILDING VERSION:$RPM_VERSION"
+  - popd
 
+before_deploy:
+  - pushd rpm-build
   # build the rpm
   - rpmbuild -bb --buildroot $(pwd) --define "version $RPM_VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" ${SPEC_FILE}
   - popd
