@@ -44,11 +44,11 @@ script:
   - export VERSION=$(echo $TRAVIS_TAG | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
   - pushd rpm-build
 
-    # Freeze the dependencies of requirements
+  #   # Freeze the dependencies of requirements
   - export SPEC_FILE=palette-insight-server.spec
-  - ./freeze-requirement.sh palette-insight-agent noarch ${SPEC_FILE}
-  # Show the contents of the modified (frozen versions) spec file
-  - cat ${SPEC_FILE}
+  # - ./freeze-requirement.sh palette-insight-agent noarch ${SPEC_FILE}
+  # # Show the contents of the modified (frozen versions) spec file
+  # - cat ${SPEC_FILE}
 
   # Create directories
   - mkdir -p etc/palette-insight-server
@@ -58,9 +58,7 @@ script:
   - cp -v $GOPATH/bin/insight-server usr/local/bin/palette-insight-server
   - cp -v ../sample.config etc/palette-insight-server/server.config
   - echo "BUILDING VERSION:$RPM_VERSION"
-  - popd
 
-before_deploy:
   - pushd rpm-build
   # build the rpm
   - rpmbuild -bb --buildroot $(pwd) --define "version $RPM_VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" ${SPEC_FILE}
@@ -71,6 +69,7 @@ before_deploy:
   - export PCKG_DIR=`pwd`
   - export PCKG_FILE=$PACKAGE-$PRODUCT_VERSION.zip
   - zip $PCKG_FILE -j $GOPATH/bin/insight-server
+
 
 deploy:
   provider: script
