@@ -59,7 +59,6 @@ script:
   - cp -v ../sample.config etc/palette-insight-server/server.config
   - echo "BUILDING VERSION:$RPM_VERSION"
 
-  - pushd rpm-build
   # build the rpm
   - rpmbuild -bb --buildroot $(pwd) --define "version $RPM_VERSION" --define "buildrelease $TRAVIS_BUILD_NUMBER" --define "_rpmdir $(pwd)/_build" ${SPEC_FILE}
   - popd
