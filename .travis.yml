@@ -41,7 +41,11 @@ before_script:
   - go install
 
 script:
-  - export VERSION=$(echo $TRAVIS_TAG | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
+  # Make the repository related environment variables. TRAVIS_REPO_SLUG is in the <owner_name/repo_name> format
+  - IFS='/' read -ra REPOINFO <<< "$TRAVIS_REPO_SLUG"
+  - export OWNER=${REPOINFO[0]}
+  - export PACKAGE=${REPOINFO[1]}
+ 
   - pushd rpm-build
 
   #   # Freeze the dependencies of requirements
