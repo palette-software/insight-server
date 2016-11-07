@@ -42,12 +42,15 @@ AutoReqProv: no
 Prefix: /
 
 Group: default
-License: commercial
-Vendor: palette-software.net
-URL: https://palette-software.net/insight
-Packager: Julian <julian@palette-software.com>
+License: Proprietary
+Vendor: Palette Software
+URL: http://www.palette-software.com
+Packager: Palette Developers <developers@palette-software.com>
 
-Requires: nginx,palette-insight-certs
+Requires: nginx
+
+# Travis CI will make sure that we depend on the latest version
+Requires: palette-insight-agent
 
 # Add the user for the service & setup SELinux
 # ============================================
