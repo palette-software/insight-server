@@ -18,14 +18,14 @@
 # Disable checking for unpackaged files ?
 #%undefine __check_files
 
-# Use md5 file digest method. 
+# Use md5 file digest method.
 # The first macro is the one used in RPM v4.9.1.1
 %define _binary_filedigest_algorithm 1
 # This is the macro I find on OSX when Homebrew provides rpmbuild (rpm v5.4.14)
 %define _build_binary_file_digest_algo 1
 
 # Use bzip2 payload compression
-%define _binary_payload w9.bzdio 
+%define _binary_payload w9.bzdio
 
 
 Name: palette-insight-server
@@ -51,38 +51,21 @@ Requires: nginx
 
 # Travis CI will make sure that we depend on the latest version
 Requires: palette-insight-agent
+Requires: palette-insight-toolkit
+Requires: palette-supervisor
 
 # Add the user for the service & setup SELinux
 # ============================================
 
-Requires(pre): /usr/sbin/useradd, /usr/bin/getent
-Requires(postun): /usr/sbin/userdel
-
 %pre
-# Add the user and set its homee
-/usr/bin/getent passwd %{serviceuser} || /usr/sbin/useradd -r -d %{servicehome} -s /bin/bash %{serviceuser}
-/usr/bin/getent group %{serviceuser} || /usr/sbin/groupadd -r -g %{serviceuser}
-
 # Override the SELinux flag that disallows httpd to connect to the go process
 # https://stackoverflow.com/questions/23948527/13-permission-denied-while-connecting-to-upstreamnginx
 setsebool httpd_can_network_connect on -P
 
-# Create the logfile directory for supervisord
-mkdir -p /var/log/palette-insight-server/
-
-# Create the storage directory under /data
-mkdir -p /data/insight-server/licenses
-chown insight:insight -R /data/insight-server
-
 # Start nginx on server start
 /sbin/chkconfig nginx on
 
-# Start supervisord on server start
-/sbin/chkconfig supervisord on
-
 %postun
-# Dont remove the user
-
 # TODO: we should switch back the httpd_can_network_connect flag for SELinux, IF we know that its safe to do so
 
 
@@ -99,13 +82,14 @@ Palette Insight Server
 # noop
 
 %install
-# noop
+# Create the logfile directory for supervisord
+mkdir -p %{buildroot}/var/log/palette-insight-server/
+
+# Create the storage directory under /data
+mkdir -p %{buildroot}/data/insight-server/licenses
 
 %clean
 # noop
-
-
-
 
 %files
 %defattr(-,root,root,-)
@@ -114,9 +98,12 @@ Palette Insight Server
 # with "/", then make sure paths with spaces are quoted. I hate rpm so much.
 /usr/local/bin/palette-insight-server
 
+%attr(-,insight, insight) %dir /data/insight-server/licenses
+%attr(-,insight, insight) %dir /data/insight-server
+%dir /var/log/palette-insight-server
+
 %config /etc/palette-insight-server/server.config
 %config /etc/nginx/conf.d/palette-insight-server.conf
 %config /etc/supervisord.d/palette-insight-server.ini
 
 %changelog
-
