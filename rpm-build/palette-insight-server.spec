@@ -62,6 +62,7 @@ Requires: palette-supervisor
 # https://stackoverflow.com/questions/23948527/13-permission-denied-while-connecting-to-upstreamnginx
 setsebool httpd_can_network_connect on -P
 
+%post
 # Start nginx on server start
 /sbin/chkconfig nginx on
 
