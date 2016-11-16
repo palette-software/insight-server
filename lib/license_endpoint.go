@@ -35,8 +35,18 @@ func UpdateLicense(licenseKey string) *LicenseData {
 	data.Set("license-key", licenseKey)
 
 	response, err := http.PostForm(licensingUrl, data)
-	if err != nil || response.StatusCode != http.StatusOK {
+	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"license": licenseKey,
+		}).Error("Posting license failed!")
 		return nil
+	}
+
+	if response.StatusCode != http.StatusOK {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"license": licenseKey,
+			"status code": response.StatusCode,
+		}).Error("Updating license failed!")
 	}
 
 	buf := new(bytes.Buffer)
@@ -45,6 +55,9 @@ func UpdateLicense(licenseKey string) *LicenseData {
 	var license LicenseData
 	err = json.Unmarshal(buf.Bytes(), &license)
 	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"license": licenseKey,
+		}).Error("License update response is not a valid JSON!")
 		return nil
 	}
 
@@ -52,6 +65,10 @@ func UpdateLicense(licenseKey string) *LicenseData {
 }
 
 func CheckLicense(license *LicenseData) (string, error) {
+	if license == nil {
+		return "", fmt.Errorf("Got nil license while checking license!")
+	}
+
 	expirationTime, err := time.Parse(serverForm, license.ExpirationTime)
 	if err != nil {
 		expirationTime, err = time.Parse(milliseclessServerForm, license.ExpirationTime)
