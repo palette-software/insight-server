@@ -103,6 +103,8 @@ mkdir -p %{buildroot}/data/insight-server/licenses
 %attr(-,insight, insight) %dir /data/insight-server
 %dir /var/log/palette-insight-server
 
+/etc/profile.d/palette_http_proxy.sh
+
 %config /etc/palette-insight-server/server.config
 %config /etc/nginx/conf.d/palette-insight-server.conf
 %config /etc/supervisord.d/palette-insight-server.ini
