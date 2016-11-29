@@ -66,6 +66,13 @@ setsebool httpd_can_network_connect on -P
 # Start nginx on server start
 /sbin/chkconfig nginx on
 
+# Detect new service
+supervisorctl reread
+supervisorctl update
+
+# Restart the insight-server supervisor service
+supervisorctl restart palette-insight-server
+
 %postun
 # TODO: we should switch back the httpd_can_network_connect flag for SELinux, IF we know that its safe to do so
 
