@@ -134,7 +134,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 		//uploadHandlerInner(w, r, tenant, uploader, maxidBackend)
 
 		// Convert the request to metadata for handling
-		meta, mainFile, err := makeMetaFromRequest(r, "palette")
+		meta, mainFile, err := MakeMetaFromRequest(r)
 		if err != nil {
 			WriteResponse(w, http.StatusBadRequest, fmt.Sprint(err), r)
 			return
@@ -166,8 +166,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 // ----------------
 
 // Converts an upload request to its metadata equivalent
-func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, multipart.File, error) {
-	requestTime := time.Now()
+func MakeMetaFromRequest(req *http.Request) (*UploadMeta, multipart.File, error) {
 
 	// parse the multipart form
 	err := req.ParseMultipartForm(multipartMaxSize)
@@ -223,7 +222,7 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 	}
 
 	// get the table name
-	tableName, seqIdx, partIdx, err := getTableInfoFromFilename(fileName)
+	tableName, requestTime, seqIdx, partIdx, err := getInfoFromFilename(fileName)
 	if err != nil {
 		// Close the file if we have errors here
 		mainFile.Close()
@@ -234,8 +233,6 @@ func makeMetaFromRequest(req *http.Request, tenantName string) (*UploadMeta, mul
 	return &UploadMeta{
 		OriginalFilename: fileName,
 		OriginalMd5:      fileMd5,
-
-		Tenant: tenantName,
 
 		Pkg:         foundUrlParams[pkgUrlParam],
 		Host:        foundUrlParams[hostUrlParam],

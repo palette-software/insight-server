@@ -191,25 +191,33 @@ func (m *Md5Hasher) Read(p []byte) (n int, err error) {
 // Getting table information
 // -------------------------
 
-var tableInfoRegex *regexp.Regexp = regexp.MustCompile("^([^-]+).*-seq([0-9]+).*part([0-9]+)")
+var tableInfoRegex *regexp.Regexp = regexp.MustCompile("^([^-]+)-(\\d{4}-\\d{2}-\\d{2}--\\d{2}-\\d{2}-\\d{2})--seq([0-9]+).*part([0-9]+)")
 
-func getTableInfoFromFilename(fileName string) (tableName string, seqIdx, partIdx int, err error) {
+const agentFilenameDateFormat = "2006-01-02--15-04-05"
+
+func getInfoFromFilename(fileName string) (tableName string, requestTime time.Time, seqIdx, partIdx int, err error) {
 	tableInfo := tableInfoRegex.FindStringSubmatch(fileName)
-	if tableInfo == nil {
-		return "", 0, 0, fmt.Errorf("Cannot find table name and info from file name: '%v'", fileName)
+	if len(tableInfo) < 5 {
+		return "", time.Time{}, 0, 0, fmt.Errorf("Cannot find table name and info from file name: '%v'", fileName)
+	}
+
+	// requestTime
+	requestTime, err = time.Parse(agentFilenameDateFormat, tableInfo[2])
+	if err != nil {
+		return "", time.Time{}, 0, 0, fmt.Errorf("Error parsing requestTime for '%s' '%s': %v", fileName, tableInfo[2], err)
 	}
 
 	// seqidx
-	seqIdx, err = strconv.Atoi(tableInfo[2])
+	seqIdx, err = strconv.Atoi(tableInfo[3])
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("Error parsing seq Idx for '%s' '%s': %v", fileName, tableInfo[2], err)
+		return "", time.Time{}, 0, 0, fmt.Errorf("Error parsing seq Idx for '%s' '%s': %v", fileName, tableInfo[2], err)
 	}
 	// seqidx
-	partIdx, err = strconv.Atoi(tableInfo[3])
+	partIdx, err = strconv.Atoi(tableInfo[4])
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("Error parsing part Idx for '%s' '%s': %v", fileName, tableInfo[3], err)
+		return "", time.Time{}, 0, 0, fmt.Errorf("Error parsing part Idx for '%s' '%s': %v", fileName, tableInfo[3], err)
 	}
-	return tableInfo[1], seqIdx, partIdx, nil
+	return tableInfo[1], requestTime, seqIdx, partIdx, nil
 }
 
 // Random string generation
