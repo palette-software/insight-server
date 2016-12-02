@@ -146,7 +146,7 @@ func MetadataUploadHandler(meta *UploadMeta, tmpDir, baseDir, archivedFile strin
 		}
 	}
 
-	log.Infof("Adding metadata file=%s", meta.OriginalFilename)
+	log.Infof("Adding metadata. file=%s", meta.OriginalFilename)
 
 	metadata := make([]string, len(preparsedServerlogsColumns))
 	for i, table := range preparsedServerlogsColumns {

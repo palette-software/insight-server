@@ -43,7 +43,7 @@ func AgentHeartbeat(hostname string) {
 func AgentListHandler(w http.ResponseWriter, req *http.Request) {
 	removeExpiredAgents()
 	if err := json.NewEncoder(w).Encode(agents); err != nil {
-		log.Error("Error encoding command json for http", err)
+		log.Error("Error encoding command json for http.", err)
 		WriteResponse(w, http.StatusInternalServerError, "", req)
 		return
 	}

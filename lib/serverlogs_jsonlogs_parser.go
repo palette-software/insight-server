@@ -108,13 +108,13 @@ func getElapsedFromPlainlogs(line string) (int64, error) {
 func getStartTime(end string, elapsed int64) string {
 	end_ts, err := time.Parse(jsonDateFormat, end)
 	if err != nil {
-		log.Error("Unable to parse ts while calculating startTime", err)
+		log.Error("Unable to parse ts while calculating startTime.", err)
 		return end
 	}
 	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
 	start := start_ts.Format(jsonDateFormat)
 	if err != nil {
-		log.Error("Unable to format start_ts while calculating it", err)
+		log.Error("Unable to format start_ts while calculating it.", err)
 		return end
 	}
 	return start

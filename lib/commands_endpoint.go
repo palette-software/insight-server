@@ -89,12 +89,12 @@ func AddCommandHandler(w http.ResponseWriter, r *http.Request) {
 
 	cmd, err := AddCommand(command)
 	if err != nil {
-		log.Error("Error while saving commands list", err)
+		log.Error("Error while saving commands list.", err)
 		WriteResponse(w, http.StatusInternalServerError, "", r)
 	}
 
 	if err := json.NewEncoder(w).Encode(cmd); err != nil {
-		log.Error("Error encoding commands for json", err)
+		log.Error("Error encoding commands for json.", err)
 		WriteResponse(w, http.StatusInternalServerError, "", r)
 		return
 	}
@@ -118,7 +118,7 @@ func NewGetCommandHandler() http.HandlerFunc {
 
 		if err := json.NewEncoder(w).Encode(cmd); err != nil {
 			// log the error
-			log.Error("Error encoding command json for http", err)
+			log.Error("Error encoding command json for http.", err)
 			// but hide this fact from the outside world
 			WriteResponse(w, http.StatusInternalServerError, "", r)
 			return

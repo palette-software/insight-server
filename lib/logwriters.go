@@ -176,7 +176,7 @@ func NewServerlogsWriter(outputDir, tmpDir, fileBaseName string, parsedHeaders [
 
 func (w *serverlogsWriter) WriteError(source *ServerlogsSource, parseErr error, line string) error {
 	// log errors so splunk can pick them up
-	log.Errorf("Error during serverlog parsing: host=%s file=%s line=%s", source.Host, source.Filename, line)
+	log.Errorf("Error during serverlog parsing. host=%s file=%s line=%s err=%s", source.Host, source.Filename, line, parseErr)
 
 	err := w.errorsWriter.WriteRow([]string{fmt.Sprint(parseErr), source.Host, source.Filename, line})
 	if err == nil {

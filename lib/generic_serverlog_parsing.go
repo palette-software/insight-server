@@ -177,9 +177,9 @@ func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) (
 	go func() {
 		for serverLog := range inputChan {
 			meta := serverLog.Meta
-			log.Infof("Received parse request: host=%s file=%s", meta.Host, meta.OriginalFilename)
+			log.Infof("Received parse request. host=%s file=%s", meta.Host, meta.OriginalFilename)
 			if err := processServerlogRequest(tmpDir, baseDir, archivesDir, serverLog, parserMap[serverLog.Format]); err != nil {
-				log.Errorf("Error during parsing of serverlog host=%s file=%s", meta.Host, meta.OriginalFilename)
+				log.Errorf("Error during parsing of serverlog. host=%s file=%s err=%s", meta.Host, meta.OriginalFilename, err)
 			}
 		}
 	}()
@@ -221,7 +221,7 @@ func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog Serv
 		return fmt.Errorf("Error during parsing serverlog file '%s': %v", inputFn, err)
 	}
 
-	log.Infof("Done parsing host=%s file=%s count=%d errorCount=%d", meta.Host,
+	log.Infof("Done parsing. host=%s file=%s count=%d errorCount=%d", meta.Host,
 		meta.OriginalFilename, logWriter.ParsedRowCount(), logWriter.ErrorRowCount())
 
 	return nil

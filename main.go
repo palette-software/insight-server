@@ -75,7 +75,7 @@ func main() {
 	license := insight_server.UpdateLicense(config.LicenseKey)
 	_, err := insight_server.CheckLicense(license)
 	if err != nil {
-		log.Errorf("Invalid or expired license. Exiting. license=%s version=%s", config.LicenseKey, insight_server.GetVersion())
+		log.Errorf("Invalid or expired license - exiting. license=%s version=%s err=%s", config.LicenseKey, insight_server.GetVersion(), err)
 		os.Exit(1)
 	}
 
@@ -94,7 +94,7 @@ func main() {
 
 	// setup the log timezone to be UTC (and keep any old flags)
 	// insight_server.SetupLogging(config.LogFormat, config.LogLevel)
-	log.Infof("Starting up version=%s path=%s", insight_server.GetVersion(), getCurrentPath())
+	log.Infof("Starting up. version=%s path=%s", insight_server.GetVersion(), getCurrentPath())
 
 	//
 	// BACKENDS

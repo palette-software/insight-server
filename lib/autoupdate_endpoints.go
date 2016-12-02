@@ -63,7 +63,7 @@ type UpdateVersion struct {
 func LatestVersion(updateDirectory string) (*UpdateVersion, error) {
 	latestVersion, err := getLatestAgentVersion(updateDirectory)
 	if err != nil {
-		log.Error("Error querying Agent version", err)
+		log.Error("Error querying Agent version.", err)
 		return nil, fmt.Errorf("No latest version found yet")
 	}
 	return latestVersion, nil

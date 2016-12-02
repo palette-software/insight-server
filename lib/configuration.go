@@ -38,7 +38,7 @@ type InsightWebServiceConfig struct {
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		log.Error("Error getting current path", err)
+		log.Error("Error getting current path.", err)
 		panic(err)
 	}
 	return dir
