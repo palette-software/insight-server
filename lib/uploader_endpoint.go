@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 
 	"bufio"
 	"bytes"
@@ -136,7 +136,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 		// Convert the request to metadata for handling
 		meta, mainFile, err := makeMetaFromRequest(r, "palette")
 		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, fmt.Sprint(err))
+			WriteResponse(w, http.StatusBadRequest, fmt.Sprint(err), r)
 			return
 		}
 		defer mainFile.Close()
@@ -146,7 +146,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 
 		// find the handler for this table
 		if err := findUploadHandler(meta, handlers, fallbackHandler).HandleUpload(meta, mainFile); err != nil {
-			WriteResponse(w, http.StatusInternalServerError, fmt.Sprint(err))
+			WriteResponse(w, http.StatusInternalServerError, fmt.Sprint(err), r)
 			return
 		}
 
@@ -154,16 +154,11 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 		maxid, err := getUrlParam(r.URL, "maxid")
 		if err == nil {
 			if err := maxidBackend.SaveMaxId(meta.Tenant, meta.TableName, maxid); err != nil {
-				logrus.WithFields(logrus.Fields{
-					"component": "maxid",
-					"tenant":    meta.Tenant,
-					"table":     meta.TableName,
-					"maxid":     maxid,
-				}).WithError(err).Error("Failed to save maxid")
+				log.Errorf("Failed to save maxid: table=%s maxid=%s err=%s", meta.TableName, maxid, err)
 			}
 		}
 
-		WriteResponse(w, http.StatusOK, "OK")
+		WriteResponse(w, http.StatusOK, "OK", r)
 	}, nil
 }
 
@@ -452,15 +447,8 @@ func copyUploadedFileTo(meta *UploadMeta, reader io.Reader, baseDir, tmpDir stri
 		return "", nil, fmt.Errorf("Error writing uploaded bytes to '%s': %v", outFileName, err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"component":        "copy",
-		"sourceHost":       meta.Host,
-		"tenant":           meta.Tenant,
-		"bytesWritten":     outputWriter.BytesWritten,
-		"originalFileName": meta.OriginalFilename,
-		"tableName":        meta.TableName,
-		"outputFile":       outFileName,
-	}).Info("Copied uploaded file")
+	log.Infof("Copied uploaded file: host=%s size=%d filename=%s table=%s destination=%s",
+		meta.Host, outputWriter.BytesWritten, meta.OriginalFilename, meta.TableName, outFileName)
 
 	return outFileName, md5HashedReader.GetHash(), nil
 }

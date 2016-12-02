@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 // An agent command with a timestamp
@@ -83,23 +83,19 @@ func AddCommand(command string) (*AgentCommand, error) {
 func AddCommandHandler(w http.ResponseWriter, r *http.Request) {
 	command := r.PostFormValue("command")
 	if command == "" {
-		WriteResponse(w, http.StatusBadRequest, "No 'command' parameter given")
+		WriteResponse(w, http.StatusBadRequest, "No 'command' parameter given", r)
 		return
 	}
 
 	cmd, err := AddCommand(command)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"component": "commands",
-		}).WithError(err).Error("Error while saving commands list")
-		WriteResponse(w, http.StatusInternalServerError, "")
+		log.Error("Error while saving commands list.", err)
+		WriteResponse(w, http.StatusInternalServerError, "", r)
 	}
 
 	if err := json.NewEncoder(w).Encode(cmd); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"component": "commands",
-		}).WithError(err).Error("Error encoding commands for json")
-		WriteResponse(w, http.StatusInternalServerError, "")
+		log.Error("Error encoding commands for json.", err)
+		WriteResponse(w, http.StatusInternalServerError, "", r)
 		return
 	}
 
@@ -114,7 +110,7 @@ func NewGetCommandHandler() http.HandlerFunc {
 
 		// if we dont have the command
 		if cmd.Cmd == "" || cmd.Ts == "" {
-			WriteResponse(w, http.StatusNoContent, "")
+			WriteResponse(w, http.StatusNoContent, "", r)
 			return
 		}
 
@@ -122,11 +118,9 @@ func NewGetCommandHandler() http.HandlerFunc {
 
 		if err := json.NewEncoder(w).Encode(cmd); err != nil {
 			// log the error
-			logrus.WithFields(logrus.Fields{
-				"component": "commands",
-			}).WithError(err).Error("Error encoding command json for http")
+			log.Error("Error encoding command json for http.", err)
 			// but hide this fact from the outside world
-			WriteResponse(w, http.StatusInternalServerError, "")
+			WriteResponse(w, http.StatusInternalServerError, "", r)
 			return
 		}
 		// the json should have been rendered at this point

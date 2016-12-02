@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 // HTTP HANDLERS
@@ -18,7 +18,7 @@ func MakeMaxIdHandler(backend MaxIdBackend) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tableName, err := getUrlParam(r.URL, "table")
 		if err != nil {
-			WriteResponse(w, http.StatusBadRequest, "No 'table' parameter provided")
+			WriteResponse(w, http.StatusBadRequest, "No 'table' parameter provided", r)
 			return
 		}
 
@@ -26,16 +26,16 @@ func MakeMaxIdHandler(backend MaxIdBackend) http.HandlerFunc {
 		maxId, err := backend.GetMaxId("palette", tableName)
 		if err != nil {
 			if os.IsNotExist(err) {
-				WriteResponse(w, http.StatusNoContent, "")
+				WriteResponse(w, http.StatusNoContent, "", r)
 				return
 			}
 
-			WriteResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while reading: %v", err))
+			WriteResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error while reading: %v", err), r)
 			return
 		}
 
 		// signal that everything went ok
-		WriteResponse(w, http.StatusOK, maxId)
+		WriteResponse(w, http.StatusOK, maxId, r)
 	}
 }
 
@@ -87,12 +87,7 @@ func (m *fileMaxIdBackend) getFileName(username, tableName string) string {
 
 func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
 	fileName := m.getFileName(username, tableName)
-	logrus.WithFields(logrus.Fields{
-		"component": "maxid",
-		"table":     tableName,
-		"file":      fileName,
-		"maxid":     maxid,
-	}).Debug("Writing maxid")
+	log.Debugf("Writing maxid: table=%s file=%s maxid=%s", tableName, fileName, maxid)
 
 	// create the output file path
 	if err := os.MkdirAll(filepath.Dir(fileName), OUTPUT_DEFAULT_DIRMODE); err != nil {
@@ -105,22 +100,14 @@ func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
 func (m *fileMaxIdBackend) GetMaxId(username, tableName string) (string, error) {
 	fileName := m.getFileName(username, tableName)
 
-	logrus.WithFields(logrus.Fields{
-		"component": "maxid",
-		"table":     tableName,
-		"file":      fileName,
-	}).Debug("getting maxid for table")
+	log.Debugf("Getting maxid for table: table=%s file=%s", tableName, fileName)
 
 	contents, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return "", err
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"component": "maxid",
-		"table":     tableName,
-		"maxid":     contents,
-	}).Info("Got maxid for table")
+	log.Infof("Got maxid for table: table=%s maxid=%s", tableName, contents)
 
 	return string(contents), nil
 }

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 const licensingUrl = "https://licensing.palette-software.com/license"
@@ -25,6 +26,7 @@ type LicenseData struct {
 	Id             int64  `json:"id"`
 	Stage          string `json:"stage"`
 	Owner          string `json:"owner"`
+	Name           string `json:"name"`
 	Valid          bool   `json:"valid"`
 }
 
@@ -36,17 +38,12 @@ func UpdateLicense(licenseKey string) *LicenseData {
 
 	response, err := http.PostForm(licensingUrl, data)
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"license": licenseKey,
-		}).Error("Posting license failed!")
+		log.Errorf("Posting license failed: license=%s err=%s", licenseKey, err)
 		return nil
 	}
 
 	if response.StatusCode != http.StatusOK {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"license": licenseKey,
-			"status code": response.StatusCode,
-		}).Error("Updating license failed!")
+		log.Errorf("Updating license failed: license=%s status=%d err=%s", licenseKey, response.StatusCode, err)
 	}
 
 	buf := new(bytes.Buffer)
@@ -55,9 +52,7 @@ func UpdateLicense(licenseKey string) *LicenseData {
 	var license LicenseData
 	err = json.Unmarshal(buf.Bytes(), &license)
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"license": licenseKey,
-		}).Error("License update response is not a valid JSON!")
+		log.Errorf("License update response is not a valid JSON: license=%s err=%s", licenseKey, err)
 		return nil
 	}
 
@@ -100,16 +95,12 @@ func LicenseHandler(licenseKey string) http.HandlerFunc {
 
 		license, err := CheckLicense(cachedLicense)
 		if err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"version": GetVersion(),
-				"license": licenseKey,
-			}).Error("Invalid or expired license, exiting.")
-
-			WriteResponse(w, http.StatusNotFound, "")
+			log.Errorf("Invalid or expired license, exiting: version=%s license=%s err=%s", GetVersion(), licenseKey, err)
+			WriteResponse(w, http.StatusNotFound, "", req)
 			return
 		}
 
-		WriteResponse(w, http.StatusOK, license)
+		WriteResponse(w, http.StatusOK, license, req)
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 type ServerlogWriter interface {
@@ -176,12 +176,7 @@ func NewServerlogsWriter(outputDir, tmpDir, fileBaseName string, parsedHeaders [
 
 func (w *serverlogsWriter) WriteError(source *ServerlogsSource, parseErr error, line string) error {
 	// log errors so splunk can pick them up
-	logrus.WithFields(logrus.Fields{
-		"component":  "serverlogs",
-		"sourceHost": source.Host,
-		"file":       source.Filename,
-		"line":       line,
-	}).WithError(parseErr).Error("Error during serverlog parsing")
+	log.Errorf("Error during serverlog parsing. host=%s file=%s line=%s err=%s", source.Host, source.Filename, line, parseErr)
 
 	err := w.errorsWriter.WriteRow([]string{fmt.Sprint(parseErr), source.Host, source.Filename, line})
 	if err == nil {

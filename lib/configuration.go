@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 
 	"github.com/namsral/flag"
 )
@@ -38,7 +38,7 @@ type InsightWebServiceConfig struct {
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		logrus.WithField("component", "config").WithError(err).Fatal("Error getting current path")
+		log.Error("Error getting current path.", err)
 		panic(err)
 	}
 	return dir

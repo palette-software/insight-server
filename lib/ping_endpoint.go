@@ -5,5 +5,5 @@ import (
 )
 
 func PingHandler(w http.ResponseWriter, req *http.Request) {
-	WriteResponse(w, http.StatusOK, "PONG")
+	WriteResponse(w, http.StatusOK, "PONG", req)
 }

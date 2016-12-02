@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 // JSON Logs
@@ -108,13 +108,13 @@ func getElapsedFromPlainlogs(line string) (int64, error) {
 func getStartTime(end string, elapsed int64) string {
 	end_ts, err := time.Parse(jsonDateFormat, end)
 	if err != nil {
-		logrus.Error("Unable to parse ts while calculating startTime")
+		log.Error("Unable to parse ts while calculating startTime.", err)
 		return end
 	}
 	start_ts := end_ts.Add(-time.Duration(elapsed) * time.Millisecond)
 	start := start_ts.Format(jsonDateFormat)
 	if err != nil {
-		logrus.Error("Unable to format start_ts while calculating it")
+		log.Error("Unable to format start_ts while calculating it.", err)
 		return end
 	}
 	return start
@@ -169,13 +169,7 @@ func (j *JsonLogParser) Parse(state ServerlogParserState, src *ServerlogsSource,
 	if err != nil {
 		// As the logging has been moved from getElapsed to
 		// here, log the parse errors properly
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"component": "serverlogs",
-			"file":      src.Filename,
-			"machine":   src.Host,
-			"k":         outerJson.K,
-			"v":         v,
-		}).Errorf("Error parsing elapsed time")
+		log.Errorf("Error parsing elapsed time file=%s host=%s k=%s v=%s err=%s", src.Filename, src.Host, outerJson.K, v, err)
 	}
 
 	// Get the elapsed values

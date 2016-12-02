@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 // Identifies the source of a serverlog
@@ -177,19 +177,9 @@ func MakeServerlogsParser(tmpDir, baseDir, archivesDir string, bufferSize int) (
 	go func() {
 		for serverLog := range inputChan {
 			meta := serverLog.Meta
-			logrus.WithFields(logrus.Fields{
-				"component":  "serverlogs",
-				"sourceHost": meta.Host,
-				"tenant":     meta.Tenant,
-				"file":       meta.OriginalFilename,
-			}).Info("Received parse request")
+			log.Infof("Received parse request. host=%s file=%s", meta.Host, meta.OriginalFilename)
 			if err := processServerlogRequest(tmpDir, baseDir, archivesDir, serverLog, parserMap[serverLog.Format]); err != nil {
-				logrus.WithFields(logrus.Fields{
-					"component":  "serverlogs",
-					"sourceHost": meta.Host,
-					"tenant":     meta.Tenant,
-					"file":       meta.OriginalFilename,
-				}).WithError(err).Error("Error during parsing of serverlog")
+				log.Errorf("Error during parsing of serverlog. host=%s file=%s err=%s", meta.Host, meta.OriginalFilename, err)
 			}
 		}
 	}()
@@ -231,14 +221,8 @@ func processServerlogRequest(tmpDir, baseDir, archivesDir string, serverLog Serv
 		return fmt.Errorf("Error during parsing serverlog file '%s': %v", inputFn, err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"component":  "serverlogs",
-		"file":       meta.OriginalFilename,
-		"tenant":     meta.Tenant,
-		"sourceHost": meta.Host,
-		"parsedRows": logWriter.ParsedRowCount(),
-		"errorRows":  logWriter.ErrorRowCount(),
-	}).Info("Done parsing")
+	log.Infof("Done parsing. host=%s file=%s count=%d errorCount=%d", meta.Host,
+		meta.OriginalFilename, logWriter.ParsedRowCount(), logWriter.ErrorRowCount())
 
 	return nil
 }
