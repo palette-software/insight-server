@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 // The base structure for a SemVer like version
@@ -63,7 +63,7 @@ type UpdateVersion struct {
 func LatestVersion(updateDirectory string) (*UpdateVersion, error) {
 	latestVersion, err := getLatestAgentVersion(updateDirectory)
 	if err != nil {
-		logrus.WithError(err).Error("Error querying Agent version")
+		log.Error("Error querying Agent version", err)
 		return nil, fmt.Errorf("No latest version found yet")
 	}
 	return latestVersion, nil
@@ -145,7 +145,7 @@ func GetAutoupdateLatestVersionHandler(updateDirectory string) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		latestVersion, err := LatestVersion(updateDirectory)
 		if err != nil {
-			WriteResponse(w, http.StatusNotFound, fmt.Sprintf("%v", err))
+			WriteResponse(w, http.StatusNotFound, fmt.Sprintf("%v", err), r)
 			return
 		}
 

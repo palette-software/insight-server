@@ -10,10 +10,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
+
+const SplunkServerAddress = "diagnostics.palette-software.com"
+const SplunkToken = "B843261C-134E-48D8-B574-9E23F9A4A21E"
 
 var authHeaderRegExp = regexp.MustCompile("Token (.*)")
 
@@ -23,7 +27,7 @@ func AuthMiddleware(licenseKey string, h http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		token := authHeaderRegExp.FindStringSubmatch(string(authHeader))
 		if len(token) < 2 || strings.ToLower(token[1]) != licenseKey {
-			insight_server.WriteResponse(w, http.StatusUnauthorized, "Not authorized")
+			insight_server.WriteResponse(w, http.StatusUnauthorized, "Not authorized", r)
 			return
 		}
 		h.ServeHTTP(w, r)
@@ -33,12 +37,7 @@ func AuthMiddleware(licenseKey string, h http.Handler) http.Handler {
 // Middleware to log all incoming requests in a common format
 func RequestLogMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logrus.WithFields(logrus.Fields{
-			"component":     "http",
-			"method":        r.Method,
-			"remoteAddress": r.RemoteAddr,
-			"url":           r.URL.RequestURI(),
-		}).Info("==> Request")
+		log.Infof("Request: method=%s remoteAddress=%s url=%s", r.Method, r.RemoteAddr, r.URL.RequestURI())
 		// also write all header we care about for proxies here
 		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Add("Pragma", "no-cache")
@@ -61,7 +60,7 @@ func HeartbeatMiddleware(h http.Handler) http.Handler {
 func getCurrentPath() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		logrus.Fatal(err)
+		log.Error("Error while geting current path: ", err)
 		panic(err)
 	}
 	return dir
@@ -71,25 +70,31 @@ func getCurrentPath() string {
 func main() {
 	config := insight_server.ParseOptions()
 
-	// setup the log timezone to be UTC (and keep any old flags)
-	insight_server.SetupLogging(config.LogFormat, config.LogLevel)
-	logrus.WithFields(logrus.Fields{
-		"component": "boot",
-		"version":   insight_server.GetVersion(),
-		"path":      getCurrentPath(),
-	}).Info("Starting palette insight-server")
-	//
+	log.AddTarget(os.Stdout, log.LevelDebug)
+
 	license := insight_server.UpdateLicense(config.LicenseKey)
 	_, err := insight_server.CheckLicense(license)
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"version": insight_server.GetVersion(),
-			"license": config.LicenseKey,
-		}).Error("Invalid or expired license, exiting.")
+		log.Errorf("Invalid or expired license. Exiting. license=%s version=%s", config.LicenseKey, insight_server.GetVersion())
 		os.Exit(1)
 	}
 
+	log.Infof("License is registered to: %s", license.Name)
+
 	insight_server.InitCommandEndpoints()
+
+	// Add logging to Splunk as well
+	splunkLogger, err := log.NewSplunkTarget(SplunkServerAddress, SplunkToken, license.Name)
+	if err == nil {
+		defer splunkLogger.Close()
+		log.AddTarget(splunkLogger, log.LevelDebug)
+	} else {
+		log.Error("Failed to create Splunk target! Error: ", err)
+	}
+
+	// setup the log timezone to be UTC (and keep any old flags)
+	// insight_server.SetupLogging(config.LogFormat, config.LogLevel)
+	log.Infof("Starting up version=%s path=%s", insight_server.GetVersion(), getCurrentPath())
 
 	//
 	// BACKENDS
@@ -108,9 +113,7 @@ func main() {
 
 	uploadHandler, err := insight_server.MakeUploadHandler(maxIdBackend, tempDir, config.UploadBasePath, config.ServerlogsArchivePath, config.UseOldFormatFilename)
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"component": "uploads",
-		}).Fatal("Error during upload handler creation")
+		log.Error("Error during upload handler creation", err)
 		// Fail with an error here
 		os.Exit(-1)
 	}
@@ -148,7 +151,7 @@ func main() {
 	mainRouter.HandleFunc("/license-check", func(w http.ResponseWriter, req *http.Request) {
 		owner, _ := insight_server.GetLicenseOwner()
 		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", owner)
-		insight_server.WriteResponse(w, http.StatusOK, response)
+		insight_server.WriteResponse(w, http.StatusOK, response, req)
 	})
 	mainRouter.Handle("/updates/latest-version", insight_server.GetAutoupdateLatestVersionHandler(config.UpdatesDirectory))
 
@@ -163,29 +166,22 @@ func main() {
 	// http.Handle("/", handlerWithLogging)
 
 	bindAddressWithPort := fmt.Sprintf("%s:%v", config.BindAddress, config.BindPort)
-	logrus.WithFields(logrus.Fields{
-		"component": "http",
-		"address":   bindAddressWithPort,
-	}).Info("Webservice starting")
+	log.Infof("Starting webservice: address=%s port=%d", config.BindAddress, config.BindPort)
 
 	if config.UseTls {
-		logrus.WithFields(logrus.Fields{
-			"component": "http",
-			"cert":      config.TlsCert,
-			"key":       config.TlsKey,
-		}).Info("Using TLS cert")
+		log.Infof("Using TLS cert: cert=%s key=%s", config.TlsCert, config.TlsKey)
 
 		err := http.ListenAndServeTLS(bindAddressWithPort, config.TlsCert, config.TlsKey, handlers.CORS(
 			handlers.AllowedOrigins([]string{"*"}),
 			handlers.AllowedMethods([]string{"GET", "PUT"}),
 		)(handlerWithLogging))
-		logrus.Fatal(err)
+		log.Errorf("Exiting. err=%s", err)
 	} else {
 		err := http.ListenAndServe(bindAddressWithPort, handlers.CORS(
 			handlers.AllowedOrigins([]string{"*"}),
 			handlers.AllowedMethods([]string{"GET", "PUT"}),
 		)(handlerWithLogging))
-		logrus.Fatal(err)
+		log.Errorf("Exiting. err=%s", err)
 	}
 
 }

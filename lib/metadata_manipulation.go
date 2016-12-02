@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 type metaTable struct {
@@ -146,10 +146,7 @@ func MetadataUploadHandler(meta *UploadMeta, tmpDir, baseDir, archivedFile strin
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"component": "metadata",
-		"file":      meta.OriginalFilename,
-	}).Info("Adding metadata")
+	log.Infof("Adding metadata file=%s", meta.OriginalFilename)
 
 	metadata := make([]string, len(preparsedServerlogsColumns))
 	for i, table := range preparsedServerlogsColumns {

@@ -21,7 +21,7 @@ import (
 
 	"unicode/utf8"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 // GENERIC HELPERS
@@ -36,18 +36,12 @@ func SanitizeName(name string) string {
 }
 
 // Writes the error message to the log then responds with an error message
-func WriteResponse(w http.ResponseWriter, status int, err string) {
-	logLine := logrus.WithFields(logrus.Fields{
-		"component": "http",
-		"status":    status,
-		"response":  err,
-	})
-
+func WriteResponse(w http.ResponseWriter, status int, err string, req *http.Request) {
 	// Log as Info if we are sending 20x or as error otherwise
 	if status == http.StatusOK || status == http.StatusNoContent {
-		logLine.Info("<== Response")
+		log.Infof("Response: url=%s status=%d", req.URL.RequestURI(), status)
 	} else {
-		logLine.Error("<== Response")
+		log.Errorf("Response: url=%s status=%d err=%s", req.URL.RequestURI(), status, err)
 	}
 
 	http.Error(w, err, status)
@@ -82,10 +76,7 @@ func CreateDirectoryIfNotExists(path string) error {
 	}
 
 	// create the directory
-	logrus.WithFields(logrus.Fields{
-		"component": "storage",
-		"directory": path,
-	}).Info("Creating directory")
+	log.Info("Creating directory: ", path)
 
 	if err := os.MkdirAll(path, OUTPUT_DEFAULT_DIRMODE); err != nil {
 		return err

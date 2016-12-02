@@ -3,6 +3,7 @@ package insight_server
 import (
 	"compress/gzip"
 	"crypto/md5"
+	"crypto/rand"
 	"fmt"
 	"hash"
 	"io"
@@ -10,9 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"crypto/rand"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/palette-software/insight-tester/common/logging"
 )
 
 type gzippedFileReader struct {
@@ -174,11 +174,7 @@ func (g *GzippedFileWriterWithTemp) CloseWithFileName(outFileName string) error 
 	}
 
 	// Add the MD5 to the filename
-	logrus.WithFields(logrus.Fields{
-		"component":  "gzip-out",
-		"sourceFile": g.tmpFile.Name(),
-		"outputFile": outFileName,
-	}).Debug("Moving output")
+	log.Debugf("Moving output source=%s destination=%s", g.tmpFile.Name(), outFileName)
 	// now we can move it to its final destination
 	return os.Rename(g.tmpFile.Name(), outFileName)
 }
