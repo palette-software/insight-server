@@ -22,9 +22,6 @@ type UploadMeta struct {
 	// The filename as submitted by the uploader
 	OriginalFilename string
 
-	// The tenant this file belongs to
-	Tenant string
-
 	// The package this file was uploaded into
 	Pkg string
 
@@ -89,7 +86,7 @@ func (u *UploadMeta) GetOutputFilename(baseDir string) string {
 	//
 	return filepath.ToSlash(path.Join(
 		baseDir,
-		SanitizeName(u.Tenant),
+		"palette",
 		"uploads",
 		SanitizeName(u.Pkg),
 		SanitizeName(u.Host),
@@ -153,7 +150,7 @@ func MakeUploadHandler(maxidBackend MaxIdBackend, tmpDir, baseDir, archivesDir s
 		// get the maxid and save it if needed
 		maxid, err := getUrlParam(r.URL, "maxid")
 		if err == nil {
-			if err := maxidBackend.SaveMaxId(meta.Tenant, meta.TableName, maxid); err != nil {
+			if err := maxidBackend.SaveMaxId(meta.TableName, maxid); err != nil {
 				log.Errorf("Failed to save maxid: table=%s maxid=%s err=%s", meta.TableName, maxid, err)
 			}
 		}

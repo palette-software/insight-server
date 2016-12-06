@@ -23,7 +23,7 @@ func MakeMaxIdHandler(backend MaxIdBackend) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
-		maxId, err := backend.GetMaxId("palette", tableName)
+		maxId, err := backend.GetMaxId(tableName)
 		if err != nil {
 			if os.IsNotExist(err) {
 				WriteResponse(w, http.StatusNoContent, "", r)
@@ -57,8 +57,8 @@ func getTableNameFromFilename(fileName string) (string, error) {
 
 // Implements storing and recalling a maxId
 type MaxIdBackend interface {
-	SaveMaxId(username, tableName, maxid string) error
-	GetMaxId(username, tableName string) (string, error)
+	SaveMaxId(tableName, maxid string) error
+	GetMaxId(tableName string) (string, error)
 }
 
 const (
@@ -81,12 +81,12 @@ type fileMaxIdBackend struct {
 }
 
 // gets the file name of a tables maxid file
-func (m *fileMaxIdBackend) getFileName(username, tableName string) string {
-	return filepath.Join(m.basePath, SanitizeName(username), SanitizeName(tableName))
+func (m *fileMaxIdBackend) getFileName(tableName string) string {
+	return filepath.Join(m.basePath, "palette", SanitizeName(tableName))
 }
 
-func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
-	fileName := m.getFileName(username, tableName)
+func (m *fileMaxIdBackend) SaveMaxId(tableName, maxid string) error {
+	fileName := m.getFileName(tableName)
 	log.Debugf("Writing maxid: table=%s file=%s maxid=%s", tableName, fileName, maxid)
 
 	// create the output file path
@@ -97,8 +97,8 @@ func (m *fileMaxIdBackend) SaveMaxId(username, tableName, maxid string) error {
 	return ioutil.WriteFile(fileName, []byte(maxid), maxid_backend_default_filemode)
 }
 
-func (m *fileMaxIdBackend) GetMaxId(username, tableName string) (string, error) {
-	fileName := m.getFileName(username, tableName)
+func (m *fileMaxIdBackend) GetMaxId(tableName string) (string, error) {
+	fileName := m.getFileName(tableName)
 
 	log.Debugf("Getting maxid for table: table=%s file=%s", tableName, fileName)
 
