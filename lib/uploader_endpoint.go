@@ -86,7 +86,7 @@ func (u *UploadMeta) GetOutputFilename(baseDir string) string {
 	//
 	return filepath.ToSlash(path.Join(
 		baseDir,
-		"palette",
+		PALETTE_BASE_FOLDER,
 		"uploads",
 		SanitizeName(u.Pkg),
 		SanitizeName(u.Host),

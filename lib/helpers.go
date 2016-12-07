@@ -27,6 +27,8 @@ import (
 // GENERIC HELPERS
 // ===============
 
+const PALETTE_BASE_FOLDER = "palette"
+
 // The regexp we use for sanitizing any strings to a file name that is valid on all systems
 var sanitizeRegexp = regexp.MustCompile("[^_A-Za-z0-9]")
 
