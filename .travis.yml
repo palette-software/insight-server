@@ -36,7 +36,7 @@ before_install:
 # Put a proper version string into the version file
 before_script:
   - echo "==== Setting ${RPM_VERSION} as version ===="
-  - echo ${RPM_VERSION} > lib/assets/VERSION
+  - echo -n ${RPM_VERSION} > lib/assets/VERSION
 
   # re-generate the assets after the version change
   - go generate -x github.com/palette-software/insight-server/lib
