@@ -145,16 +145,6 @@ func main() {
 
 	// DEPRECATING
 	mainRouter.Handle("/updates/products/agent/{version}/{rest}", http.StripPrefix("/updates/products/agent/", http.FileServer(http.Dir(config.UpdatesDirectory)))).Methods("GET")
-
-	// DEPRECATING IN v2
-	// License check
-	mainRouter.HandleFunc("/license-check", func(w http.ResponseWriter, req *http.Request) {
-		owner, _ := insight_server.GetLicenseOwner()
-		response := fmt.Sprintf("{\"owner\": \"%s\", \"valid\": true}", owner)
-		insight_server.WriteResponse(w, http.StatusOK, response, req)
-	})
-	mainRouter.Handle("/updates/latest-version", insight_server.GetAutoupdateLatestVersionHandler(config.UpdatesDirectory))
-
 	mainRouter.HandleFunc("/commands/new", insight_server.AddCommandHandler)
 	mainRouter.HandleFunc("/commands/recent", insight_server.NewGetCommandHandler())
 
