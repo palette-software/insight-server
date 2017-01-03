@@ -56,6 +56,10 @@ func UpdateLicense(licenseKey string) *LicenseData {
 		return nil
 	}
 
+	// The licensing server response does not contain the license owner, but currently it should be
+	// the same as the license name
+	license.Owner = license.Name
+
 	return &license
 }
 
@@ -72,9 +76,8 @@ func CheckLicense(license *LicenseData) (string, error) {
 		}
 	}
 
-	license.Owner, err = GetLicenseOwner()
-	if err != nil {
-		return "", err
+	if license.Owner == "" {
+		return "", fmt.Errorf("Owner of the license is empty!")
 	}
 
 	license.Valid = time.Now().Before(expirationTime)
