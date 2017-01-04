@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
-	"strings"
 	"time"
 
 	log "github.com/palette-software/insight-tester/common/logging"
@@ -105,14 +103,4 @@ func LicenseHandler(licenseKey string) http.HandlerFunc {
 
 		WriteResponse(w, http.StatusOK, license, req)
 	}
-}
-
-func GetLicenseOwner() (string, error) {
-	owner, err := os.Hostname()
-	if err != nil {
-		return "", fmt.Errorf("Failed to get hostname to prepare license owner name! Error: %v", err)
-	}
-
-	owner = strings.TrimSuffix(owner, "-insight")
-	return strings.ToUpper(owner), nil
 }
