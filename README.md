@@ -18,9 +18,12 @@ This component is responsible for receiving data from the agents on the Tableau 
 ### From rpm.palette-software.com
 
 Make sure there is a repository definition file pointing to Palette RPM Repository:
-```/etc/yum.repos.d/palette.repo```
+```
+/etc/yum.repos.d/palette.repo
+```
 
 Contents:
+
 ```
           [palette-rpm]
           name=Palette RPM
