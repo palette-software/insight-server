@@ -16,9 +16,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const SplunkServerAddress = "diagnostics.palette-software.com"
-const SplunkToken = "B843261C-134E-48D8-B574-9E23F9A4A21E"
-
 var authHeaderRegExp = regexp.MustCompile("Token (.*)")
 
 // Auth middleware
@@ -82,15 +79,6 @@ func main() {
 	log.Infof("License is registered to: %s", license.Name)
 
 	insight_server.InitCommandEndpoints()
-
-	// Add logging to Splunk as well
-	splunkLogger, err := log.NewSplunkTarget(SplunkServerAddress, SplunkToken, license.Name)
-	if err == nil {
-		defer splunkLogger.Close()
-		log.AddTarget(splunkLogger, log.LevelDebug)
-	} else {
-		log.Error("Failed to create Splunk target! Error: ", err)
-	}
 
 	// setup the log timezone to be UTC (and keep any old flags)
 	// insight_server.SetupLogging(config.LogFormat, config.LogLevel)
