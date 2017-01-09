@@ -18,6 +18,7 @@ This component is responsible for receiving data from the agents on the Tableau 
 ### From rpm.palette-software.com
 
 Make sure there is a repository definition file pointing to Palette RPM Repository:
+
 ```
 /etc/yum.repos.d/palette.repo
 ```
@@ -25,14 +26,15 @@ Make sure there is a repository definition file pointing to Palette RPM Reposito
 Contents:
 
 ```
-          [palette-rpm]
-          name=Palette RPM
-          baseurl=https://rpm.palette-software.com/centos/dev
-          enabled=1
-          gpgcheck=0
+  [palette-rpm]
+  name=Palette RPM
+  baseurl=https://rpm.palette-software.com/centos/dev
+  enabled=1
+  gpgcheck=0
 ```
 
 Install palette-insight-server
+
 ```yum install palette-insight-server```
 
 ## Contribution
@@ -46,7 +48,61 @@ go build -v
 
 ### Testing
 
-```go test ./... -v``` 
+```go test ./... -v```
+
+## API
+
+### Health check
+
+The **PING** endpoint doesn't do anything else but answers to requests with a PONG message so that very basic health checks can be performed (like AWS monitoring)
+
+
+| Param    | Value        |
+|----------|--------------|
+| url      | /api/v1/ping |
+| method   | GET          |
+| params   | -            |
+| response | `PONG`       |
+
+### License check
+
+License check is disabled and as such obsolete now. However it is left in the system for easier maintainability and for the possibility to add it back is someone needs that.
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/license |
+| method   | GET             |
+| params   | The license key in Authorization header in `Token 1234` format             |
+| response | The license object: `{ Trial bool, ExpirationTime string, Id int64, Stage string, Owner string, Name string, Valid bool}`     |
+
+
+### Agent auto-update
+
+Palette Insight Agents are capable of updating themself when a new version of their installer is added to the Palette Insight Server. This is managed through this endpoint
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/agent/version |
+| method   | GET             |
+| params   |  |
+| response | 404 if no agent was ever added to the server. 200 otherwise with version data: `{Version: {Major int, Minor int, Patch int}, Product string, Md5 string, Url string }`      |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/agent/{download_url} |
+| method   | GET             |
+| params   |  |
+| response | The installer file for the new Palette Insight Agent    |
+
+### Agent config change
+
+
+
+### Agent commands
+
+### File upload
+
+
 
 ## Configuration
 
