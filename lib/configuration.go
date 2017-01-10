@@ -20,11 +20,6 @@ type InsightWebServiceConfig struct {
 	TlsKey, TlsCert                     string
 	UseTls                              bool
 
-	// can be either 'json' or 'text'. Defaults to text
-	LogFormat string
-
-	LogLevel string
-
 	// The archive path for the serverlogs
 	ServerlogsArchivePath string
 
@@ -47,7 +42,7 @@ func getCurrentPath() string {
 func ParseOptions() InsightWebServiceConfig {
 
 	var licenseKey, uploadBasePath, maxIdDirectory, licensesDirectory, updatesDirectory string
-	var bindAddress, archivePath, logFormat, logLevel string
+	var bindAddress, archivePath string
 	var bindPort int
 
 	// License info
@@ -78,9 +73,6 @@ func ParseOptions() InsightWebServiceConfig {
 		filepath.Join(getCurrentPath(), "updates"),
 		"The directory where the update files for the agent are stored.",
 	)
-
-	flag.StringVar(&logFormat, "logformat", "text", "The log format to use ('json' or 'text' or 'color')")
-	flag.StringVar(&logLevel, "loglevel", "info", "The log level to use ('info', 'warn' or 'debug')")
 
 	flag.StringVar(&archivePath, "archive_path", "", "The directory where the uploaded serverlogs are archived.")
 	flag.IntVar(&bindPort, "port", 9000, "The port the server is binding itself to")
@@ -132,9 +124,6 @@ func ParseOptions() InsightWebServiceConfig {
 		UseTls:  useTls,
 		TlsCert: tlsCert,
 		TlsKey:  tlsKey,
-
-		LogFormat: logFormat,
-		LogLevel:  logLevel,
 
 		ServerlogsArchivePath: archivePath,
 		UseOldFormatFilename:  useOldFormatFilename,

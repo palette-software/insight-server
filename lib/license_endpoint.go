@@ -1,17 +1,14 @@
 package insight_server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	log "github.com/palette-software/insight-tester/common/logging"
 )
 
-const licensingUrl = "https://licensing.palette-software.com/license"
 const milliseclessServerForm = "2006-01-02 15:04:05"
 const serverForm = "2006-01-02 15:04:05.000000"
 
@@ -28,35 +25,16 @@ type LicenseData struct {
 	Valid          bool   `json:"valid"`
 }
 
+// Cleared in way of open-sourcing
 func UpdateLicense(licenseKey string) *LicenseData {
-	data := url.Values{}
-	// System-id is a required but not used parameter in licensing server
-	data.Add("system-id", "1")
-	data.Set("license-key", licenseKey)
-
-	response, err := http.PostForm(licensingUrl, data)
-	if err != nil {
-		log.Errorf("Posting license failed: license=%s err=%s", licenseKey, err)
-		return nil
-	}
-
-	if response.StatusCode != http.StatusOK {
-		log.Errorf("Updating license failed: license=%s status=%d err=%s", licenseKey, response.StatusCode, err)
-	}
-
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(response.Body)
-
 	var license LicenseData
-	err = json.Unmarshal(buf.Bytes(), &license)
-	if err != nil {
-		log.Errorf("License update response is not a valid JSON: license=%s err=%s", licenseKey, err)
-		return nil
-	}
-
-	// The licensing server response does not contain the license owner, but currently it should be
-	// the same as the license name
-	license.Owner = license.Name
+	license.ExpirationTime = "9999-12-31 23:59:59.999999"
+	license.Trial = false
+	license.Id = 0
+	license.Stage = "Free"
+	license.Owner = "none"
+	license.Name = "none"
+	license.Valid = true
 
 	return &license
 }

@@ -2,19 +2,176 @@
 
 # Palette Insight Webservice
 
-## Starting the webservice
+## What is Palette Insight Server?
 
-```bash
-go get
-go build && ./insight-server
+This component is responsible for receiving data from the agents on the Tableau Servers and storing that data in a format that is compatible with the database importing component.
+
+# How do I set up Palette Insight Server
+
+## Prerequisites
+
+  * Operating system: CentOS/RHEL 6.5+
+  * The server is using [Supervisord](http://supervisord.org/installing.html#installing-to-a-system-with-internet-access) for daemonizitation.
+
+## Installation
+
+### From rpm.palette-software.com
+
+Make sure there is a repository definition file pointing to Palette RPM Repository:
+
+```
+/etc/yum.repos.d/palette.repo
 ```
 
-or on Windows:
+Contents:
 
 ```
-go build
-insight-server.exe
+  [palette-rpm]
+  name=Palette RPM
+  baseurl=https://rpm.palette-software.com/centos/dev
+  enabled=1
+  gpgcheck=0
 ```
+
+Install palette-insight-server
+
+```yum install palette-insight-server```
+
+## Contribution
+
+### Building locally
+
+```
+go get ./...
+go build -v
+```
+
+### Testing
+
+```
+go get -t ./...
+go test ./... -v
+```
+
+## API
+
+### Health check
+
+The **PING** endpoint doesn't do anything else but answers to requests with a PONG message so that very basic health checks can be performed (like AWS monitoring)
+
+
+| Param    | Value        |
+|----------|--------------|
+| url      | /api/v1/ping |
+| method   | GET          |
+| headers  |  -           |
+| params   | -            |
+| response | `PONG`       |
+
+### License check
+
+License check is disabled and as such obsolete now. However it is left in the system for easier maintainability and for the possibility to add it back if someone needs that.
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/license |
+| method   | GET             |
+| headers  | The license key in Authorization header in `Token 1234` format                       |
+| params   | - |
+| response | The license object: `{ Trial bool, ExpirationTime string, Id int64, Stage string, Owner string, Name string, Valid bool}`     |
+
+
+### Agent auto-update
+
+[Palette Insight Agents](https://github.com/palette-software/PaletteInsightAgent) are capable of updating themselves when a new version of their installer is added to the Palette Insight Server. This is managed through this endpoint
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/agent/version |
+| method   | GET             |
+| headers  |  -           |
+| params   | - |
+| response | 404 if no agent was ever added to the server. 200 otherwise with version data: `{Version: {Major int, Minor int, Patch int}, Product string, Md5 string, Url string }`      |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/agent/{download_url} |
+| method   | GET             |
+| headers  |  -           |
+| params   | - |
+| response | The installer file for the new [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent)    |
+
+### Agent config change
+
+Insight servers make it possible to change the [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) configurations. This is done by these endpoints.
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/config |
+| method   | GET             |
+| headers  |  -           |
+| params   | hostname |
+| response | The config.yml file on the server for the given host    |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/config |
+| method   | PUT             |
+| headers  |  -           |
+| params   | hostname, uplodfile |
+| response | -    |
+
+### Agent commands
+
+Insight servers can make [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) do tasks. These tasks can be START, STOP, PUT_CONFIG and GET_CONFIG. If there are multiple agents all of them receive the commands. It is not yet possible to have commands only for a given host.
+
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/command |
+| method   | GET             |
+| headers  |  -           |
+| params   | - |
+| response | The command object: `{Ts: string, Cmd: string}`    |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/command |
+| method   | PUT             |
+| headers  |  -           |
+| params   | The command object `{Ts: string, Cmd: string}` |
+| response | -    |
+
+### Agent list
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/agents |
+| method   | GET             |
+| headers  |  -           |
+| params   | - |
+| response | The agent list in a map of hostname => lastContact format. ie: {host1: "2006-01-02T15:04:05Z07:00", host2: "2006-01-02T15:04:05Z07:00"} |
+
+### File upload
+
+The data gathered by the [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) is sent to the Palette Insight Server as csv files. Tableau log data (serverlogs) is further processed by Insight Server, some additinal information is parsed and the timestamps are converted to UTC but other than that the Insight Server only stores the csv files on the filesystem and they will be imported by another component.
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /upload         |
+| method   | GET             |
+| headers  | The license key in Authorization header in `Token 1234` format                       |
+| params   |  |
+| response | |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /maxid          |
+| method   | GET             |
+| headers  | The license key in Authorization header in `Token 1234` format                       |
+| params   |  |
+| response |     |
+
 
 ## Configuration
 
@@ -42,8 +199,8 @@ The environment variables and their corresponding configuration file values and 
 To get a list of command line options, use the ```--help``` switch. On my machine (windows) this results in:
 
 ```
-./server.exe --help
-Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server\server.exe:
+./insight-server.exe --help
+Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server\insight-server.exe:
   -archive_path="": The directory where the uploaded serverlogs are archived.
   -bind_address="": The address to bind to. Leave empty for default .
   -cert="cert.pem": The TLS certificate file to use when tls is set.
@@ -61,7 +218,7 @@ Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server
 
 ## Sample configuration file
 
-A sample configuration file can be found in the ```server``` folder as ```sample.config```
+A sample configuration file can be found in ```sample.config```
 
 ```
 # PATHS
@@ -72,9 +229,6 @@ upload_path=/data/insight-server/uploads
 
 # The path where the maxid files are stored
 maxid_path=/data/insight-server/maxids
-
-# The path where the licenses are stored
-licenses_path=/data/insight-server/licenses
 
 # The directory where the update files for the agent are stored.
 updates_path=/data/insight-server/updates
@@ -101,15 +255,6 @@ port=9443
 #cert=/data/insight-server/ssl-certs/star_palette-software_net.crt
 #key=/data/insight-server/ssl-certs/server.key
 
-# LOGGING
-# =======
-
-# Sets the minimal log level. Can be 'debug', 'info', 'warn', 'error'
-loglevel=info
-
-# Sets the output format for logs. Can be 'json', 'text', 'color' (the last one
-# force color output for windows terminals
-logformat=json
 ```
 
 This configuration file gets installed as default when using the RPM installer.
@@ -121,208 +266,4 @@ To allow the service to listen to port 443 without sudo privileges an IpTables f
 ```bash
 iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 9443
 ```
-
-## MaxIds
-
-For streaming tables, the webservice provides an endpoint and upload integration:
-
-* the agent sends a ```maxid``` field with the streaming table CSV files, which designates the last record sent by the agent from
-  that table
-
-```
-POST /upload?pkg=public&table=http_requests&maxid=abcdef123
-```
-
-* later the agent can retrieve this ```maxid``` for the specific table by:
-
-```
-GET /maxid?table=http_requests
-```
- 
-* ```maxid``` must be a string
-
-
-The maxids are stored in the directory set by the ```maxid_path`` flag.
-
-## Checking if the service is running
-
-```
-$ curl http://localhost:9000/
-PONG
-```
-
---
-
-## Autoupdate service endpoints
-
-Insight Agent installer package is put to the updates folder by it's RPM and Insight Server serves the Insight Agent file through its update endpoint.
-
-## Assets
-
-The server uses [go-bindata](https://github.com/jteeuwen/go-bindata) to package its assets into
-a go source file so that the server itself has no dependencies on runtime data.
-
-To install it:
-
-```
-go get -u github.com/jteeuwen/go-bindata/...
-```
-
-(dont forget the three dots from the end).
-
-Later running
-
-```
-go generate -x github.com/palette-software/insight-server
-```
-
-should update the asset package used by the server for future builds. (The ```-x``` switch simply displays the commands
-ran by ```go generate```).
-
-Important note: please check in the generated sources into the git tree, because:
-
-
-> There is one thing you need to be aware of when using go generate. The tool isn’t
-> integrated with go get, as one might expect. Because of that, your project will only
-> be “go gettable” if you check in all sources created by go generate.
-
-# RPMs
-
-## Install steps using the palette RPM repo
-
-### Install
-
-These steps assume that the data directory is ```/data``` (as recommended by the Palette Guidelines).
-
-```bash
-sudo yum install -y  wget
-
-# Add the EPEL Repo (for Nginx and Supervisord)
-wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
-sudo rpm -ivh epel-release-7-5.noarch.rpm
-
-
-# Add the repo
-sudo yum-config-manager --add-repo=https://rpm.palette-software.com/redhat/
-
-# Now we need to disable GPG checks for this repo. Edit the repo file with:
-sudo vi /etc/yum.repos.d/rpm.palette.software.com_redhat_.repo_
-
-# Add this line to the end of the repo file (without the comment)
-# gpgcheck=0
-
-
-# Install the server + nginx + supervisord + certs
-sudo yum install -y palette-insight-server
-
-
-# Configure the setup
-# -------------------
-
-# Create the server directory and the license subdir, so we can put the license there
-sudo mkdir -p /data/insight-server/licenses
-
-
-
-
-# Update configuration with the correct paths
-vim /etc/palette-insight-server/server.config
-
-# Add the license
-sudo vim /data/insight-server/licenses/<LICENSE NEV>.license
-
-# Change the owner
-sudo chown -R insight:insight /data/insight-server
-
-# Start the supervisor & nginx
-sudo service supervisord start
-sudo service nginx start
-
-# Start nginx on server start
-sudo /sbin/chkconfig nginx on
-
-# Start supervisord on server start
-sudo /sbin/chkconfig supervisord on
-```
-
-## Building the RPMs
-
-(A working CentOS/RedHat installation is recommended, but not required).
-
-Building the rpms of course needs the ```rpm``` & ```rpm-build``` tools
-on the build system.
-
-To build the certificates package, you need to download the certificates
-you wish to include and extract them to the
-
-```
-rpm-build/etc/palette-insight-certs
-```
-
-folder as ```cert.crt``` and ```cert.key```
-
-
-After the server has been built with ```go build``` you can build the
-rpms with:
-
-```bash
-cd rpm-build
-# Build the certificates package
-./build-cert-rpm.sh
-# Build the server package
-./build-rpm.sh
-```
-
-(if the cert package is already built, you can skip this step)
-
-
-## Tests
-
-```bash
-$ go test
-PASS
-ok      github.com/palette-software/insight-server      0.064s
-```
-
-
-## gofmt pre-commit hook:
-
-Go has a formatting tool that formats all code to the official go coding standard, called ```gofmt```. From the [go documentation](https://github.com/golang/go/wiki/CodeReviewComments#gofmt):
-
-> Run gofmt on your code to automatically fix the majority of mechanical style issues. Almost all Go code in the wild uses gofmt. The rest of this document addresses non-mechanical style points.
->
-> An alternative is to use goimports, a superset of gofmt which additionally adds (and removes) import lines as necessary.
-
-To use this tool before each commit, create the following ```.git/hooks/pre-commit``` file:
-
-```bash
-#!/bin/sh
-# Copyright 2012 The Go Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style
-# license that can be found in the LICENSE file.
-
-# git gofmt pre-commit hook
-#
-# To use, store as .git/hooks/pre-commit inside your repository and make sure
-# it has execute permissions.
-#
-# This script does not handle file names that contain spaces.
-
-gofiles=$(git diff --cached --name-only --diff-filter=ACM | grep '.go$')
-[ -z "$gofiles" ] && exit 0
-
-unformatted=$(gofmt -l $gofiles)
-[ -z "$unformatted" ] && exit 0
-
-# Some files are not gofmt'd. Print message and fail.
-
-echo >&2 "Go files must be formatted with gofmt. Please run:"
-for fn in $unformatted; do
-	echo >&2 "  gofmt -w $PWD/$fn"
-done
-
-exit 1
-```
-
-
 
