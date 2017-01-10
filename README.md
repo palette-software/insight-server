@@ -61,6 +61,7 @@ The **PING** endpoint doesn't do anything else but answers to requests with a PO
 |----------|--------------|
 | url      | /api/v1/ping |
 | method   | GET          |
+| headers  |  -           |
 | params   | -            |
 | response | `PONG`       |
 
@@ -72,7 +73,8 @@ License check is disabled and as such obsolete now. However it is left in the sy
 |----------|-----------------|
 | url      | /api/v1/license |
 | method   | GET             |
-| params   | The license key in Authorization header in `Token 1234` format             |
+| headers  | The license key in Authorization header in `Token 1234` format                       |
+| params   | - |
 | response | The license object: `{ Trial bool, ExpirationTime string, Id int64, Stage string, Owner string, Name string, Valid bool}`     |
 
 
@@ -84,24 +86,87 @@ Palette Insight Agents are capable of updating themself when a new version of th
 |----------|-----------------|
 | url      | /api/v1/agent/version |
 | method   | GET             |
-| params   |  |
+| headers  |  -           |
+| params   | - |
 | response | 404 if no agent was ever added to the server. 200 otherwise with version data: `{Version: {Major int, Minor int, Patch int}, Product string, Md5 string, Url string }`      |
 
 | Param    | Value           |
 |----------|-----------------|
 | url      | /api/v1/agent/{download_url} |
 | method   | GET             |
-| params   |  |
+| headers  |  -           |
+| params   | - |
 | response | The installer file for the new Palette Insight Agent    |
 
 ### Agent config change
 
+Insight servers make it possible to change the Palette Insight Agent configurations. This is done by these endpoints.
 
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/config |
+| method   | GET             |
+| headers  |  -           |
+| params   | hostname |
+| response | The config.yml file on the server for the given host    |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/config |
+| method   | PUT             |
+| headers  |  -           |
+| params   | hostname, uplodfile |
+| response | -    |
 
 ### Agent commands
 
+Insight servers can make Insight Agents do tasks. These tasks can be START, STOP, PUT_CONFIG and GET_CONFIG. If there are multiple agents all of them receive the commands. It is not yet possible to have commands only for a given host.
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/command |
+| method   | GET             |
+| headers  |  -           |
+| params   | - |
+| response | The command object: `{Ts: string, Cmd: string}`    |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/command |
+| method   | PUT             |
+| headers  |  -           |
+| params   | The command object `{Ts: string, Cmd: string}` |
+| response | -    |
+
+### Agent list
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /api/v1/agents |
+| method   | GET             |
+| headers  |  -           |
+| params   | - |
+| response | The agent list in a map of hostname => lastContact format. ie: {host1: "2006-01-02T15:04:05Z07:00", host2: "2006-01-02T15:04:05Z07:00"} |
+
 ### File upload
 
+The data gathered by the Palette Insight Agents is sent to the Palette Insight Server as csv files. Tableau log data (serverlogs) is further processed by Insight Server, some additinal information is parsed and the timestamps are converted to UTC but other than that the Insight Server only stores the csv files on the filesystem and they will be imported by another component.
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /upload         |
+| method   | GET             |
+| headers  | The license key in Authorization header in `Token 1234` format                       |
+| params   |  |
+| response | |
+
+| Param    | Value           |
+|----------|-----------------|
+| url      | /maxid          |
+| method   | GET             |
+| headers  | The license key in Authorization header in `Token 1234` format                       |
+| params   |  |
+| response |     |
 
 
 ## Configuration
