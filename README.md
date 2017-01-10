@@ -50,7 +50,8 @@ go build -v
 
 ```
 go get -t ./...
-go test ./... -v```
+go test ./... -v
+```
 
 ## API
 
