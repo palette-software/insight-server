@@ -48,7 +48,9 @@ go build -v
 
 ### Testing
 
-```go test ./... -v```
+```
+go get -t ./...
+go test ./... -v```
 
 ## API
 
