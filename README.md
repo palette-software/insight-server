@@ -2,7 +2,7 @@
 
 # Palette Insight Webservice
 
-## What is Palette Insight Server
+## What is Palette Insight Server?
 
 This component is responsible for receiving data from the agents on the Tableau Servers and storing that data in a format that is compatible with the database importing component.
 
@@ -70,7 +70,7 @@ The **PING** endpoint doesn't do anything else but answers to requests with a PO
 
 ### License check
 
-License check is disabled and as such obsolete now. However it is left in the system for easier maintainability and for the possibility to add it back is someone needs that.
+License check is disabled and as such obsolete now. However it is left in the system for easier maintainability and for the possibility to add it back if someone needs that.
 
 | Param    | Value           |
 |----------|-----------------|
@@ -83,7 +83,7 @@ License check is disabled and as such obsolete now. However it is left in the sy
 
 ### Agent auto-update
 
-Palette Insight Agents are capable of updating themself when a new version of their installer is added to the Palette Insight Server. This is managed through this endpoint
+[Palette Insight Agents](https://github.com/palette-software/PaletteInsightAgent) are capable of updating themselves when a new version of their installer is added to the Palette Insight Server. This is managed through this endpoint
 
 | Param    | Value           |
 |----------|-----------------|
@@ -99,11 +99,11 @@ Palette Insight Agents are capable of updating themself when a new version of th
 | method   | GET             |
 | headers  |  -           |
 | params   | - |
-| response | The installer file for the new Palette Insight Agent    |
+| response | The installer file for the new [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent)    |
 
 ### Agent config change
 
-Insight servers make it possible to change the Palette Insight Agent configurations. This is done by these endpoints.
+Insight servers make it possible to change the [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) configurations. This is done by these endpoints.
 
 | Param    | Value           |
 |----------|-----------------|
@@ -123,7 +123,8 @@ Insight servers make it possible to change the Palette Insight Agent configurati
 
 ### Agent commands
 
-Insight servers can make Insight Agents do tasks. These tasks can be START, STOP, PUT_CONFIG and GET_CONFIG. If there are multiple agents all of them receive the commands. It is not yet possible to have commands only for a given host.
+Insight servers can make [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) do tasks. These tasks can be START, STOP, PUT_CONFIG and GET_CONFIG. If there are multiple agents all of them receive the commands. It is not yet possible to have commands only for a given host.
+
 
 | Param    | Value           |
 |----------|-----------------|
@@ -153,7 +154,7 @@ Insight servers can make Insight Agents do tasks. These tasks can be START, STOP
 
 ### File upload
 
-The data gathered by the Palette Insight Agents is sent to the Palette Insight Server as csv files. Tableau log data (serverlogs) is further processed by Insight Server, some additinal information is parsed and the timestamps are converted to UTC but other than that the Insight Server only stores the csv files on the filesystem and they will be imported by another component.
+The data gathered by the [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) is sent to the Palette Insight Server as csv files. Tableau log data (serverlogs) is further processed by Insight Server, some additinal information is parsed and the timestamps are converted to UTC but other than that the Insight Server only stores the csv files on the filesystem and they will be imported by another component.
 
 | Param    | Value           |
 |----------|-----------------|
@@ -199,7 +200,7 @@ To get a list of command line options, use the ```--help``` switch. On my machin
 
 ```
 ./insight-server.exe --help
-Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server\insigh-server.exe:
+Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server\insight-server.exe:
   -archive_path="": The directory where the uploaded serverlogs are archived.
   -bind_address="": The address to bind to. Leave empty for default .
   -cert="cert.pem": The TLS certificate file to use when tls is set.
