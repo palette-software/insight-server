@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strconv"
 
-	log "github.com/palette-software/insight-tester/common/logging"
+	log "github.com/palette-software/go-log-targets"
 )
 
 // The base structure for a SemVer like version

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	log "github.com/palette-software/insight-tester/common/logging"
+	log "github.com/palette-software/go-log-targets"
 )
 
 // An agent command with a timestamp
