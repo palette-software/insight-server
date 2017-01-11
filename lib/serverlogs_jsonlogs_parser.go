@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/palette-software/insight-tester/common/logging"
+	log "github.com/palette-software/go-log-targets"
 )
 
 // JSON Logs

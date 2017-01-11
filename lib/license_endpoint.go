@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/palette-software/insight-tester/common/logging"
+	log "github.com/palette-software/go-log-targets"
 )
 
 const milliseclessServerForm = "2006-01-02 15:04:05"
