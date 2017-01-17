@@ -1,21 +1,21 @@
 [![Build Status](https://travis-ci.com/palette-software/insight-server.svg?token=qWG5FJDvsjLrsJpXgxSJ&branch=master)](https://travis-ci.com/palette-software/insight-server)
 
-# Palette Insight Webservice
+# Palette Insight Server
 
 ## What is Palette Insight Server?
 
 This component is responsible for receiving data from the agents on the Tableau Servers and storing that data in a format that is compatible with the database importing component.
 
-# How do I set up Palette Insight Server
+## How do I set up Palette Insight Server?
 
-## Prerequisites
+### Prerequisites
 
   * Operating system: CentOS/RHEL 6.5+
   * The server is using [Supervisord](http://supervisord.org/installing.html#installing-to-a-system-with-internet-access) for daemonizitation.
 
-## Installation
+### Installation
 
-### From rpm.palette-software.com
+#### From rpm.palette-software.com
 
 Make sure there is a repository definition file pointing to Palette RPM Repository:
 
@@ -25,7 +25,7 @@ Make sure there is a repository definition file pointing to Palette RPM Reposito
 
 Contents:
 
-```
+```ini
   [palette-rpm]
   name=Palette RPM
   baseurl=https://rpm.palette-software.com/centos/dev
@@ -35,20 +35,22 @@ Contents:
 
 Install palette-insight-server
 
-```yum install palette-insight-server```
+```
+yum install palette-insight-server
+```
 
-## Contribution
+## How can I test-drive Palette Insight Server?
 
 ### Building locally
 
-```
+```bash
 go get ./...
 go build -v
 ```
 
 ### Testing
 
-```
+```bash
 go get -t ./...
 go test ./... -v
 ```
@@ -220,7 +222,7 @@ Usage of C:\Users\Miles\go\src\github.com\palette-software\insight-server\server
 
 A sample configuration file can be found in ```sample.config```
 
-```
+```ini
 # PATHS
 # =====
 
