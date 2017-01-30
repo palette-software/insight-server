@@ -160,14 +160,14 @@ Insight servers can make [Palette Insight Agent](https://github.com/palette-soft
 
 ### File upload
 
-The data gathered by the [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) is sent to the Palette Insight Server as csv files. Tableau log data (serverlogs) is further processed by Insight Server, some additinal information is parsed and the timestamps are converted to UTC but other than that the Insight Server only stores the csv files on the filesystem and they will be imported by another component.
+The data gathered by the [Palette Insight Agent](https://github.com/palette-software/PaletteInsightAgent) is sent to the Palette Insight Server as csv files. Tableau log data (serverlogs) is further processed by Insight Server, some additional information is parsed and the timestamps are converted to UTC but other than that the Insight Server only stores the csv files on the filesystem and they will be imported by another component.
 
 | Param    | Value           |
 |----------|-----------------|
 | url      | /upload         |
 | method   | GET             |
 | headers  | The license key in Authorization header in `Token 1234` format                       |
-| params   |  |
+| params   | pkg, host (hostname of agent), tz (timezone of agent), compression (must be gzip) |
 | response | |
 
 | Param    | Value           |
