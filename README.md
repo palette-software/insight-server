@@ -1,5 +1,9 @@
 [![Build Status](https://travis-ci.com/palette-software/insight-server.svg?token=qWG5FJDvsjLrsJpXgxSJ&branch=master)](https://travis-ci.com/palette-software/insight-server)
 
+# Palette Insight Architecture
+
+![GitHub Logo](https://github.com/palette-software/palette-insight/blob/master/insight-system-diagram.png?raw=true)
+
 # Palette Insight Server
 
 ## What is Palette Insight Server?
