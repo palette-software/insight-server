@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/palette-software/insight-server.svg?token=qWG5FJDvsjLrsJpXgxSJ&branch=master)](https://travis-ci.com/palette-software/insight-server)
+[![Build Status](https://travis-ci.org/palette-software/insight-server.svg?branch=master)](https://travis-ci.org/palette-software/insight-server)
 
 # Palette Insight Architecture
 
