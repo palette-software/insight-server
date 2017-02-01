@@ -27,9 +27,6 @@ addons:
 
 before_install:
   # add the bindata generator
-  - cp .netrc ~
-  - chmod 600 ~/.netrc
-  - chmod 600 .netrc
   - go get -u github.com/jteeuwen/go-bindata/...
 
 
