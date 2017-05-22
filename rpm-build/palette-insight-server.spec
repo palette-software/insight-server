@@ -60,7 +60,9 @@ Requires: palette-supervisor
 %pre
 # Override the SELinux flag that disallows httpd to connect to the go process
 # https://stackoverflow.com/questions/23948527/13-permission-denied-while-connecting-to-upstreamnginx
-setsebool httpd_can_network_connect on -P
+
+# Do not fail in non SELinux environment
+setsebool httpd_can_network_connect on -P || true
 
 %post
 # Start nginx on server start
