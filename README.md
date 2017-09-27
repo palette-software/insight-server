@@ -19,7 +19,7 @@ This component is responsible for receiving data from the agents on the Tableau 
 
 ### Installation
 
-#### From rpm.palette-software.com
+#### From palette-rpm.brilliant-data.net
 
 Make sure there is a repository definition file pointing to Palette RPM Repository:
 
@@ -32,7 +32,7 @@ Contents:
 ```ini
   [palette-rpm]
   name=Palette RPM
-  baseurl=https://rpm.palette-software.com/centos/dev
+  baseurl=https://palette-rpm.brilliant-data.net/centos/dev
   enabled=1
   gpgcheck=0
 ```
