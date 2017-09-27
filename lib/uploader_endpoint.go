@@ -66,8 +66,8 @@ func (u *UploadMeta) GetOutputFilename(baseDir string) string {
 			SanitizeName(u.TableName),
 			// the current time as part of the 2nd timestamp
 			dateUtc.Format("2006-01-02--15-04-05"),
-			u.PartIdx,
 			u.SeqIdx,
+			u.PartIdx,
 			// copy the timestamp to the latter place
 			dateUtc.Format("01-02--15-04"),
 		)
@@ -79,8 +79,8 @@ func (u *UploadMeta) GetOutputFilename(baseDir string) string {
 			SanitizeName(u.TableName),
 			// the current time as part of the 2nd timestamp
 			u.Date.UTC().Format("2006-01-02--15-04-05"),
-			u.PartIdx,
 			u.SeqIdx,
+			u.PartIdx,
 		)
 	}
 	//
