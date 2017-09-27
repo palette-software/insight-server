@@ -102,7 +102,7 @@ func (u *UploadMeta) GetOutputGzippedWriter(baseDir, tmpDir string) (*GzippedFil
 const (
 	// The maximum size of the message we are willing to parse
 	// when dealing with multipart messages
-	multipartMaxSize = 128 * 1024 * 1024
+	multipartMaxSize = 2 * 1024 * 1024 * 1024
 
 	// The directory permissions to use when creating a new directory
 	OUTPUT_DEFAULT_DIRMODE = 0755
