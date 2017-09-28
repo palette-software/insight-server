@@ -10,4 +10,5 @@ sshpass -e scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r rp
 export DEPLOY_CMD="createrepo ${DEPLOY_PATH}/"
 sshpass -e ssh  -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST $DEPLOY_CMD
 
-./release-to-github.sh
+# Disable upload to Github releases, because we only need RPM packages at the moment
+#./release-to-github.sh
