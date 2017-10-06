@@ -13,5 +13,5 @@ LICENSE_KEY=$1
 # Replace the license key in Insight Server's config file
 sed -i 's/^license_key=.*$/license_key='${LICENSE_KEY}'/m' /etc/palette-insight-server/server.config
 
-# Restart Insight Server
+echo "License key set. Restarting Insight Server service..."
 supervisorctl restart palette-insight-server
