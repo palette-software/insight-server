@@ -21,6 +21,7 @@ rpm-build/_build/**/*.rpm
 *.swp
 palette-insight-reparse/palette-insight-reparse*
 *.orig
+.vscode
 
 # Build executable
 insight-server

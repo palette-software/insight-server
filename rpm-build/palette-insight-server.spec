@@ -112,6 +112,7 @@ mkdir -p %{buildroot}/data/insight-server/licenses
 %attr(-,insight, insight) %dir /data/insight-server
 %dir /var/log/palette-insight-server
 
+/etc/palette-insight-server/set-license-key.sh
 /etc/profile.d/palette_http_proxy.sh
 
 %config /etc/palette-insight-server/server.config
