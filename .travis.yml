@@ -2,14 +2,14 @@ sudo: required
 
 language: go
 go:
-- 1.6.3
+- "1.11"
 
 env:
   global:
       - DEPLOY_HOST=palette-rpm.brilliant-data.net
       - DEPLOY_PATH=/var/palette-rpm-repo
       - DEPLOY_USER=palette-rpm
-      - RPM_VERSION=2.1.$TRAVIS_BUILD_NUMBER
+      - RPM_VERSION=2.2.$TRAVIS_BUILD_NUMBER
       - PRODUCT_VERSION=v$RPM_VERSION
 
       # travis encrypt DEPLOY_PASS=...
